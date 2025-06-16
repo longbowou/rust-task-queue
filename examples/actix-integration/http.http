@@ -1,0 +1,111 @@
+### Test scan paths functionality with various task types
+### Start the server with: cargo run --example actix-integration
+### Start workers with: cargo run --bin task-worker --example actix-integration
+
+### Health check (auto-configured route)
+GET http://localhost:8000/rust-task-queue/health
+
+### Get registered tasks (should show all auto-discovered tasks)
+GET http://localhost:8000/rust-task-queue/registered
+
+### Get metrics
+GET http://localhost:8000/rust-task-queue/metrics
+
+### Enqueue original email task
+POST http://localhost:8000/email
+Content-Type: application/json
+
+{
+  "to": "original@example.com",
+  "subject": "Test from original tasks.rs"
+}
+
+### Schedule email task
+POST http://localhost:8000/schedule-email
+Content-Type: application/json
+
+{
+  "email": {
+    "to": "original@example.com",
+    "subject": "Test from original tasks.rs"
+  },
+  "delay_seconds": 5
+}
+
+### Enqueue original notification task
+POST http://localhost:8000/notification
+Content-Type: application/json
+
+{
+  "user_id": "user123",
+  "message": "Original notification",
+  "notification_type": "push"
+}
+
+### Enqueue original data processing task
+POST http://localhost:8000/data-processing
+Content-Type: application/json
+
+{
+  "data_id": "data123",
+  "operation": "transform"
+}
+
+### ========== Modular Tasks (from tasks/ directory) ==========
+
+### Enqueue Slack notification (modular)
+POST http://localhost:8000/slack-notification
+Content-Type: application/json
+
+{
+  "channel": "general",
+  "message": "Hello from modular tasks!",
+  "username": "ScanPathsBot"
+}
+
+### Enqueue SMS (with custom registration name "sms_notification")
+POST http://localhost:8000/sms
+Content-Type: application/json
+
+{
+  "phone_number": "+1234567890",
+  "message": "SMS from scan paths demo",
+  "priority": 1
+}
+
+### Enqueue Analytics task (modular)
+POST http://localhost:8000/analytics
+Content-Type: application/json
+
+{
+  "event_name": "scan_paths_demo",
+  "user_id": "demo_user",
+  "properties": {
+    "source": "scan_paths_test",
+    "demo": true
+  },
+  "session_id": "session_123"
+}
+
+### Enqueue ML Training task (with custom registration name "ml_training")
+POST http://localhost:8000/ml-training
+Content-Type: application/json
+
+{
+  "model_name": "scan_paths_model",
+  "dataset_path": "/data/demo_dataset.csv",
+  "epochs": 10,
+  "learning_rate": 0.001
+}
+
+### Schedule an email task (delay)
+POST http://localhost:8000/schedule-email
+Content-Type: application/json
+
+{
+  "email_task": {
+    "to": "scheduled@example.com",
+    "subject": "Scheduled email via scan paths"
+  },
+  "delay_seconds": 5
+}

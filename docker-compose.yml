@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    command: watchexec -e rs -r cargo run --bin task-worker
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./:/app
+

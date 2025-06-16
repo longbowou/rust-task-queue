@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    command: watchexec -e rs -r cargo run --color=always --bin web-server
+    ports:
+      - "8000:8000"
+    working_dir: /app/examples/actix-integration
+    volumes:
+      - ../../:/app
+    depends_on:
+      - redis
+      - worker
+
+  worker:
+    build: .
+    command: watchexec -e rs -r cargo run --color=always --bin task-worker
+    working_dir: /app/examples/actix-integration
+    volumes:
+      - ../../:/app
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+    restart: unless-stopped
+
+volumes:
+  redis:
+

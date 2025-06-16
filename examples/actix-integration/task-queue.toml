@@ -1,0 +1,33 @@
+# Simple Task App Configuration with Dynamic Loading
+# This demonstrates how to configure the rust-task-queue for both auto-registration and dynamic loading
+
+[redis]
+url = "redis://redis:6379"
+pool_size = 5
+
+[workers]
+initial_count = 2
+max_concurrent_tasks = 10
+
+[autoscaler]
+enabled = true
+min_workers = 1
+max_workers = 10
+scale_up_threshold = 3.0
+scale_down_threshold = 1.0
+scale_up_cooldown = 30   # seconds
+scale_down_cooldown = 120  # seconds
+
+[auto_register]
+enabled = true
+
+[scheduler]
+enabled = true
+tick_interval = 5  # seconds
+
+# Actix Web integration settings
+[actix]
+auto_configure_routes = true
+route_prefix = "/rust-task-queue"
+enable_metrics = true
+enable_health_check = true 
