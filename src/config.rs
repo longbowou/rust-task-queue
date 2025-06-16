@@ -15,7 +15,9 @@ use std::path::Path;
 static GLOBAL_CONFIG: OnceCell<TaskQueueConfig> = OnceCell::new();
 
 /// Comprehensive task queue configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+#[derive(Default)]
 pub struct TaskQueueConfig {
     /// Redis connection configuration
     pub redis: RedisConfig,
@@ -106,19 +108,7 @@ pub struct ActixConfig {
     pub enable_health_check: bool,
 }
 
-impl Default for TaskQueueConfig {
-    fn default() -> Self {
-        Self {
-            redis: RedisConfig::default(),
-            workers: WorkerConfig::default(),
-            autoscaler: AutoScalerConfig::default(),
-            auto_register: AutoRegisterConfig::default(),
-            scheduler: SchedulerConfig::default(),
-            #[cfg(feature = "actix-integration")]
-            actix: ActixConfig::default(),
-        }
-    }
-}
+
 
 impl Default for RedisConfig {
     fn default() -> Self {
@@ -278,7 +268,7 @@ impl TaskQueueConfig {
 
     /// Initialize global configuration
     pub fn init_global() -> Result<&'static Self, TaskQueueError> {
-        GLOBAL_CONFIG.get_or_try_init(|| Self::load())
+        GLOBAL_CONFIG.get_or_try_init(Self::load)
     }
 
     /// Get global configuration (must be initialized first)
@@ -296,15 +286,14 @@ impl TaskQueueConfig {
 }
 
 /// Configuration builder for fluent API
+#[derive(Default)]
 pub struct ConfigBuilder {
     config: TaskQueueConfig,
 }
 
 impl ConfigBuilder {
     pub fn new() -> Self {
-        Self {
-            config: TaskQueueConfig::default(),
-        }
+        Self::default()
     }
 
     pub fn redis_url(mut self, url: impl Into<String>) -> Self {

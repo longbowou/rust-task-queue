@@ -148,6 +148,7 @@ pub mod prelude;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use serde::{Serialize, Deserialize};
 
 /// Main task queue framework
 #[derive(Clone)]
@@ -376,6 +377,88 @@ impl TaskQueue {
 
         #[cfg(feature = "tracing")]
         tracing::info!("All workers stopped");
+    }
+
+    /// Get comprehensive health status
+    pub async fn health_check(&self) -> Result<HealthStatus, TaskQueueError> {
+        let mut health = HealthStatus {
+            status: "healthy".to_string(),
+            timestamp: chrono::Utc::now(),
+            components: std::collections::HashMap::new(),
+        };
+
+        // Check Redis connection
+        match self.broker.pool.get().await {
+            Ok(mut conn) => {
+                match redis::cmd("PING").query_async::<_, String>(&mut *conn).await {
+                    Ok(_) => {
+                        health.components.insert("redis".to_string(), ComponentHealth {
+                            status: "healthy".to_string(),
+                            message: Some("Connection successful".to_string()),
+                        });
+                    }
+                    Err(e) => {
+                        health.status = "unhealthy".to_string();
+                        health.components.insert("redis".to_string(), ComponentHealth {
+                            status: "unhealthy".to_string(),
+                            message: Some(format!("Ping failed: {}", e)),
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                health.status = "unhealthy".to_string();
+                health.components.insert("redis".to_string(), ComponentHealth {
+                    status: "unhealthy".to_string(),
+                    message: Some(format!("Connection failed: {}", e)),
+                });
+            }
+        }
+
+        // Check workers
+        let worker_count = self.worker_count().await;
+        health.components.insert("workers".to_string(), ComponentHealth {
+            status: if worker_count > 0 { "healthy" } else { "warning" }.to_string(),
+            message: Some(format!("{} active workers", worker_count)),
+        });
+
+        // Check scheduler
+        let scheduler_running = self.scheduler_handle.read().await.is_some();
+        health.components.insert("scheduler".to_string(), ComponentHealth {
+            status: if scheduler_running { "healthy" } else { "stopped" }.to_string(),
+            message: Some(if scheduler_running { "Running" } else { "Stopped" }.to_string()),
+        });
+
+        Ok(health)
+    }
+
+    /// Get comprehensive metrics
+    pub async fn get_metrics(&self) -> Result<TaskQueueMetrics, TaskQueueError> {
+        let queues = ["default", "high_priority", "low_priority"];
+        let mut queue_metrics = Vec::new();
+        let mut total_pending = 0;
+        let mut total_processed = 0;
+        let mut total_failed = 0;
+
+        for queue in &queues {
+            let metrics = self.broker.get_queue_metrics(queue).await?;
+            total_pending += metrics.pending_tasks;
+            total_processed += metrics.processed_tasks;
+            total_failed += metrics.failed_tasks;
+            queue_metrics.push(metrics);
+        }
+
+        let autoscaler_metrics = self.autoscaler.collect_metrics().await?;
+
+        Ok(TaskQueueMetrics {
+            timestamp: chrono::Utc::now(),
+            total_pending_tasks: total_pending,
+            total_processed_tasks: total_processed,
+            total_failed_tasks: total_failed,
+            active_workers: autoscaler_metrics.active_workers,
+            tasks_per_worker: autoscaler_metrics.tasks_per_worker,
+            queue_metrics,
+        })
     }
 }
 
@@ -621,4 +704,30 @@ mod tests {
         assert_eq!(builder.config.workers.initial_count, 4);
         assert!(builder.config.scheduler.enabled);
     }
+}
+
+/// Health check status for monitoring
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthStatus {
+    pub status: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub components: std::collections::HashMap<String, ComponentHealth>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentHealth {
+    pub status: String,
+    pub message: Option<String>,
+}
+
+/// Comprehensive metrics for monitoring
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskQueueMetrics {
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub total_pending_tasks: i64,
+    pub total_processed_tasks: i64,
+    pub total_failed_tasks: i64,
+    pub active_workers: i64,
+    pub tasks_per_worker: f64,
+    pub queue_metrics: Vec<QueueMetrics>,
 }

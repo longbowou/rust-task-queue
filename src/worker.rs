@@ -143,7 +143,7 @@ impl Worker {
                         format!("\"{}\"", utf8_str)
                     } else if let Ok(msgpack_value) = rmp_serde::from_slice::<serde_json::Value>(&result) {
                         // Try to deserialize as MessagePack and display as JSON for readability
-                        format!("{}", msgpack_value.to_string())
+                        msgpack_value.to_string()
                     } else {
                         // Fallback to hex representation for better readability
                         format!("({} bytes) 0x{}", result.len(), hex::encode(&result[..std::cmp::min(50, result.len())]))

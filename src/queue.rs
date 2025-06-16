@@ -25,6 +25,12 @@ pub struct QueueManager {
     queues: DashMap<String, QueueConfig>,
 }
 
+impl Default for QueueManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueueManager {
     pub fn new() -> Self {
         let manager = Self {

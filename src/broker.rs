@@ -13,7 +13,31 @@ impl RedisBroker {
         let pool = cfg.create_pool(Some(Runtime::Tokio1))
             .map_err(|e| TaskQueueError::Connection(format!("Failed to create Redis pool: {}", e)))?;
 
+        // Test the connection
+        let mut conn = pool.get().await?;
+        let _: String = redis::cmd("PING").query_async::<_, String>(&mut *conn).await?;
+
         Ok(Self { pool })
+    }
+
+    pub async fn new_with_config(redis_url: &str, pool_size: Option<usize>) -> Result<Self, TaskQueueError> {
+        let mut cfg = Config::from_url(redis_url);
+        if let Some(size) = pool_size {
+            cfg.pool = Some(deadpool_redis::PoolConfig::new(size));
+        }
+        
+        let pool = cfg.create_pool(Some(Runtime::Tokio1))
+            .map_err(|e| TaskQueueError::Connection(format!("Failed to create Redis pool: {}", e)))?;
+
+        // Test the connection
+        let mut conn = pool.get().await?;
+        let _: String = redis::cmd("PING").query_async::<_, String>(&mut *conn).await?;
+
+        Ok(Self { pool })
+    }
+
+    async fn get_connection(&self) -> Result<deadpool_redis::Connection, TaskQueueError> {
+        self.pool.get().await.map_err(TaskQueueError::Pool)
     }
 
     pub async fn enqueue_task<T: Task>(
@@ -270,7 +294,7 @@ pub struct TaskFailureInfo {
     pub status: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueMetrics {
     pub queue_name: String,
     pub pending_tasks: i64,
