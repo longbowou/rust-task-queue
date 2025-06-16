@@ -134,11 +134,27 @@ impl Worker {
         match tokio::time::timeout(timeout_duration, execution_future).await {
             Ok(Ok(result)) => {
                 #[cfg(feature = "tracing")]
-                tracing::info!(
-                    "Task {} completed successfully: {:?}",
-                    task_wrapper.metadata.id,
-                    result
-                );
+                {
+                    // Try to make the result more readable for logging
+                    let result_display = if result.len() > 1000 {
+                        format!("({} bytes) [truncated]", result.len())
+                    } else if let Ok(utf8_str) = std::str::from_utf8(&result) {
+                        // Try to display as UTF-8 string if possible
+                        format!("\"{}\"", utf8_str)
+                    } else if let Ok(msgpack_value) = rmp_serde::from_slice::<serde_json::Value>(&result) {
+                        // Try to deserialize as MessagePack and display as JSON for readability
+                        format!("{}", msgpack_value.to_string())
+                    } else {
+                        // Fallback to hex representation for better readability
+                        format!("({} bytes) 0x{}", result.len(), hex::encode(&result[..std::cmp::min(50, result.len())]))
+                    };
+                    
+                    tracing::info!(
+                        "Task {} completed successfully: {}",
+                        task_wrapper.metadata.id,
+                        result_display
+                    );
+                }
 
                 broker
                     .mark_task_completed(task_wrapper.metadata.id, "default")

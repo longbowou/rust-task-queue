@@ -24,7 +24,7 @@ use serde::Serialize;
 use std::sync::Arc;
 // Removed duplicate imports - these are already imported from legacy_tasks
 
-// API Response structs for MessagePack
+// API Response structs for JSON
 #[derive(Serialize)]
 struct TaskResponse {
     task_id: String,
@@ -43,21 +43,13 @@ struct ErrorResponse {
     error: String,
 }
 
-// Helper function to create MessagePack responses
-fn msgpack_response<T: Serialize>(data: &T) -> ActixResult<HttpResponse> {
-    let msgpack_data = rmp_serde::to_vec(data)
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
-    Ok(HttpResponse::Ok()
-        .content_type("application/msgpack")
-        .body(msgpack_data))
+// Helper function to create JSON responses
+fn json_response<T: Serialize>(data: &T) -> ActixResult<HttpResponse> {
+    Ok(HttpResponse::Ok().json(data))
 }
 
-fn msgpack_error_response<T: Serialize>(data: &T) -> ActixResult<HttpResponse> {
-    let msgpack_data = rmp_serde::to_vec(data)
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
-    Ok(HttpResponse::InternalServerError()
-        .content_type("application/msgpack")
-        .body(msgpack_data))
+fn json_error_response<T: Serialize>(data: &T) -> ActixResult<HttpResponse> {
+    Ok(HttpResponse::InternalServerError().json(data))
 }
 
 // API endpoints for enqueueing tasks
@@ -72,13 +64,13 @@ async fn enqueue_email(
                 task_id: task_id.to_string(),
                 queue: "default".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -97,13 +89,13 @@ async fn enqueue_notification(
                 task_id: task_id.to_string(),
                 queue: "default".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -119,13 +111,13 @@ async fn enqueue_data_processing(
                 task_id: task_id.to_string(),
                 queue: "high_priority".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -149,13 +141,13 @@ async fn schedule_email(
                 delay_seconds: request.delay_seconds,
                 queue: "default".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -173,13 +165,13 @@ async fn enqueue_slack_notification(
                 task_id: task_id.to_string(),
                 queue: "default".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -195,13 +187,13 @@ async fn enqueue_sms(
                 task_id: task_id.to_string(),
                 queue: "high_priority".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -217,13 +209,13 @@ async fn enqueue_analytics(
                 task_id: task_id.to_string(),
                 queue: "low_priority".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
@@ -239,13 +231,13 @@ async fn enqueue_ml_training(
                 task_id: task_id.to_string(),
                 queue: "low_priority".to_string(),
             };
-            msgpack_response(&response)
+            json_response(&response)
         }
         Err(e) => {
             let error_response = ErrorResponse {
                 error: e.to_string(),
             };
-            msgpack_error_response(&error_response)
+            json_error_response(&error_response)
         }
     }
 }
