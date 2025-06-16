@@ -108,8 +108,6 @@ pub struct ActixConfig {
     pub enable_health_check: bool,
 }
 
-
-
 impl Default for RedisConfig {
     fn default() -> Self {
         Self {
@@ -174,6 +172,124 @@ impl Default for ActixConfig {
 }
 
 impl TaskQueueConfig {
+    /// Validate the configuration values
+    pub fn validate(&self) -> Result<(), TaskQueueError> {
+        // Validate Redis URL
+        if self.redis.url.is_empty() {
+            return Err(TaskQueueError::Configuration(
+                "Redis URL cannot be empty".to_string()
+            ));
+        }
+
+        // Basic URL validation
+        if !self.redis.url.starts_with("redis://") && !self.redis.url.starts_with("rediss://") {
+            return Err(TaskQueueError::Configuration(
+                "Redis URL must start with 'redis://' or 'rediss://'".to_string()
+            ));
+        }
+
+        // Validate pool size
+        if let Some(pool_size) = self.redis.pool_size {
+            if pool_size == 0 || pool_size > 1000 {
+                return Err(TaskQueueError::Configuration(
+                    "Redis pool size must be between 1 and 1000".to_string()
+                ));
+            }
+        }
+
+        // Validate timeout values
+        if let Some(timeout) = self.redis.connection_timeout {
+            if timeout == 0 || timeout > 300 {
+                return Err(TaskQueueError::Configuration(
+                    "Redis connection timeout must be between 1 and 300 seconds".to_string()
+                ));
+            }
+        }
+
+        if let Some(timeout) = self.redis.command_timeout {
+            if timeout == 0 || timeout > 300 {
+                return Err(TaskQueueError::Configuration(
+                    "Redis command timeout must be between 1 and 300 seconds".to_string()
+                ));
+            }
+        }
+
+        // Validate worker configuration
+        if self.workers.initial_count == 0 {
+            return Err(TaskQueueError::Configuration(
+                "Initial worker count must be greater than 0".to_string()
+            ));
+        }
+
+        if self.workers.initial_count > 1000 {
+            return Err(TaskQueueError::Configuration(
+                "Initial worker count cannot exceed 1000".to_string()
+            ));
+        }
+
+        if let Some(concurrent_tasks) = self.workers.max_concurrent_tasks {
+            if concurrent_tasks == 0 || concurrent_tasks > 100 {
+                return Err(TaskQueueError::Configuration(
+                    "Max concurrent tasks per worker must be between 1 and 100".to_string()
+                ));
+            }
+        }
+
+        if let Some(heartbeat) = self.workers.heartbeat_interval {
+            if heartbeat == 0 || heartbeat > 300 {
+                return Err(TaskQueueError::Configuration(
+                    "Worker heartbeat interval must be between 1 and 300 seconds".to_string()
+                ));
+            }
+        }
+
+        if let Some(grace_period) = self.workers.shutdown_grace_period {
+            if grace_period > 600 {
+                return Err(TaskQueueError::Configuration(
+                    "Shutdown grace period cannot exceed 600 seconds".to_string()
+                ));
+            }
+        }
+
+        // Validate scheduler configuration
+        if let Some(tick_interval) = self.scheduler.tick_interval {
+            if tick_interval == 0 || tick_interval > 3600 {
+                return Err(TaskQueueError::Configuration(
+                    "Scheduler tick interval must be between 1 and 3600 seconds".to_string()
+                ));
+            }
+        }
+
+        if let Some(max_tasks) = self.scheduler.max_tasks_per_tick {
+            if max_tasks == 0 || max_tasks > 10000 {
+                return Err(TaskQueueError::Configuration(
+                    "Max tasks per tick must be between 1 and 10000".to_string()
+                ));
+            }
+        }
+
+        // Validate autoscaler configuration
+        self.autoscaler.validate()?;
+
+        // Validate Actix configuration
+        #[cfg(feature = "actix-integration")]
+        {
+            if self.actix.route_prefix.is_empty() {
+                return Err(TaskQueueError::Configuration(
+                    "Actix route prefix cannot be empty".to_string()
+                ));
+            }
+
+            if !self.actix.route_prefix.starts_with('/') {
+                return Err(TaskQueueError::Configuration(
+                    "Actix route prefix must start with '/'".to_string()
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
     /// Load configuration from environment variables only
     pub fn from_env() -> Result<Self, TaskQueueError> {
         let mut config = Self::default();
@@ -191,6 +307,9 @@ impl TaskQueueConfig {
             })?);
         }
 
+        // Validate the configuration
+        config.validate()?;
+
         Ok(config)
     }
 
@@ -198,22 +317,27 @@ impl TaskQueueConfig {
     #[cfg(feature = "config-support")]
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, TaskQueueError> {
         let path = path.as_ref();
-        let content = std::fs::read_to_string(path).map_err(|e| {
+        let contents = std::fs::read_to_string(path).map_err(|e| {
             TaskQueueError::Configuration(format!("Failed to read config file: {}", e))
         })?;
 
-        match path.extension().and_then(|s| s.to_str()) {
-            Some("toml") => toml::from_str(&content)
-                .map_err(|e| TaskQueueError::Configuration(format!("Invalid TOML config: {}", e))),
-            Some("yaml") | Some("yml") => serde_yaml::from_str(&content)
-                .map_err(|e| TaskQueueError::Configuration(format!("Invalid YAML config: {}", e))),
-            _ => Err(TaskQueueError::Configuration(
-                "Unsupported config file format. Use .toml, .yaml, or .yml".to_string(),
-            )),
-        }
+        let config: TaskQueueConfig = if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+            toml::from_str(&contents).map_err(|e| {
+                TaskQueueError::Configuration(format!("Failed to parse TOML config: {}", e))
+            })?
+        } else {
+            serde_yaml::from_str(&contents).map_err(|e| {
+                TaskQueueError::Configuration(format!("Failed to parse YAML config: {}", e))
+            })?
+        };
+
+        // Validate the configuration
+        config.validate()?;
+
+        Ok(config)
     }
 
-    /// Load configuration with priority: file -> environment -> defaults
+    /// Load configuration with automatic source detection and validation
     #[cfg(feature = "config-support")]
     pub fn load() -> Result<Self, TaskQueueError> {
         use config::{Config, Environment, File};
@@ -259,9 +383,14 @@ impl TaskQueueConfig {
             .build()
             .map_err(|e| TaskQueueError::Configuration(format!("Failed to build config: {}", e)))?;
 
-        config.try_deserialize().map_err(|e| {
+        let config: TaskQueueConfig = config.try_deserialize().map_err(|e| {
             TaskQueueError::Configuration(format!("Failed to deserialize config: {}", e))
-        })
+        })?;
+
+        // Validate the configuration
+        config.validate()?;
+
+        Ok(config)
     }
 
     /// Load configuration without the config crate (fallback)
@@ -272,22 +401,24 @@ impl TaskQueueConfig {
 
     /// Initialize global configuration
     pub fn init_global() -> Result<&'static Self, TaskQueueError> {
-        GLOBAL_CONFIG.get_or_try_init(Self::load)
+        GLOBAL_CONFIG.get_or_try_init(|| Self::load())
     }
 
-    /// Get global configuration (must be initialized first)
+    /// Get global configuration (if initialized)
     pub fn global() -> Option<&'static Self> {
         GLOBAL_CONFIG.get()
     }
 
-    /// Get global configuration, initializing if needed
+    /// Get global configuration or initialize it
     pub fn get_or_init() -> Result<&'static Self, TaskQueueError> {
-        match Self::global() {
+        match GLOBAL_CONFIG.get() {
             Some(config) => Ok(config),
             None => Self::init_global(),
         }
     }
 }
+
+
 
 /// Configuration builder for fluent API
 #[derive(Default)]

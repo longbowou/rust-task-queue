@@ -1,4 +1,4 @@
-use crate::{RedisBroker, TaskQueueError, TaskScheduler, TaskWrapper};
+use crate::{RedisBroker, TaskQueueError, TaskScheduler, TaskWrapper, queue::queue_names};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Semaphore};
@@ -70,9 +70,9 @@ impl Worker {
 
         let handle = tokio::spawn(async move {
             let queues = vec![
-                "default".to_string(),
-                "high_priority".to_string(),
-                "low_priority".to_string(),
+                queue_names::DEFAULT.to_string(),
+                queue_names::HIGH_PRIORITY.to_string(),
+                queue_names::LOW_PRIORITY.to_string(),
             ];
 
             loop {
@@ -104,27 +104,38 @@ impl Worker {
                                         
                                         // Spawn task processing in background to avoid blocking main loop
                                         tokio::spawn(async move {
-                                            // Acquire permit for this task
-                                            let _permit = sem_clone.acquire().await.unwrap();
-                                            
-                                            if let Err(e) = Worker::process_task(
-                                                &broker_clone,
-                                                &task_registry_clone,
-                                                &worker_id_clone,
-                                                task_wrapper,
-                                            ).await {
-                                                #[cfg(feature = "tracing")]
-                                                tracing::error!("Worker {} failed to process task: {}", worker_id_clone, e);
+                                            // Acquire permit for this task - handle potential errors
+                                            match sem_clone.acquire().await {
+                                                Ok(_permit) => {
+                                                    if let Err(e) = Worker::process_task(
+                                                        &broker_clone,
+                                                        &task_registry_clone,
+                                                        &worker_id_clone,
+                                                        task_wrapper,
+                                                    ).await {
+                                                        #[cfg(feature = "tracing")]
+                                                        tracing::error!("Worker {} failed to process task: {}", worker_id_clone, e);
+                                                    }
+                                                    // Permit is automatically released when dropped
+                                                }
+                                                Err(e) => {
+                                                    #[cfg(feature = "tracing")]
+                                                    tracing::error!("Worker {} failed to acquire semaphore permit: {}", worker_id_clone, e);
+                                                    
+                                                    // Re-enqueue the task since we couldn't process it
+                                                    if let Err(enqueue_err) = broker_clone.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await {
+                                                        #[cfg(feature = "tracing")]
+                                                        tracing::error!("Failed to re-enqueue task after semaphore error: {}", enqueue_err);
+                                                    }
+                                                }
                                             }
-                                            
-                                            // Permit is automatically released when dropped
                                         });
                                     } else {
                                         #[cfg(feature = "tracing")]
                                         tracing::warn!("Worker {} at max capacity, delaying task", worker_id);
                                         
                                         // Put task back on queue for later processing
-                                        if let Err(e) = broker.enqueue_task_wrapper(task_wrapper, "default").await {
+                                        if let Err(e) = broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await {
                                             #[cfg(feature = "tracing")]
                                             tracing::error!("Failed to re-enqueue task: {}", e);
                                         }
@@ -178,8 +189,6 @@ impl Worker {
         }
     }
 
-
-
     async fn process_task(
         broker: &RedisBroker,
         task_registry: &crate::TaskRegistry,
@@ -228,7 +237,7 @@ impl Worker {
                 }
 
                 broker
-                    .mark_task_completed(task_wrapper.metadata.id, "default")
+                    .mark_task_completed(task_wrapper.metadata.id, queue_names::DEFAULT)
                     .await?;
                 Ok(())
             }
@@ -245,13 +254,13 @@ impl Worker {
                     );
 
                     // Re-enqueue the task for retry
-                    broker.enqueue_task_wrapper(task_wrapper, "default").await?;
+                    broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await?;
                 } else {
                     #[cfg(feature = "tracing")]
                     tracing::error!("Task {} exceeded max retries", task_wrapper.metadata.id);
 
                     broker
-                        .mark_task_failed(task_wrapper.metadata.id, "default")
+                        .mark_task_failed(task_wrapper.metadata.id, queue_names::DEFAULT)
                         .await?;
                 }
 
@@ -266,7 +275,7 @@ impl Worker {
                 );
 
                 broker
-                    .mark_task_failed(task_wrapper.metadata.id, "default")
+                    .mark_task_failed(task_wrapper.metadata.id, queue_names::DEFAULT)
                     .await?;
                 Err(TaskQueueError::TaskExecution("Task timeout".to_string()))
             }

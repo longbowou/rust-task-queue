@@ -1,5 +1,12 @@
 use dashmap::DashMap;
 
+/// Standard queue names used throughout the task queue system
+pub mod queue_names {
+    pub const DEFAULT: &str = "default";
+    pub const HIGH_PRIORITY: &str = "high_priority";
+    pub const LOW_PRIORITY: &str = "low_priority";
+}
+
 #[derive(Debug, Clone)]
 pub struct QueueConfig {
     pub name: String,
@@ -12,7 +19,7 @@ pub struct QueueConfig {
 impl Default for QueueConfig {
     fn default() -> Self {
         Self {
-            name: "default".to_string(),
+            name: queue_names::DEFAULT.to_string(),
             priority: 0,
             max_retries: 3,
             timeout_seconds: 300,
@@ -37,17 +44,17 @@ impl QueueManager {
             queues: DashMap::new(),
         };
 
-        // Add default queues
+        // Add default queues using constants
         manager.add_queue(QueueConfig::default());
         manager.add_queue(QueueConfig {
-            name: "high_priority".to_string(),
+            name: queue_names::HIGH_PRIORITY.to_string(),
             priority: 10,
             max_retries: 5,
             timeout_seconds: 600,
             rate_limit: None,
         });
         manager.add_queue(QueueConfig {
-            name: "low_priority".to_string(),
+            name: queue_names::LOW_PRIORITY.to_string(),
             priority: -10,
             max_retries: 2,
             timeout_seconds: 120,

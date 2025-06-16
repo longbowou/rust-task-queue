@@ -36,8 +36,10 @@ impl RedisBroker {
         Ok(Self { pool })
     }
 
-    async fn get_connection(&self) -> Result<deadpool_redis::Connection, TaskQueueError> {
-        self.pool.get().await.map_err(TaskQueueError::Pool)
+    /// Helper method to get a Redis connection with proper error handling
+    async fn get_conn(&self) -> Result<deadpool_redis::Connection, TaskQueueError> {
+        self.pool.get().await
+            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))
     }
 
     pub async fn enqueue_task<T: Task>(
@@ -60,8 +62,7 @@ impl RedisBroker {
         };
 
         let serialized = rmp_serde::to_vec(&task_wrapper)?;
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
 
         // Push to the queue
         conn.lpush::<_, _, ()>(queue, serialized).await?;
@@ -89,8 +90,7 @@ impl RedisBroker {
         queue: &str,
     ) -> Result<TaskId, TaskQueueError> {
         let serialized = rmp_serde::to_vec(&task_wrapper)?;
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
 
         // Push to the queue
         conn.lpush::<_, _, ()>(queue, serialized).await?;
@@ -109,8 +109,7 @@ impl RedisBroker {
         &self,
         queues: &[String],
     ) -> Result<Option<TaskWrapper>, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
 
         // Use BRPOP for blocking pop with timeout
         let result: Option<(String, Vec<u8>)> = conn.brpop(queues, 5f64).await?;
@@ -136,15 +135,13 @@ impl RedisBroker {
     }
 
     pub async fn get_queue_size(&self, queue: &str) -> Result<i64, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         let size: i64 = conn.llen(queue).await?;
         Ok(size)
     }
 
     pub async fn get_queue_metrics(&self, queue: &str) -> Result<QueueMetrics, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
 
         let size: i64 = conn.llen(queue).await?;
         let processed_key = format!("queue:{}:processed", queue);
@@ -166,8 +163,7 @@ impl RedisBroker {
         task_id: TaskId,
         queue: &str,
     ) -> Result<(), TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         let processed_key = format!("queue:{}:processed", queue);
         conn.incr::<_, _, ()>(&processed_key, 1).await?;
 
@@ -184,8 +180,7 @@ impl RedisBroker {
         queue: &str,
         reason: Option<String>,
     ) -> Result<(), TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
 
         // Increment the failed counter for queue metrics
         let failed_key = format!("queue:{}:failed", queue);
@@ -235,75 +230,67 @@ impl RedisBroker {
         task_id: TaskId,
         queue: &str,
     ) -> Result<(), TaskQueueError> {
-        self.mark_task_failed_with_reason(task_id, queue, None)
-            .await
+        self.mark_task_failed_with_reason(task_id, queue, None).await
     }
 
     pub async fn get_active_workers(&self) -> Result<i64, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         let count: i64 = conn.scard("active_workers").await?;
         Ok(count)
     }
 
     pub async fn register_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         conn.sadd::<_, _, ()>("active_workers", worker_id).await?;
-        conn.set::<_, _, ()>(
-            &format!("worker:{}:heartbeat", worker_id),
-            chrono::Utc::now().timestamp(),
-        )
-        .await?;
+        
+        // Set heartbeat
+        let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
+        conn.set::<_, _, ()>(&heartbeat_key, chrono::Utc::now().to_rfc3339()).await?;
+        conn.expire::<_, ()>(&heartbeat_key, 60).await?;
+        
         Ok(())
     }
 
     pub async fn unregister_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         conn.srem::<_, _, ()>("active_workers", worker_id).await?;
-        conn.del::<_, ()>(&format!("worker:{}:heartbeat", worker_id))
-            .await?;
+        
+        // Clean up heartbeat
+        let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
+        conn.del::<_, ()>(&heartbeat_key).await?;
+        
         Ok(())
     }
 
     pub async fn update_worker_heartbeat(&self, worker_id: &str) -> Result<(), TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
-        conn.set::<_, _, ()>(
-            &format!("worker:{}:heartbeat", worker_id),
-            chrono::Utc::now().timestamp(),
-        )
-        .await?;
+        let mut conn = self.get_conn().await?;
+        let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
+        conn.set::<_, _, ()>(&heartbeat_key, chrono::Utc::now().to_rfc3339()).await?;
+        conn.expire::<_, ()>(&heartbeat_key, 60).await?;
         Ok(())
     }
 
-    /// Get failure information for a specific task
     pub async fn get_task_failure_info(
         &self,
         task_id: TaskId,
     ) -> Result<Option<TaskFailureInfo>, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         let failure_key = format!("task:{}:failure", task_id);
-
-        let failure_info: Option<Vec<u8>> = conn.get(&failure_key).await?;
-
-        if let Some(info) = failure_info {
-            let parsed: TaskFailureInfo = rmp_serde::from_slice(&info)?;
-            Ok(Some(parsed))
+        
+        if let Ok(data) = conn.get::<_, Vec<u8>>(&failure_key).await {
+            match rmp_serde::from_slice::<TaskFailureInfo>(&data) {
+                Ok(info) => Ok(Some(info)),
+                Err(_) => Ok(None),
+            }
         } else {
             Ok(None)
         }
     }
 
-    /// Get list of failed task IDs for a queue
     pub async fn get_failed_tasks(&self, queue: &str) -> Result<Vec<String>, TaskQueueError> {
-        let mut conn = self.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.get_conn().await?;
         let queue_failed_set = format!("queue:{}:failed_tasks", queue);
-
-        let failed_tasks: Vec<String> = conn.smembers(&queue_failed_set).await?;
+        let failed_tasks: Vec<String> = conn.smembers(&queue_failed_set).await.unwrap_or_default();
         Ok(failed_tasks)
     }
 }

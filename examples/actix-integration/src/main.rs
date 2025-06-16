@@ -18,6 +18,7 @@ use module_tasks::{
 use actix_web::web::Json;
 use actix_web::{web, App, HttpResponse, HttpServer, Result as ActixResult};
 use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
 use rust_task_queue::TaskQueue;
 use rust_task_queue::TaskQueueConfig;
 use serde::Serialize;
@@ -57,12 +58,12 @@ async fn enqueue_email(
     task_queue: web::Data<Arc<TaskQueue>>,
     email_data: Json<EmailTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(email_data.into_inner(), "default").await {
+    match task_queue.enqueue(email_data.into_inner(), queue_names::DEFAULT).await {
         Ok(task_id) => {
             println!("Enqueued email task: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "default".to_string(),
+                queue: queue_names::DEFAULT.to_string(),
             };
             json_response(&response)
         }
@@ -81,7 +82,7 @@ async fn schedule_email(
 ) -> ActixResult<HttpResponse> {
     let delay = chrono::Duration::seconds(request.delay_seconds);
     match task_queue
-        .schedule(request.email.clone(), "default", delay)
+        .schedule(request.email.clone(), queue_names::DEFAULT, delay)
         .await
     {
         Ok(task_id) => {
@@ -92,7 +93,7 @@ async fn schedule_email(
             let response = ScheduledTaskResponse {
                 scheduled_task_id: task_id.to_string(),
                 delay_seconds: request.delay_seconds,
-                queue: "default".to_string(),
+                queue: queue_names::DEFAULT.to_string(),
             };
             json_response(&response)
         }
@@ -110,14 +111,14 @@ async fn enqueue_notification(
     notification_data: Json<NotificationTask>,
 ) -> ActixResult<HttpResponse> {
     match task_queue
-        .enqueue(notification_data.into_inner(), "default")
+        .enqueue(notification_data.into_inner(), queue_names::DEFAULT)
         .await
     {
         Ok(task_id) => {
             println!("Enqueued notification task: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "default".to_string(),
+                queue: queue_names::DEFAULT.to_string(),
             };
             json_response(&response)
         }
@@ -134,12 +135,12 @@ async fn enqueue_data_processing(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<DataProcessingTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), "high_priority").await {
+    match task_queue.enqueue(data.into_inner(), queue_names::HIGH_PRIORITY).await {
         Ok(task_id) => {
             println!("Enqueued data processing task: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "high_priority".to_string(),
+                queue: queue_names::HIGH_PRIORITY.to_string(),
             };
             json_response(&response)
         }
@@ -156,12 +157,12 @@ async fn enqueue_slack_notification(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<SlackNotificationTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), "default").await {
+    match task_queue.enqueue(data.into_inner(), queue_names::DEFAULT).await {
         Ok(task_id) => {
             println!("Enqueued Slack notification: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "default".to_string(),
+                queue: queue_names::DEFAULT.to_string(),
             };
             json_response(&response)
         }
@@ -178,12 +179,12 @@ async fn enqueue_sms(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<SmsTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), "high_priority").await {
+    match task_queue.enqueue(data.into_inner(), queue_names::HIGH_PRIORITY).await {
         Ok(task_id) => {
             println!("Enqueued SMS: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "high_priority".to_string(),
+                queue: queue_names::HIGH_PRIORITY.to_string(),
             };
             json_response(&response)
         }
@@ -200,12 +201,12 @@ async fn enqueue_analytics(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<AnalyticsTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), "low_priority").await {
+    match task_queue.enqueue(data.into_inner(), queue_names::LOW_PRIORITY).await {
         Ok(task_id) => {
             println!("Enqueued analytics task: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "low_priority".to_string(),
+                queue: queue_names::LOW_PRIORITY.to_string(),
             };
             json_response(&response)
         }
@@ -222,12 +223,12 @@ async fn enqueue_ml_training(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<MLTrainingTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), "low_priority").await {
+    match task_queue.enqueue(data.into_inner(), queue_names::LOW_PRIORITY).await {
         Ok(task_id) => {
             println!("Enqueued ML training task: {}", task_id);
             let response = TaskResponse {
                 task_id: task_id.to_string(),
-                queue: "low_priority".to_string(),
+                queue: queue_names::LOW_PRIORITY.to_string(),
             };
             json_response(&response)
         }

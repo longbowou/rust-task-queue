@@ -3,6 +3,7 @@
 //! Run with: `cargo run --example performance_test --features "full"`
 
 use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let task = SimpleTask {
             data: format!("test_task_{}", i),
         };
-        task_queue.enqueue(task, "default").await?;
+        task_queue.enqueue(task, queue_names::DEFAULT).await?;
     }
     let sequential_duration = start.elapsed();
     println!("   Sequential: {} tasks in {:?}", 100, sequential_duration);
@@ -61,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let task = SimpleTask {
                 data: format!("concurrent_task_{}", i),
             };
-            queue.enqueue(task, "default").await
+            queue.enqueue(task, queue_names::DEFAULT).await
         });
         handles.push(handle);
     }
@@ -74,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Concurrent: {} tasks in {:?}", 100, concurrent_duration);
 
     // Show queue metrics
-    let queue_size = task_queue.broker.get_queue_size("default").await?;
+    let queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await?;
     println!("📈 Queue metrics:");
     println!("   Total tasks enqueued: {}", queue_size);
     println!("   Performance improvement: {:.2}x faster with concurrency", 

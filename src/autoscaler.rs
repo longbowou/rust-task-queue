@@ -1,4 +1,4 @@
-use crate::{QueueMetrics, RedisBroker, TaskQueueError};
+use crate::{QueueMetrics, RedisBroker, TaskQueueError, queue::queue_names};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -10,6 +10,55 @@ pub struct AutoScalerConfig {
     pub scale_down_threshold: f64, // Tasks per worker ratio to scale down
     pub scale_up_count: usize,     // Number of workers to add
     pub scale_down_count: usize,   // Number of workers to remove
+}
+
+impl AutoScalerConfig {
+    /// Validate autoscaler configuration
+    pub fn validate(&self) -> Result<(), TaskQueueError> {
+        if self.min_workers == 0 {
+            return Err(TaskQueueError::Configuration(
+                "Minimum workers must be greater than 0".to_string()
+            ));
+        }
+
+        if self.max_workers < self.min_workers {
+            return Err(TaskQueueError::Configuration(
+                "Maximum workers must be greater than or equal to minimum workers".to_string()
+            ));
+        }
+
+        if self.max_workers > 1000 {
+            return Err(TaskQueueError::Configuration(
+                "Maximum workers cannot exceed 1000".to_string()
+            ));
+        }
+
+        if self.scale_up_threshold <= 0.0 || self.scale_up_threshold > 100.0 {
+            return Err(TaskQueueError::Configuration(
+                "Scale up threshold must be between 0.1 and 100.0".to_string()
+            ));
+        }
+
+        if self.scale_down_threshold < 0.0 || self.scale_down_threshold >= self.scale_up_threshold {
+            return Err(TaskQueueError::Configuration(
+                "Scale down threshold must be between 0.0 and scale up threshold".to_string()
+            ));
+        }
+
+        if self.scale_up_count == 0 || self.scale_up_count > 50 {
+            return Err(TaskQueueError::Configuration(
+                "Scale up count must be between 1 and 50".to_string()
+            ));
+        }
+
+        if self.scale_down_count == 0 || self.scale_down_count > 50 {
+            return Err(TaskQueueError::Configuration(
+                "Scale down count must be between 1 and 50".to_string()
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for AutoScalerConfig {
@@ -60,7 +109,7 @@ impl AutoScaler {
     pub async fn collect_metrics(&self) -> Result<AutoScalerMetrics, TaskQueueError> {
         let active_workers = self.broker.get_active_workers().await?;
 
-        let queues = ["default", "high_priority", "low_priority"];
+        let queues = [queue_names::DEFAULT, queue_names::HIGH_PRIORITY, queue_names::LOW_PRIORITY];
         let mut queue_metrics = Vec::new();
         let mut total_pending_tasks = 0;
 
