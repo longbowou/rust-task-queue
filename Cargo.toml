@@ -65,13 +65,12 @@ features = ["env-filter"]
 
 [features]
 default = ["tracing", "auto-register", "config-support", "cli"]
-full = ["tracing", "actix-integration", "cli", "auto-register", "config-support", "dynamic-loading"]
+full = ["tracing", "actix-integration", "cli", "auto-register", "config-support"]
 auto-register = ["rust-task-queue-macros"]
 tracing = ["dep:tracing"]
 actix-integration = ["dep:actix-web", "tracing"]
 cli = ["dep:clap", "tracing", "dep:tracing-subscriber"]
 config-support = ["dep:config", "dep:toml", "dep:serde_yaml"]
-dynamic-loading = ["dep:libloading", "tracing"]
 
 [package.metadata.docs.rs]
 all-features = true

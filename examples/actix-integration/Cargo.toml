@@ -18,7 +18,7 @@ name = "task-worker-env-only"
 path = "src/bin/task-worker-env-only.rs"
 
 [dependencies]
-rust-task-queue = { path = "../../", features = ["auto-register", "cli", "config-support", "actix-integration", "dynamic-loading"] }
+rust-task-queue = { path = "../../", features = ["auto-register", "cli", "config-support", "actix-integration"] }
 actix-web = "4.4"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

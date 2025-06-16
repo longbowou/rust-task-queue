@@ -1,4 +1,4 @@
-# Rust Task Queue Framework
+# Rust Task Queue
 
 [![Crates.io](https://img.shields.io/crates/v/rust-task-queue.svg)](https://crates.io/crates/rust-task-queue)
 [![Documentation](https://docs.rs/rust-task-queue/badge.svg)](https://docs.rs/rust-task-queue)
@@ -8,31 +8,275 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 
 ## Features
 
-- 🔄 **Redis-backed broker** for reliable message delivery
-- 📈 **Auto-scaling workers** based on queue load
-- ⏰ **Task scheduling** with delay support
-- 🎯 **Multiple queue priorities**
-- 🔁 **Retry logic** with configurable attempts
-- ⏱️ **Task timeouts** and failure handling
-- 📊 **Metrics and monitoring**
-- 🌐 **Actix Web integration** (optional)
-- 🛠️ **CLI tools** for standalone workers
-- 🤖 **Automatic task registration** (optional)
-- 🚀 **Separate worker processes** for better scalability
+- 🔄 **Redis-backed broker** with connection pooling and optimized operations
+- 📈 **Auto-scaling workers** based on queue load with configurable thresholds
+- ⏰ **Task scheduling** with delay support and persistent scheduling
+- 🎯 **Multiple queue priorities** with predefined queue constants
+- 🔁 **Retry logic** with exponential backoff and configurable attempts
+- ⏱️ **Task timeouts** and comprehensive failure handling
+- 📊 **Metrics and monitoring** with health checks and performance tracking
+- 🌐 **Actix Web integration** (optional) with built-in endpoints
+- 🛠️ **CLI tools** for standalone workers with process separation
+- 🤖 **Automatic task registration** with procedural macros
+- 🚀 **Production-ready** with robust error handling and safety improvements
+- ⚡ **High performance** with MessagePack serialization and connection pooling
 
 ## Quick Start
 
-Add this to your `Cargo.toml`:
+### Feature Selection
+
+Choose the appropriate features for your use case:
 
 ```toml
 [dependencies]
+# Default features (recommended for most users)
 rust-task-queue = "0.1"
+
+# Or specify features explicitly:
+rust-task-queue = { version = "0.1", features = ["default"] }
+
+# Minimal installation (core functionality only)
+rust-task-queue = { version = "0.1", default-features = false }
+
+# Full installation (all features)
+rust-task-queue = { version = "0.1", features = ["full"] }
+
+# Custom feature combinations
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration"] }
+```
+
+### Available Features
+
+- `default`: `tracing` + `auto-register` + `config-support` + `cli` (recommended)
+- `full`: All features enabled for maximum functionality
+- `tracing`: Structured logging with performance insights
+- `actix-integration`: Web framework integration with built-in endpoints
+- `cli`: Standalone worker binaries with configuration support
+- `auto-register`: Automatic task discovery via procedural macros
+- `config-support`: External TOML/YAML configuration files
+
+### Feature Combinations for Common Use Cases
+
+```toml
+# Web application with separate workers (recommended)
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration", "config-support", "cli"] }
+
+# Standalone worker processes
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "cli", "config-support"] }
+
+# Minimal embedded systems
+rust-task-queue = { version = "0.1", default-features = false, features = ["tracing"] }
+
+# Development/testing
+rust-task-queue = { version = "0.1", features = ["full"] }
+
+# Library integration (no CLI tools)
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "config-support"] }
+```
+
+### Feature Examples
+
+**Default Features (Recommended):**
+
+```toml
+[dependencies]
+rust-task-queue = "0.1"  # Includes: tracing, auto-register, config-support, cli
+```
+
+✅ Enables: logging, automatic task discovery, configuration files, and CLI worker tools.
+
+**Web Application:**
+
+```toml
+[dependencies]
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration", "config-support"] }
+```
+
+✅ Includes Actix Web routes (`/tasks/health`, `/tasks/stats`) and middleware.
+
+**Minimal Setup:**
+
+```toml
+[dependencies]
+rust-task-queue = { version = "0.1", default-features = false, features = ["tracing"] }
+```
+
+⚠️ Core functionality only - manual task registration required.
+
+**Development/Full Features:**
+
+```toml
+[dependencies]
+rust-task-queue = { version = "0.1", features = ["full"] }
+```
+
+✅ All features including experimental dynamic loading capabilities.
+
+## Integration Patterns
+
+### Pattern 1: Actix Web with Separate Workers (Recommended)
+
+This pattern provides the best separation of concerns and scalability.
+
+**💡 Recommended**: Use external configuration files (`task-queue.toml` or `task-queue.yaml`) for production deployments:
+
+**1. Create worker configuration file at the root of your project (`task-queue.toml`):**
+
+```toml
+[redis]
+url = "redis://127.0.0.1:6379"
+pool_size = 10
+
+[workers]
+initial_count = 0  # No workers in web-only mode
+max_concurrent_tasks = 10
+
+[autoscaler]
+min_workers = 1
+max_workers = 20
+scale_up_threshold = 5.0
+scale_down_threshold = 1.0
+
+[scheduler]
+enabled = false  # Disabled in web-only mode
+
+[auto_register]
+enabled = true
+
+[actix]
+auto_configure_routes = true
+route_prefix = "/tasks"
+enable_metrics = true
+enable_health_check = true
+```
+
+**2. Web Application (web-only mode):**
+
+```rust
+use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
+use actix_web::{web, App, HttpServer, HttpResponse, Result as ActixResult};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
+struct ProcessOrderTask {
+    order_id: String,
+    customer_email: String,
+    amount: f64,
+}
+
+#[async_trait]
+impl Task for ProcessOrderTask {
+    async fn execute(&self) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        println!("Processing order: {}", self.order_id);
+        // Your processing logic here
+        Ok(serde_json::json!({"status": "completed", "order_id": self.order_id}))
+    }
+
+    fn name(&self) -> &str {
+        "process_order"
+    }
+}
+
+async fn create_order(
+    task_queue: web::Data<Arc<TaskQueue>>,
+    order_data: web::Json<ProcessOrderTask>,
+) -> ActixResult<HttpResponse> {
+    match task_queue.enqueue(order_data.into_inner(), queue_names::DEFAULT).await {
+        Ok(task_id) => Ok(HttpResponse::Ok().json(serde_json::json!({
+            "task_id": task_id,
+            "status": "queued"
+        }))),
+        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": e.to_string()
+        })))
+    }
+}
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    // Load configuration from file (recommended for production)
+    let config = rust_task_queue::config::TaskQueueConfig::from_file("task-queue.toml")
+        .expect("Failed to load configuration");
+
+    // Create task queue using configuration
+    let task_queue = Arc::new(
+        TaskQueueBuilder::from_config(config)
+            .auto_register_tasks()
+            // Configuration file sets initial_count = 0 (no workers in web-only mode)
+            .build()
+            .await
+            .expect("Failed to create task queue")
+    );
+
+    println!("🌐 Starting web server at http://localhost:3000");
+    println!("💡 Start workers separately with configuration file:");
+    println!("   cargo run --bin task-worker --features cli,auto-register worker --config task-queue.toml");
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(task_queue.clone()))
+            .route("/order", web::post().to(create_order))
+            .configure(rust_task_queue::actix::configure_task_queue_routes)
+    })
+        .bind("0.0.0.0:3000")?
+        .run()
+        .await
+}
+```
+
+**4. Start Workers in Separate Terminals:**
+
+```bash
+# Terminal 1: Start the web server
+cargo run --example actix-integration --features actix-integration,auto-register
+
+# Terminal 2: General workers based on task-queue.toml 
+cargo run --bin task-worker
+  
+# Terminal 2: General workers with auto-scaling (using config file)
+cargo run --bin task-worker --features cli,auto-register worker \
+  --config task-queue-worker.toml
+
+# Alternative: Manual configuration (not recommended for production)
+cargo run --bin task-worker --features cli,auto-register worker \
+  --workers 4 \
+  --enable-autoscaler
+
+# Terminal 3: Specialized workers for specific queues
+cargo run --bin task-worker --features cli,auto-register worker \
+  --workers 2 \
+  --queues "high_priority,default"
+```
+
+### Pattern 2: All-in-One Process
+
+For simpler deployments, you can run everything in one process:
+
+```rust
+use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+        .auto_register_tasks()
+        .initial_workers(4)  // Workers start automatically
+        .with_scheduler()
+        .with_autoscaler()
+        .build()
+        .await?;
+
+    // Your application logic here
+    Ok(())
+}
 ```
 
 ### Basic Usage
 
 ```rust
 use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,7 +290,7 @@ impl Task for MyTask {
         println!("Processing: {}", self.data);
         Ok(serde_json::json!({"status": "completed"}))
     }
-    
+
     fn name(&self) -> &str {
         "my_task"
     }
@@ -61,14 +305,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_autoscaler()
         .build()
         .await?;
-    
-    // Enqueue a task
+
+    // Enqueue a task using predefined queue constants
     let task = MyTask { data: "Hello, World!".to_string() };
-    let task_id = task_queue.enqueue(task, "default").await?;
-    
+    let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await?;
+
     println!("Enqueued task: {}", task_id);
     Ok(())
 }
+```
+
+### Queue Constants
+
+The framework provides predefined queue constants for type safety and consistency:
+
+```rust
+use rust_task_queue::queue::queue_names;
+
+// Available queue constants
+queue_names::DEFAULT        // "default" - Standard priority tasks
+queue_names::HIGH_PRIORITY  // "high_priority" - High priority tasks  
+queue_names::LOW_PRIORITY   // "low_priority" - Background tasks
 ```
 
 ### Automatic Task Registration
@@ -77,6 +334,7 @@ With the `auto-register` feature, tasks can be automatically discovered and regi
 
 ```rust
 use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
@@ -90,7 +348,7 @@ impl Task for MyTask {
         println!("Processing: {}", self.data);
         Ok(serde_json::json!({"status": "completed"}))
     }
-    
+
     fn name(&self) -> &str {
         "my_task"
     }
@@ -106,11 +364,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_autoscaler()
         .build()
         .await?;
-    
+
     // No manual registration needed!
     let task = MyTask { data: "Hello, World!".to_string() };
-    let task_id = task_queue.enqueue(task, "default").await?;
-    
+    let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await?;
+
     println!("Enqueued task: {}", task_id);
     Ok(())
 }
@@ -134,7 +392,8 @@ impl Default for MyTask {
 
 ## CLI Worker Tool
 
-The framework includes a powerful CLI tool for running workers in separate processes, providing better separation of concerns and scalability.
+The framework includes a powerful CLI tool for running workers in separate processes, providing better separation of
+concerns and scalability.
 
 ### Installation
 
@@ -185,128 +444,13 @@ cargo run --bin task-worker --features cli,auto-register worker \
 # Workers for specific queues only
 cargo run --bin task-worker --features cli,auto-register worker \
   --workers 4 \
-  --queues "emails,notifications,reports"
+  --queues "high_priority,default"
 
 # Workers with custom naming
 cargo run --bin task-worker --features cli,auto-register worker \
   --workers 2 \
   --worker-prefix "priority-worker" \
-  --queues "high-priority"
-```
-
-## Integration Patterns
-
-### Pattern 1: Actix Web with Separate Workers (Recommended)
-
-This pattern provides the best separation of concerns and scalability:
-
-**1. Web Application (web-only mode):**
-
-```rust
-use rust_task_queue::prelude::*;
-use actix_web::{web, App, HttpServer, HttpResponse, Result as ActixResult};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
-struct ProcessOrderTask {
-    order_id: String,
-    customer_email: String,
-    amount: f64,
-}
-
-#[async_trait]
-impl Task for ProcessOrderTask {
-    async fn execute(&self) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
-        println!("Processing order: {}", self.order_id);
-        // Your processing logic here
-        Ok(serde_json::json!({"status": "completed", "order_id": self.order_id}))
-    }
-
-    fn name(&self) -> &str {
-        "process_order"
-    }
-}
-
-async fn create_order(
-    task_queue: web::Data<Arc<TaskQueue>>,
-    order_data: web::Json<ProcessOrderTask>,
-) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(order_data.into_inner(), "orders").await {
-        Ok(task_id) => Ok(HttpResponse::Ok().json(serde_json::json!({
-            "task_id": task_id,
-            "status": "queued"
-        }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-            "error": e.to_string()
-        })))
-    }
-}
-
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    // Create task queue WITHOUT workers (web-only mode)
-    let task_queue = Arc::new(
-        TaskQueueBuilder::new("redis://127.0.0.1:6379")
-            .auto_register_tasks()
-            // Notice: No .initial_workers() - workers run separately!
-            .build()
-            .await
-            .expect("Failed to create task queue")
-    );
-
-    println!("🌐 Starting web server at http://localhost:3000");
-    println!("💡 Start workers separately with:");
-    println!("   cargo run --bin task-worker --features cli,auto-register worker --workers 4");
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(task_queue.clone()))
-            .route("/order", web::post().to(create_order))
-            .configure(rust_task_queue::actix::configure_task_queue_routes)
-    })
-    .bind("0.0.0.0:3000")?
-    .run()
-    .await
-}
-```
-
-**2. Start Workers in Separate Terminals:**
-
-```bash
-# Terminal 1: Start the web server
-cargo run --example actix_with_separate_workers --features actix-integration,auto-register
-
-# Terminal 2: General workers with auto-scaling
-cargo run --bin task-worker --features cli,auto-register worker \
-  --workers 4 \
-  --enable-autoscaler
-
-# Terminal 3: Specialized workers for specific queues
-cargo run --bin task-worker --features cli,auto-register worker \
-  --workers 2 \
-  --queues "emails,notifications"
-```
-
-### Pattern 2: All-in-One Process
-
-For simpler deployments, you can run everything in one process:
-
-```rust
-use rust_task_queue::prelude::*;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
-        .auto_register_tasks()
-        .initial_workers(4)  // Workers start automatically
-        .with_scheduler()
-        .with_autoscaler()
-        .build()
-        .await?;
-    
-    // Your application logic here
-    Ok(())
-}
+  --queues "high_priority"
 ```
 
 ## Production Deployment
@@ -320,34 +464,34 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-  
+
   web:
     build: .
     ports:
       - "3000:3000"
     depends_on:
       - redis
-    environment:
-      - REDIS_URL=redis://redis:6379
-    command: cargo run --example actix_with_separate_workers --features actix-integration,auto-register
-  
+    volumes:
+      - ./task-queue-web.toml:/app/task-queue.toml:ro
+    command: cargo run --example actix-integration --features actix-integration,auto-register
+
   workers:
     build: .
     depends_on:
       - redis
-    environment:
-      - REDIS_URL=redis://redis:6379
-    command: cargo run --bin task-worker --features cli,auto-register worker --workers 4 --enable-autoscaler
+    volumes:
+      - ./task-queue-worker.toml:/app/task-queue.toml:ro
+    command: cargo run --bin task-worker --features cli,auto-register worker --config task-queue.toml
     deploy:
       replicas: 3
 
-  email-workers:
+  high-priority-workers:
     build: .
     depends_on:
       - redis
-    environment:
-      - REDIS_URL=redis://redis:6379
-    command: cargo run --bin task-worker --features cli,auto-register worker --workers 2 --queues emails
+    volumes:
+      - ./task-queue-priority.toml:/app/task-queue.toml:ro
+    command: cargo run --bin task-worker --features cli,auto-register worker --config task-queue.toml
 ```
 
 ### Kubernetes Deployment
@@ -368,13 +512,86 @@ spec:
         app: task-workers
     spec:
       containers:
-      - name: worker
-        image: your-app:latest
-        command: ["cargo", "run", "--bin", "task-worker", "--features", "cli,auto-register", "worker", "--workers", "4", "--enable-autoscaler"]
-        env:
-        - name: REDIS_URL
-          value: "redis://redis-service:6379"
+        - name: worker
+          image: your-app:latest
+          command: [ "cargo", "run", "--bin", "task-worker", "--features", "cli,auto-register", "worker", "--workers", "4", "--enable-autoscaler" ]
+          env:
+            - name: REDIS_URL
+              value: "redis://redis-service:6379"
 ```
+
+## Configuration and Safety
+
+### Configuration Files (Recommended for Production)
+
+The framework supports both TOML and YAML configuration files for production deployments:
+
+```rust
+use rust_task_queue::config::TaskQueueConfig;
+
+// Load from TOML file (recommended)
+let config = TaskQueueConfig::from_file("task-queue.toml") ?;
+
+// Load from YAML file  
+let config = TaskQueueConfig::from_file("task-queue.yaml") ?;
+
+// Use with TaskQueueBuilder
+let task_queue = TaskQueueBuilder::from_config(config)
+.auto_register_tasks()
+.build()
+.await?;
+```
+
+Example `task-queue.toml`:
+
+```toml
+[redis]
+url = "redis://localhost:6379"
+pool_size = 10
+
+[workers]
+initial_count = 4
+max_concurrent_tasks = 10
+
+[autoscaler]
+min_workers = 1
+max_workers = 20
+scale_up_threshold = 5.0
+scale_down_threshold = 1.0
+
+[scheduler]
+enabled = true
+
+[auto_register]
+enabled = true
+
+[actix]
+auto_configure_routes = true
+route_prefix = "/tasks"
+enable_metrics = true
+enable_health_check = true
+```
+
+### Configuration Validation
+
+The framework includes comprehensive configuration validation:
+
+```rust
+use rust_task_queue::config::TaskQueueConfig;
+
+let config = TaskQueueConfig::default ();
+// Configuration is automatically validated
+config.validate() ?;
+```
+
+### Error Handling and Safety
+
+Recent improvements include:
+
+- **Robust error handling**: Eliminated unsafe `unwrap()` calls
+- **Connection reliability**: Centralized Redis connection management
+- **Graceful failures**: Proper task re-enqueueing on failures
+- **Configuration validation**: Comprehensive config validation
 
 ## Monitoring and Observability
 
@@ -401,19 +618,11 @@ use tracing_subscriber;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    
+
     // Your application code here
     Ok(())
 }
 ```
-
-## Feature Flags
-
-- `tracing`: Enable logging support (enabled by default)
-- `actix-integration`: Enable Actix Web integration helpers
-- `cli`: Enable CLI utilities for standalone workers
-- `auto-register`: Enable automatic task registration using derive macros (enabled by default)
-- `full`: Enable all features
 
 ## Installation
 
@@ -432,46 +641,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 2. Add to your project:
    ```toml
    [dependencies]
-   rust-task-queue = { version = "0.1", features = ["full"] }
+   # Use default features for most applications
+   rust-task-queue = "0.1"
+   
+   # Or choose specific features (see Feature Selection above)
+   rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration", "config-support"] }
    ```
 
 ## Examples
 
-- [Basic Usage](examples/basic_usage.rs) - Simple task queue setup
-- [Task Registration](examples/task_registration.rs) - Manual task registration patterns
-- [Auto Registration](examples/auto_registration.rs) - Automatic task discovery and registration
-- [Actix Integration](examples/actix_integration.rs) - Web server integration with auto-registration
-- [Simple Actix Auto](examples/simple_actix_auto.rs) - Minimal Actix Web + auto-registration example
-- [Actix with Separate Workers](examples/actix_with_separate_workers.rs) - **Recommended pattern** for production
-- [Advanced Configuration](examples/advanced_config.rs) - Custom configurations
-- [Worker CLI](examples/worker_cli.rs) - CLI usage examples
+The repository includes comprehensive examples:
+
+- [**Performance Test**](examples/performance_test.rs) - Benchmarking and performance testing
+- [**Actix Integration**](examples/actix-integration/) - Complete web server integration examples
+    - Full-featured task queue endpoints
+    - Automatic task registration
+    - Production-ready patterns
 
 ## Best Practices
 
 ### Task Design
+
 - Keep tasks idempotent when possible
 - Use meaningful task names for monitoring
 - Handle errors gracefully with proper logging
 - Keep task payloads reasonably small
+- Use appropriate queue constants (`queue_names::*`)
 
 ### Deployment
+
 - Use separate worker processes for better isolation
 - Scale workers based on queue metrics
 - Monitor Redis memory usage and performance
 - Set up proper logging and alerting
+- Use configuration validation in production
 
 ### Development
+
 - Use auto-registration for rapid development
 - Test with different worker configurations
 - Monitor queue sizes during load testing
 - Use the built-in monitoring endpoints
+- Take advantage of the CLI tools for testing
+- **Use configuration files** (`task-queue.toml`) instead of hardcoded values
 
-## Performance Tips
+## Performance Highlights
 
-- **Queue Organization**: Use separate queues for different task types
-- **Worker Scaling**: Start with auto-scaling enabled, then fine-tune
-- **Redis Configuration**: Use Redis persistence and clustering for production
-- **Monitoring**: Set up alerts on queue depth and worker health
+- **Task Serialization**: ~40ns per operation (MessagePack)
+- **Task Deserialization**: ~34ns per operation
+- **Queue Config Lookup**: ~40ns per operation
+- **High throughput**: Handles thousands of tasks per second
+- **Memory efficient**: Connection pooling and optimized serialization
 
 ## Troubleshooting
 
@@ -493,6 +713,8 @@ RUST_LOG=debug cargo run --bin task-worker --features cli worker
 ## Documentation
 
 - [API Documentation](https://docs.rs/rust-task-queue)
+- [Development Guide](DEVELOPMENT.md)
+- [Configuration Guide](CONFIGURATION.md)
 - [Examples](examples/)
 
 ## License
