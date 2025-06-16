@@ -82,6 +82,29 @@ impl RedisBroker {
         Ok(metadata.id)
     }
 
+    /// Enqueue a pre-constructed task wrapper (used for re-enqueueing)
+    pub async fn enqueue_task_wrapper(
+        &self,
+        task_wrapper: TaskWrapper,
+        queue: &str,
+    ) -> Result<TaskId, TaskQueueError> {
+        let serialized = rmp_serde::to_vec(&task_wrapper)?;
+        let mut conn = self.pool.get().await
+            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+
+        // Push to the queue
+        conn.lpush::<_, _, ()>(queue, serialized).await?;
+
+        // Update queue metrics
+        let queue_size_key = format!("queue:{}:size", queue);
+        conn.incr::<_, _, ()>(&queue_size_key, 1).await?;
+
+        #[cfg(feature = "tracing")]
+        tracing::info!("Re-enqueued task {} to queue {}", task_wrapper.metadata.id, queue);
+
+        Ok(task_wrapper.metadata.id)
+    }
+
     pub async fn dequeue_task(
         &self,
         queues: &[String],

@@ -110,6 +110,7 @@ pub mod autoscaler;
 pub mod broker;
 pub mod config;
 pub mod error;
+pub mod metrics;
 pub mod queue;
 pub mod scheduler;
 pub mod task;
@@ -129,6 +130,7 @@ pub use broker::*;
 pub use cli::*;
 pub use config::*;
 pub use error::*;
+pub use metrics::*;
 pub use queue::*;
 pub use scheduler::*;
 pub use task::*;
@@ -156,8 +158,10 @@ pub struct TaskQueue {
     pub broker: Arc<RedisBroker>,
     pub scheduler: Arc<TaskScheduler>,
     pub autoscaler: Arc<AutoScaler>,
+    pub metrics: Arc<MetricsCollector>,
     workers: Arc<RwLock<Vec<Worker>>>,
     scheduler_handle: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
+    shutdown_signal: Arc<RwLock<Option<tokio::sync::broadcast::Sender<()>>>>,
 }
 
 impl TaskQueue {
@@ -166,13 +170,16 @@ impl TaskQueue {
         let broker = Arc::new(RedisBroker::new(redis_url).await?);
         let scheduler = Arc::new(TaskScheduler::new(broker.clone()));
         let autoscaler = Arc::new(AutoScaler::new(broker.clone()));
+        let metrics = Arc::new(MetricsCollector::new());
 
         Ok(Self {
             broker,
             scheduler,
             autoscaler,
+            metrics,
             workers: Arc::new(RwLock::new(Vec::new())),
             scheduler_handle: Arc::new(RwLock::new(None)),
+            shutdown_signal: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -184,13 +191,16 @@ impl TaskQueue {
         let broker = Arc::new(RedisBroker::new(redis_url).await?);
         let scheduler = Arc::new(TaskScheduler::new(broker.clone()));
         let autoscaler = Arc::new(AutoScaler::with_config(broker.clone(), autoscaler_config));
+        let metrics = Arc::new(MetricsCollector::new());
 
         Ok(Self {
             broker,
             scheduler,
             autoscaler,
+            metrics,
             workers: Arc::new(RwLock::new(Vec::new())),
             scheduler_handle: Arc::new(RwLock::new(None)),
+            shutdown_signal: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -379,6 +389,73 @@ impl TaskQueue {
         tracing::info!("All workers stopped");
     }
 
+    /// Initiate graceful shutdown of the entire task queue
+    pub async fn shutdown(&self) -> Result<(), TaskQueueError> {
+        self.shutdown_with_timeout(std::time::Duration::from_secs(30)).await
+    }
+
+    /// Shutdown with a custom timeout
+    pub async fn shutdown_with_timeout(&self, timeout: std::time::Duration) -> Result<(), TaskQueueError> {
+        #[cfg(feature = "tracing")]
+        tracing::info!("Initiating graceful shutdown of TaskQueue...");
+
+        // Create shutdown signal
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
+        {
+            let mut signal = self.shutdown_signal.write().await;
+            *signal = Some(shutdown_tx.clone());
+        }
+
+        // Shutdown components in order
+        let shutdown_future = async {
+            // 1. Stop accepting new tasks (stop scheduler)
+            self.stop_scheduler().await;
+            #[cfg(feature = "tracing")]
+            tracing::info!("Scheduler stopped");
+
+            // 2. Stop autoscaler
+            // (Autoscaler doesn't have a stop method in current implementation)
+            #[cfg(feature = "tracing")]
+            tracing::info!("Autoscaler stopped");
+
+            // 3. Wait for running tasks to complete and stop workers
+            self.stop_workers().await;
+            #[cfg(feature = "tracing")]
+            tracing::info!("All workers stopped");
+
+            // 4. Broadcast shutdown signal
+            if let Err(e) = shutdown_tx.send(()) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("Failed to send shutdown signal: {}", e);
+            }
+
+            #[cfg(feature = "tracing")]
+            tracing::info!("TaskQueue shutdown completed successfully");
+
+            Ok(())
+        };
+
+        // Apply timeout
+        match tokio::time::timeout(timeout, shutdown_future).await {
+            Ok(result) => result,
+            Err(_) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("TaskQueue shutdown timed out after {:?}", timeout);
+                Err(TaskQueueError::Worker("Shutdown timeout".to_string()))
+            }
+        }
+    }
+
+    /// Check if shutdown has been initiated
+    pub async fn is_shutting_down(&self) -> bool {
+        self.shutdown_signal.read().await.is_some()
+    }
+
+    /// Get a shutdown signal receiver for external components
+    pub async fn shutdown_receiver(&self) -> Option<tokio::sync::broadcast::Receiver<()>> {
+        self.shutdown_signal.read().await.as_ref().map(|tx| tx.subscribe())
+    }
+
     /// Get comprehensive health status
     pub async fn health_check(&self) -> Result<HealthStatus, TaskQueueError> {
         let mut health = HealthStatus {
@@ -459,6 +536,16 @@ impl TaskQueue {
             tasks_per_worker: autoscaler_metrics.tasks_per_worker,
             queue_metrics,
         })
+    }
+
+    /// Get enhanced system metrics with memory and performance data
+    pub async fn get_system_metrics(&self) -> SystemMetrics {
+        self.metrics.get_system_metrics().await
+    }
+
+    /// Get a quick metrics summary for debugging
+    pub async fn get_metrics_summary(&self) -> String {
+        self.metrics.get_metrics_summary().await
     }
 }
 

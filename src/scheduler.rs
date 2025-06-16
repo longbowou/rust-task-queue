@@ -5,14 +5,29 @@ use tokio::task::JoinHandle;
 
 pub struct TaskScheduler {
     broker: Arc<RedisBroker>,
+    tick_interval_seconds: u64,
 }
 
 impl TaskScheduler {
     pub fn new(broker: Arc<RedisBroker>) -> Self {
-        Self { broker }
+        Self { 
+            broker,
+            tick_interval_seconds: 1, // Default to 1 second for better responsiveness
+        }
+    }
+
+    pub fn with_tick_interval(broker: Arc<RedisBroker>, interval_seconds: u64) -> Self {
+        Self { 
+            broker,
+            tick_interval_seconds: interval_seconds,
+        }
     }
 
     pub fn start(broker: Arc<RedisBroker>) -> Result<JoinHandle<()>, TaskQueueError> {
+        let scheduler = Self::new(broker);
+        let tick_interval = scheduler.tick_interval_seconds;
+        let broker = scheduler.broker;
+        
         let handle = tokio::spawn(async move {
             loop {
                 if let Err(e) = Self::process_scheduled_tasks(&broker).await {
@@ -20,12 +35,12 @@ impl TaskScheduler {
                     tracing::error!("Scheduler error: {}", e);
                 }
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(tick_interval)).await;
             }
         });
 
         #[cfg(feature = "tracing")]
-        tracing::info!("Task scheduler started");
+        tracing::info!("Task scheduler started with {} second tick interval", tick_interval);
 
         Ok(handle)
     }

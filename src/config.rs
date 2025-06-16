@@ -220,7 +220,11 @@ impl TaskQueueConfig {
 
         let mut builder = Config::builder()
             // Start with defaults
-            .add_source(Config::try_from(&Self::default()).unwrap());
+            .add_source(
+                Config::try_from(&Self::default()).map_err(|e| {
+                    TaskQueueError::Configuration(format!("Failed to create default config: {}", e))
+                })?
+            );
 
         // Check for config file in common locations
         for config_path in &[
