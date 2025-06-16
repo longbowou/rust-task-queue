@@ -75,6 +75,36 @@ async fn enqueue_email(
     }
 }
 
+async fn schedule_email(
+    task_queue: web::Data<Arc<TaskQueue>>,
+    request: Json<ScheduleEmailRequest>,
+) -> ActixResult<HttpResponse> {
+    let delay = chrono::Duration::seconds(request.delay_seconds);
+    match task_queue
+        .schedule(request.email.clone(), "default", delay)
+        .await
+    {
+        Ok(task_id) => {
+            println!(
+                "Scheduled email task: {} (delay: {}s)",
+                task_id, request.delay_seconds
+            );
+            let response = ScheduledTaskResponse {
+                scheduled_task_id: task_id.to_string(),
+                delay_seconds: request.delay_seconds,
+                queue: "default".to_string(),
+            };
+            json_response(&response)
+        }
+        Err(e) => {
+            let error_response = ErrorResponse {
+                error: e.to_string(),
+            };
+            json_error_response(&error_response)
+        }
+    }
+}
+
 async fn enqueue_notification(
     task_queue: web::Data<Arc<TaskQueue>>,
     notification_data: Json<NotificationTask>,
@@ -121,38 +151,6 @@ async fn enqueue_data_processing(
         }
     }
 }
-
-async fn schedule_email(
-    task_queue: web::Data<Arc<TaskQueue>>,
-    request: Json<ScheduleEmailRequest>,
-) -> ActixResult<HttpResponse> {
-    let delay = chrono::Duration::seconds(request.delay_seconds);
-    match task_queue
-        .schedule(request.email.clone(), "default", delay)
-        .await
-    {
-        Ok(task_id) => {
-            println!(
-                "⏰ Scheduled email task: {} (delay: {}s)",
-                task_id, request.delay_seconds
-            );
-            let response = ScheduledTaskResponse {
-                scheduled_task_id: task_id.to_string(),
-                delay_seconds: request.delay_seconds,
-                queue: "default".to_string(),
-            };
-            json_response(&response)
-        }
-        Err(e) => {
-            let error_response = ErrorResponse {
-                error: e.to_string(),
-            };
-            json_error_response(&error_response)
-        }
-    }
-}
-
-// New endpoints for modular tasks
 
 async fn enqueue_slack_notification(
     task_queue: web::Data<Arc<TaskQueue>>,
