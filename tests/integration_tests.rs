@@ -588,4 +588,7 @@ async fn test_backpressure_handling() {
     started_worker.stop().await;
     task_queue.shutdown().await.expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
-} 
+}
+
+// Note: Authentication/authorization features would be implemented in the future
+// For now, removing the incomplete example to fix compilation 

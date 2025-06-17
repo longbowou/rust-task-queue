@@ -31,6 +31,7 @@ This is a high-performance, Redis-backed task queue framework for Rust with auto
 - Use async/await consistently for async operations
 - Implement Debug, Clone, Serialize, Deserialize for data types
 - Use Arc<> for shared ownership, RwLock/Mutex for thread safety
+- Keep code comments professional and readable without emojis
 
 ### Error Handling
 - Always use the custom TaskQueueError type for this crate's errors

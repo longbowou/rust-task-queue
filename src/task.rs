@@ -37,19 +37,93 @@ pub struct TaskWrapper {
     pub payload: Vec<u8>,
 }
 
+/// Enhanced Task trait with improved type safety and async characteristics
 #[async_trait]
 pub trait Task: Send + Sync + Serialize + for<'de> Deserialize<'de> + Debug {
+    /// Execute the task with comprehensive error handling
     async fn execute(&self) -> TaskResult;
 
+    /// Task identifier for registration and execution
     fn name(&self) -> &str;
 
+    /// Maximum retry attempts (default: 3)
     fn max_retries(&self) -> u32 {
         3
     }
 
+    /// Task timeout in seconds (default: 300s/5min)
     fn timeout_seconds(&self) -> u64 {
         300
     }
+
+    /// Task priority level (default: Normal)
+    fn priority(&self) -> TaskPriority {
+        TaskPriority::Normal
+    }
+
+    /// Estimate task resource requirements for better scheduling
+    fn resource_requirements(&self) -> TaskResourceRequirements {
+        TaskResourceRequirements::default()
+    }
+
+    /// Custom retry delay strategy
+    fn retry_delay_strategy(&self) -> RetryStrategy {
+        RetryStrategy::ExponentialBackoff {
+            base_delay_ms: 1000,
+            max_delay_ms: 60000,
+            multiplier: 2.0,
+        }
+    }
+}
+
+/// Task priority levels for queue ordering
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum TaskPriority {
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Critical = 3,
+}
+
+/// Resource requirements for task execution planning
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskResourceRequirements {
+    /// Expected memory usage in bytes
+    pub memory_bytes: Option<u64>,
+    /// Expected CPU intensity (0.0 to 1.0)
+    pub cpu_intensity: Option<f32>,
+    /// Expected I/O operations per second
+    pub io_ops_per_second: Option<u32>,
+    /// Network bandwidth requirements in bytes/sec
+    pub network_bandwidth_bytes: Option<u64>,
+}
+
+impl Default for TaskResourceRequirements {
+    fn default() -> Self {
+        Self {
+            memory_bytes: None,
+            cpu_intensity: Some(0.1), // Low CPU by default
+            io_ops_per_second: None,
+            network_bandwidth_bytes: None,
+        }
+    }
+}
+
+/// Retry strategy configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RetryStrategy {
+    /// Fixed delay between retries
+    FixedDelay { delay_ms: u64 },
+    /// Exponential backoff with jitter
+    ExponentialBackoff {
+        base_delay_ms: u64,
+        max_delay_ms: u64,
+        multiplier: f64,
+    },
+    /// Custom retry intervals
+    CustomIntervals { intervals_ms: Vec<u64> },
+    /// No retries
+    NoRetry,
 }
 
 /// Result type for task execution

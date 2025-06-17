@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
 /// Comprehensive metrics collector for task queue operations
@@ -14,6 +14,8 @@ pub struct MetricsCollector {
     histograms: Arc<RwLock<HashMap<String, TaskHistogram>>>,
     start_time: Instant,
     memory_tracker: Arc<MemoryTracker>,
+    performance_tracker: Arc<PerformanceTracker>,
+    alert_manager: Arc<AlertManager>,
 }
 
 /// Memory usage tracking
@@ -97,6 +99,123 @@ pub struct WorkerMetrics {
     pub tasks_per_worker: f64,
 }
 
+/// Enhanced performance tracking with SLA monitoring
+#[derive(Debug)]
+pub struct PerformanceTracker {
+    task_execution_times: Arc<RwLock<HashMap<String, Vec<Duration>>>>,
+    #[allow(dead_code)] // Reserved for future queue latency tracking
+    queue_latencies: Arc<RwLock<HashMap<String, Vec<Duration>>>>,
+    error_rates: Arc<RwLock<HashMap<String, ErrorRateTracker>>>,
+    sla_violations: Arc<RwLock<Vec<SLAViolation>>>,
+}
+
+/// Alert management system
+#[derive(Debug)]
+pub struct AlertManager {
+    active_alerts: Arc<RwLock<HashMap<String, Alert>>>,
+    alert_thresholds: Arc<RwLock<AlertThresholds>>,
+}
+
+/// Configurable alert thresholds
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlertThresholds {
+    pub max_queue_size: u64,
+    pub max_error_rate: f64,
+    pub max_task_duration_ms: u64,
+    pub max_memory_usage_mb: u64,
+    pub max_worker_idle_time_sec: u64,
+}
+
+impl Default for AlertThresholds {
+    fn default() -> Self {
+        Self {
+            max_queue_size: 10000,
+            max_error_rate: 0.05, // 5%
+            max_task_duration_ms: 300000, // 5 minutes
+            max_memory_usage_mb: 1024, // 1GB
+            max_worker_idle_time_sec: 300, // 5 minutes
+        }
+    }
+}
+
+/// Alert representation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Alert {
+    pub id: String,
+    pub severity: AlertSeverity,
+    pub message: String,
+    pub timestamp: SystemTime,
+    pub metric_name: String,
+    pub current_value: f64,
+    pub threshold: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AlertSeverity {
+    Info,
+    Warning,
+    Critical,
+    Emergency,
+}
+
+/// SLA violation tracking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SLAViolation {
+    pub violation_type: SLAViolationType,
+    pub timestamp: SystemTime,
+    pub details: String,
+    pub metric_value: f64,
+    pub threshold: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SLAViolationType {
+    TaskTimeoutExceeded,
+    QueueBacklogTooHigh,
+    ErrorRateTooHigh,
+    MemoryUsageTooHigh,
+    WorkerUtilizationTooLow,
+}
+
+/// Error rate tracking with time windows
+#[derive(Debug)]
+pub struct ErrorRateTracker {
+    errors: Vec<SystemTime>,
+    total_executions: u64,
+    window_size: Duration,
+}
+
+impl ErrorRateTracker {
+    pub fn new(window_size: Duration) -> Self {
+        Self {
+            errors: Vec::new(),
+            total_executions: 0,
+            window_size,
+        }
+    }
+
+    pub fn record_execution(&mut self, is_error: bool) {
+        self.total_executions += 1;
+        if is_error {
+            self.errors.push(SystemTime::now());
+        }
+        self.cleanup_old_entries();
+    }
+
+    pub fn error_rate(&mut self) -> f64 {
+        self.cleanup_old_entries();
+        if self.total_executions == 0 {
+            return 0.0;
+        }
+        self.errors.len() as f64 / self.total_executions as f64
+    }
+
+    fn cleanup_old_entries(&mut self) {
+        let cutoff = SystemTime::now() - self.window_size;
+        self.errors.retain(|&time| time > cutoff);
+    }
+}
+
 impl MetricsCollector {
     pub fn new() -> Self {
         Self {
@@ -105,6 +224,8 @@ impl MetricsCollector {
             histograms: Arc::new(RwLock::new(HashMap::new())),
             start_time: Instant::now(),
             memory_tracker: Arc::new(MemoryTracker::new()),
+            performance_tracker: Arc::new(PerformanceTracker::new()),
+            alert_manager: Arc::new(AlertManager::new()),
         }
     }
 
@@ -162,6 +283,29 @@ impl MetricsCollector {
     /// Track task completion
     pub fn track_task_end(&self) {
         self.memory_tracker.track_task_end();
+    }
+
+    /// Record task execution time for performance analysis
+    pub async fn record_task_execution(&self, task_name: &str, duration: Duration, success: bool) {
+        // Update execution time histogram
+        let mut histograms = self.histograms.write().await;
+        let histogram = histograms.entry(format!("task_execution_time_{}", task_name))
+            .or_insert_with(TaskHistogram::new);
+        histogram.record(duration);
+
+        // Track in performance tracker
+        self.performance_tracker.record_execution(task_name, duration, success).await;
+
+        // Update counters
+        self.increment_counter(&format!("tasks_executed_{}", task_name), 1).await;
+        if success {
+            self.increment_counter(&format!("tasks_succeeded_{}", task_name), 1).await;
+        } else {
+            self.increment_counter(&format!("tasks_failed_{}", task_name), 1).await;
+        }
+
+        // Check for alerts
+        self.alert_manager.check_task_performance_alerts(task_name, duration, success).await;
     }
 
     /// Get comprehensive metrics snapshot
@@ -289,6 +433,56 @@ impl MetricsCollector {
             metrics.performance.success_rate * 100.0
         )
     }
+
+    /// Get comprehensive performance report
+    pub async fn get_performance_report(&self) -> PerformanceReport {
+        let histograms = self.histograms.read().await;
+        let mut task_performance = HashMap::new();
+
+        for (name, histogram) in histograms.iter() {
+            if name.starts_with("task_execution_time_") {
+                let task_name = name.strip_prefix("task_execution_time_").unwrap();
+                task_performance.insert(task_name.to_string(), TaskPerformanceMetrics {
+                    avg_duration_ms: histogram.average().as_millis() as f64,
+                    p50_duration_ms: histogram.percentile(0.50).as_millis() as u64,
+                    p95_duration_ms: histogram.percentile(0.95).as_millis() as u64,
+                    p99_duration_ms: histogram.percentile(0.99).as_millis() as u64,
+                    total_executions: histogram.count(),
+                });
+            }
+        }
+
+        PerformanceReport {
+            uptime_seconds: self.start_time.elapsed().as_secs(),
+            task_performance,
+            active_alerts: self.alert_manager.get_active_alerts().await,
+            sla_violations: self.performance_tracker.get_recent_violations().await,
+        }
+    }
+
+    /// Get real-time system health status
+    pub async fn get_health_status(&self) -> SystemHealthStatus {
+        let memory_metrics = self.memory_tracker.get_metrics();
+        let active_alerts = self.alert_manager.get_active_alerts().await;
+        
+        let status = if active_alerts.iter().any(|a| matches!(a.severity, AlertSeverity::Critical | AlertSeverity::Emergency)) {
+            HealthStatus::Critical
+        } else if !active_alerts.is_empty() {
+            HealthStatus::Warning
+        } else {
+            HealthStatus::Healthy
+        };
+
+        SystemHealthStatus {
+            status,
+            memory_usage_mb: (memory_metrics.current_bytes / (1024 * 1024)) as u64,
+            uptime_seconds: self.start_time.elapsed().as_secs(),
+            active_alert_count: active_alerts.len() as u32,
+            critical_alert_count: active_alerts.iter()
+                .filter(|a| matches!(a.severity, AlertSeverity::Critical | AlertSeverity::Emergency))
+                .count() as u32,
+        }
+    }
 }
 
 impl MemoryTracker {
@@ -396,6 +590,108 @@ impl TaskHistogram {
         let index = (sorted_samples.len() as f64 * p).ceil() as usize - 1;
         sorted_samples[index.min(sorted_samples.len() - 1)]
     }
+
+    pub fn count(&self) -> u64 {
+        self.total_count.load(Ordering::Relaxed)
+    }
+}
+
+impl PerformanceTracker {
+    pub fn new() -> Self {
+        Self {
+            task_execution_times: Arc::new(RwLock::new(HashMap::new())),
+            queue_latencies: Arc::new(RwLock::new(HashMap::new())),
+            error_rates: Arc::new(RwLock::new(HashMap::new())),
+            sla_violations: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    pub async fn record_execution(&self, task_name: &str, duration: Duration, success: bool) {
+        // Track execution time
+        let mut times = self.task_execution_times.write().await;
+        times.entry(task_name.to_string())
+            .or_insert_with(Vec::new)
+            .push(duration);
+
+        // Track error rate
+        let mut error_rates = self.error_rates.write().await;
+        error_rates.entry(task_name.to_string())
+            .or_insert_with(|| ErrorRateTracker::new(Duration::from_secs(300))) // 5-minute window
+            .record_execution(!success);
+    }
+
+    pub async fn get_recent_violations(&self) -> Vec<SLAViolation> {
+        let violations = self.sla_violations.read().await;
+        violations.clone()
+    }
+}
+
+impl AlertManager {
+    pub fn new() -> Self {
+        Self {
+            active_alerts: Arc::new(RwLock::new(HashMap::new())),
+            alert_thresholds: Arc::new(RwLock::new(AlertThresholds::default())),
+        }
+    }
+
+    pub async fn check_task_performance_alerts(&self, task_name: &str, duration: Duration, _success: bool) {
+        let thresholds = self.alert_thresholds.read().await;
+        
+        // Check task duration
+        if duration.as_millis() > thresholds.max_task_duration_ms as u128 {
+            let alert = Alert {
+                id: format!("task_duration_{}_{}", task_name, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()),
+                severity: AlertSeverity::Warning,
+                message: format!("Task {} took {}ms (threshold: {}ms)", task_name, duration.as_millis(), thresholds.max_task_duration_ms),
+                timestamp: SystemTime::now(),
+                metric_name: "task_duration".to_string(),
+                current_value: duration.as_millis() as f64,
+                threshold: thresholds.max_task_duration_ms as f64,
+            };
+            
+            let mut alerts = self.active_alerts.write().await;
+            alerts.insert(alert.id.clone(), alert);
+        }
+    }
+
+    pub async fn get_active_alerts(&self) -> Vec<Alert> {
+        let alerts = self.active_alerts.read().await;
+        alerts.values().cloned().collect()
+    }
+}
+
+/// Enhanced performance report
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PerformanceReport {
+    pub uptime_seconds: u64,
+    pub task_performance: HashMap<String, TaskPerformanceMetrics>,
+    pub active_alerts: Vec<Alert>,
+    pub sla_violations: Vec<SLAViolation>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskPerformanceMetrics {
+    pub avg_duration_ms: f64,
+    pub p50_duration_ms: u64,
+    pub p95_duration_ms: u64,
+    pub p99_duration_ms: u64,
+    pub total_executions: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SystemHealthStatus {
+    pub status: HealthStatus,
+    pub memory_usage_mb: u64,
+    pub uptime_seconds: u64,
+    pub active_alert_count: u32,
+    pub critical_alert_count: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum HealthStatus {
+    Healthy,
+    Warning,
+    Critical,
 }
 
 impl Default for MetricsCollector {
@@ -411,6 +707,18 @@ impl Default for MemoryTracker {
 }
 
 impl Default for TaskHistogram {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for PerformanceTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for AlertManager {
     fn default() -> Self {
         Self::new()
     }

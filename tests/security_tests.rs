@@ -502,4 +502,178 @@ async fn test_concurrent_access_safety() {
     // Cleanup
     task_queue.shutdown().await.expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_redis_injection_prevention() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+    
+    // Test various Redis injection attempts
+    let malicious_queue_names = vec![
+        "eval_malicious_code",
+        "script_load",
+        "flushall_attack",
+        "config_set_dangerous",
+        "queue; FLUSHDB",
+        "queue\nDEL *",
+        "queue\rSHUTDOWN",
+        "../../../etc/passwd",
+        "queue`rm -rf /`",
+        "queue$(cat /etc/passwd)",
+        "queue' OR 1=1 --",
+    ];
+    
+    let test_task = SecurityTestTask {
+        payload: "test_payload".to_string(),
+        size_mb: 0,
+    };
+    
+    for malicious_queue in malicious_queue_names {
+        let result = task_queue.enqueue(test_task.clone(), malicious_queue).await;
+        
+        // Should fail due to input validation
+        assert!(result.is_err(), "Queue name '{}' should be rejected", malicious_queue);
+        
+        let error_msg = result.unwrap_err().to_string();
+        assert!(
+            error_msg.contains("Queue name contains invalid characters") || 
+            error_msg.contains("potentially dangerous pattern"),
+            "Error should indicate security violation for '{}': {}", malicious_queue, error_msg
+        );
+    }
+    
+    // Test valid queue names should work
+    let valid_queue_names = vec![
+        "default",
+        "high-priority",
+        "worker_queue",
+        "queue:namespace:subqueue",
+        "queue123",
+    ];
+    
+    for valid_queue in valid_queue_names {
+        let result = task_queue.enqueue(test_task.clone(), valid_queue).await;
+        assert!(result.is_ok(), "Valid queue name '{}' should be accepted", valid_queue);
+    }
+    
+    cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_payload_size_limits() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+    
+    // Test oversized payload
+    let huge_payload = "x".repeat(17 * 1024 * 1024); // 17MB > 16MB limit
+    let large_task = SecurityTestTask {
+        payload: huge_payload,
+        size_mb: 0,
+    };
+    
+    let result = task_queue.enqueue(large_task, "default").await;
+    assert!(result.is_err(), "Oversized payload should be rejected");
+    
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Task payload too large"), "Error should indicate payload size limit: {}", error_msg);
+    
+    // Test normal-sized payload
+    let normal_task = SecurityTestTask {
+        payload: "normal_payload".to_string(),
+        size_mb: 0,
+    };
+    
+    let result = task_queue.enqueue(normal_task, "default").await;
+    assert!(result.is_ok(), "Normal payload should be accepted");
+    
+    cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_task_name_validation() {
+    use rust_task_queue::TaskWrapper;
+    use chrono::Utc;
+    
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+    
+    // Test empty task name
+    let task_wrapper = TaskWrapper {
+        metadata: rust_task_queue::TaskMetadata {
+            id: uuid::Uuid::new_v4(),
+            name: "".to_string(), // Empty name
+            created_at: Utc::now(),
+            attempts: 0,
+            max_retries: 3,
+            timeout_seconds: 300,
+        },
+        payload: b"test".to_vec(),
+    };
+    
+    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, "default").await;
+    assert!(result.is_err(), "Empty task name should be rejected");
+    
+    // Test overly long task name
+    let long_name = "x".repeat(300); // > 255 character limit
+    let task_wrapper = TaskWrapper {
+        metadata: rust_task_queue::TaskMetadata {
+            id: uuid::Uuid::new_v4(),
+            name: long_name,
+            created_at: Utc::now(),
+            attempts: 0,
+            max_retries: 3,
+            timeout_seconds: 300,
+        },
+        payload: b"test".to_vec(),
+    };
+    
+    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, "default").await;
+    assert!(result.is_err(), "Overly long task name should be rejected");
+    
+    cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_comprehensive_input_sanitization() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+    
+    // Test various injection patterns
+    let long_name = "a".repeat(300);
+    let test_cases = vec![
+        ("", false, "Empty queue name"),
+        (long_name.as_str(), false, "Too long queue name"),
+        ("queue\0null", false, "Null byte injection"),
+        ("queue\x1b[31mcolored", false, "ANSI escape injection"),
+        ("queue\u{202e}rtl", false, "Unicode direction override"),
+        ("valid_queue", true, "Valid queue name"),
+        ("queue-123", true, "Valid with dash and numbers"),
+        ("namespace:queue", true, "Valid with colon"),
+    ];
+    
+    let test_task = SecurityTestTask {
+        payload: "test".to_string(),
+        size_mb: 0,
+    };
+    
+    for (queue_name, should_succeed, description) in test_cases {
+        let result = task_queue.enqueue(test_task.clone(), queue_name).await;
+        
+        if should_succeed {
+            assert!(result.is_ok(), "{}: should succeed but got {:?}", description, result);
+        } else {
+            assert!(result.is_err(), "{}: should fail but succeeded", description);
+        }
+    }
+    
+    cleanup_test_database(&redis_url).await;
 } 

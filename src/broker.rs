@@ -69,37 +69,162 @@ impl RedisBroker {
         Ok(task_id)
     }
 
+    /// Validate and sanitize queue name to prevent Redis injection
+    fn validate_queue_name(queue: &str) -> Result<(), TaskQueueError> {
+        if queue.is_empty() {
+            return Err(TaskQueueError::Queue("Queue name cannot be empty".to_string()));
+        }
+
+        if queue.len() > 255 {
+            return Err(TaskQueueError::Queue("Queue name too long (max 255 characters)".to_string()));
+        }
+
+        // Only allow alphanumeric, dash, underscore, and colon
+        if !queue.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | ':')) {
+            return Err(TaskQueueError::Queue(
+                "Queue name contains invalid characters. Only alphanumeric, dash, underscore, and colon allowed".to_string()
+            ));
+        }
+
+        // Prevent Redis command injection patterns
+        let lowercase = queue.to_lowercase();
+        let dangerous_patterns = [
+            "eval", "script", "flushall", "flushdb", "shutdown", "debug", "config",
+            "info", "monitor", "sync", "psync", "slaveof", "replicaof"
+        ];
+        
+        for pattern in dangerous_patterns {
+            if lowercase.contains(pattern) {
+                return Err(TaskQueueError::Queue(
+                    format!("Queue name contains potentially dangerous pattern: {}", pattern)
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate task payload size to prevent DoS
+    fn validate_task_payload(payload: &[u8]) -> Result<(), TaskQueueError> {
+        const MAX_PAYLOAD_SIZE: usize = 16 * 1024 * 1024; // 16MB limit
+        
+        if payload.len() > MAX_PAYLOAD_SIZE {
+            return Err(TaskQueueError::TaskExecution(
+                format!("Task payload too large: {} bytes (max: {} bytes)", 
+                       payload.len(), MAX_PAYLOAD_SIZE)
+            ));
+        }
+
+        // Check for malformed MessagePack data
+        if payload.is_empty() {
+            return Err(TaskQueueError::TaskExecution("Task payload cannot be empty".to_string()));
+        }
+
+        Ok(())
+    }
+
+    /// Enhanced enqueue with security validation
     pub async fn enqueue_task_wrapper(
         &self,
         task_wrapper: TaskWrapper,
         queue: &str,
     ) -> Result<TaskId, TaskQueueError> {
+        // SECURITY: Validate inputs
+        Self::validate_queue_name(queue)?;
+        
+        // Serialize and validate task wrapper
+        let serialized = rmp_serde::to_vec(&task_wrapper)?;
+        Self::validate_task_payload(&serialized)?;
+
+        // Validate metadata
+        if task_wrapper.metadata.name.is_empty() {
+            return Err(TaskQueueError::TaskExecution("Task name cannot be empty".to_string()));
+        }
+
+        if task_wrapper.metadata.name.len() > 255 {
+            return Err(TaskQueueError::TaskExecution("Task name too long (max 255 characters)".to_string()));
+        }
+
         let mut conn = self.get_conn().await?;
 
-        // Serialize the task wrapper
-        let serialized = rmp_serde::to_vec(&task_wrapper)?;
-
-        // Push to the queue (left push for FIFO with right pop)
-        conn.lpush::<_, _, ()>(queue, &serialized).await?;
-
-        // Update queue size metric
-        let queue_size_key = format!("queue:{}:size", queue);
-        conn.incr::<_, _, ()>(&queue_size_key, 1).await?;
-
-        // Store task metadata for tracking
-        let metadata_key = format!("task:{}:metadata", task_wrapper.metadata.id);
-        conn.set::<_, _, ()>(&metadata_key, rmp_serde::to_vec(&task_wrapper.metadata)?)
+        // FIXED: Use Redis pipeline without manual queue size tracking to avoid inconsistencies
+        let _pipeline_result: Vec<()> = redis::pipe()
+            .atomic()
+            // Push to the queue (left push for FIFO with right pop)
+            .lpush(queue, &serialized)
+            // Store task metadata for tracking
+            .set_ex(
+                format!("task:{}:metadata", task_wrapper.metadata.id),
+                rmp_serde::to_vec(&task_wrapper.metadata)?,
+                3600 // 1 hour TTL
+            )
+            .query_async(&mut *conn)
             .await?;
-        conn.expire::<_, ()>(&metadata_key, 3600).await?; // 1 hour TTL
 
         #[cfg(feature = "tracing")]
         tracing::debug!(
-            "Enqueued task {} to queue {}",
+            "Enqueued task {} to queue {} using pipeline",
             task_wrapper.metadata.id,
             queue
         );
 
         Ok(task_wrapper.metadata.id)
+    }
+
+    /// Batch enqueue multiple tasks for better throughput
+    pub async fn enqueue_tasks_batch<T: Task>(
+        &self,
+        tasks: Vec<(T, &str)>,
+    ) -> Result<Vec<TaskId>, TaskQueueError> {
+        if tasks.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut conn = self.get_conn().await?;
+        let mut pipeline = redis::pipe();
+        pipeline.atomic();
+
+        let mut task_ids = Vec::with_capacity(tasks.len());
+
+        for (task, queue) in tasks {
+            // Validate queue name for each task
+            Self::validate_queue_name(queue)?;
+
+            let task_id = TaskId::new_v4();
+            task_ids.push(task_id);
+            
+            let metadata = TaskMetadata {
+                id: task_id,
+                name: task.name().to_string(),
+                created_at: chrono::Utc::now(),
+                attempts: 0,
+                max_retries: task.max_retries(),
+                timeout_seconds: task.timeout_seconds(),
+            };
+
+            let payload = rmp_serde::to_vec(&task)?;
+            let task_wrapper = TaskWrapper { metadata: metadata.clone(), payload };
+            let serialized = rmp_serde::to_vec(&task_wrapper)?;
+
+            // Validate task payload
+            Self::validate_task_payload(&serialized)?;
+
+            // Add to pipeline - only LPUSH and metadata storage
+            pipeline.lpush(queue, &serialized);
+            pipeline.set_ex(
+                format!("task:{}:metadata", task_id),
+                rmp_serde::to_vec(&metadata)?,
+                3600
+            );
+        }
+
+        // Execute all operations atomically
+        let _: Vec<()> = pipeline.query_async(&mut *conn).await?;
+
+        #[cfg(feature = "tracing")]
+        tracing::debug!("Batch enqueued {} tasks using pipeline", task_ids.len());
+
+        Ok(task_ids)
     }
 
     pub async fn dequeue_task(
@@ -111,18 +236,14 @@ impl RedisBroker {
         // Use BRPOP for blocking right pop (FIFO with LPUSH)
         let result: Option<(String, Vec<u8>)> = conn.brpop(queues, 5f64).await?;
 
-        if let Some((queue, serialized)) = result {
+        if let Some((_queue, serialized)) = result {
             let task_wrapper: TaskWrapper = rmp_serde::from_slice(&serialized)?;
-
-            // Update queue metrics
-            let queue_size_key = format!("queue:{}:size", queue);
-            conn.decr::<_, _, ()>(&queue_size_key, 1).await?;
 
             #[cfg(feature = "tracing")]
             tracing::debug!(
                 "Dequeued task {} from queue {}",
                 task_wrapper.metadata.id,
-                queue
+                _queue
             );
 
             Ok(Some(task_wrapper))
@@ -331,7 +452,18 @@ mod tests {
     }
 
     fn get_test_redis_url() -> String {
-        std::env::var("REDIS_TEST_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379/15".to_string())
+        // Use a combination of thread ID and timestamp for better uniqueness
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        
+        let mut hasher = DefaultHasher::new();
+        std::thread::current().id().hash(&mut hasher);
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default().as_nanos().hash(&mut hasher);
+        
+        let db_num = (hasher.finish() % 16) as u8; // Redis has 16 DBs by default (0-15)
+        std::env::var("REDIS_TEST_URL")
+            .unwrap_or_else(|_| format!("redis://127.0.0.1:6379/{}", db_num))
     }
 
     async fn create_test_broker() -> RedisBroker {
@@ -341,26 +473,32 @@ mod tests {
 
     async fn cleanup_test_data(broker: &RedisBroker) {
         if let Ok(mut conn) = broker.get_conn().await {
+            // Use FLUSHDB to clear only this database, then wait a bit for consistency
             let _: Result<String, _> = redis::cmd("FLUSHDB").query_async(&mut conn).await;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
     }
 
     #[tokio::test]
     async fn test_broker_creation() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         // Broker should be created successfully and connection should work
         assert!(broker.get_conn().await.is_ok());
+        
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
     async fn test_broker_creation_with_config() {
         let redis_url = get_test_redis_url();
         let broker = RedisBroker::new_with_config(&redis_url, Some(5)).await.expect("Failed to create broker");
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         assert!(broker.get_conn().await.is_ok());
+        
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
@@ -376,7 +514,7 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_task() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         let task = TestTask {
             data: "test data".to_string(),
@@ -391,13 +529,13 @@ mod tests {
         // Verify task ID was generated
         assert!(!task_id.to_string().is_empty());
         
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
     async fn test_dequeue_task() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         let task = TestTask {
             data: "test data".to_string(),
@@ -405,20 +543,24 @@ mod tests {
         
         let task_id = broker.enqueue_task(task, "test_queue").await.expect("Failed to enqueue task");
         
+        // Verify exactly one task is in the queue
+        let queue_size = broker.get_queue_size("test_queue").await.expect("Failed to get queue size");
+        assert_eq!(queue_size, 1, "Queue should have exactly 1 task before dequeue");
+        
         // Dequeue the task
         let queues = vec!["test_queue".to_string()];
         let dequeued = broker.dequeue_task(&queues).await.expect("Failed to dequeue task");
         
-        assert!(dequeued.is_some());
+        assert!(dequeued.is_some(), "Should have dequeued a task");
         let task_wrapper = dequeued.unwrap();
-        assert_eq!(task_wrapper.metadata.id, task_id);
-        assert_eq!(task_wrapper.metadata.name, "test_task");
+        assert_eq!(task_wrapper.metadata.id, task_id, "Task ID should match the enqueued task");
+        assert_eq!(task_wrapper.metadata.name, "test_task", "Task name should match");
         
         // Queue should be empty now
         let queue_size = broker.get_queue_size("test_queue").await.expect("Failed to get queue size");
-        assert_eq!(queue_size, 0);
+        assert_eq!(queue_size, 0, "Queue should be empty after dequeue");
         
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
@@ -443,7 +585,7 @@ mod tests {
     #[tokio::test]
     async fn test_queue_metrics() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         // Initial metrics should be zero
         let metrics = broker.get_queue_metrics("test_queue").await.expect("Failed to get metrics");
@@ -458,7 +600,7 @@ mod tests {
         let metrics = broker.get_queue_metrics("test_queue").await.expect("Failed to get metrics");
         assert_eq!(metrics.pending_tasks, 1);
         
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
@@ -523,7 +665,7 @@ mod tests {
     #[tokio::test]
     async fn test_worker_registration() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         let worker_id = "test_worker_001";
         
@@ -542,7 +684,7 @@ mod tests {
         let active_workers = broker.get_active_workers().await.expect("Failed to get active workers");
         assert_eq!(active_workers, 0);
         
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 
     #[tokio::test]
@@ -657,7 +799,7 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_task_wrapper() {
         let broker = create_test_broker().await;
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean before test
         
         let task_id = TaskId::new_v4();
         let metadata = TaskMetadata {
@@ -682,6 +824,6 @@ mod tests {
         let queue_size = broker.get_queue_size("test_queue").await.expect("Failed to get queue size");
         assert_eq!(queue_size, 1);
         
-        cleanup_test_data(&broker).await;
+        cleanup_test_data(&broker).await;  // Clean after test
     }
 }

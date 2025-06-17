@@ -172,7 +172,7 @@ FAILED_TESTS=0
 # Run all test suites
 test_suites=(
     "Clippy checks|cargo clippy --all-targets --all-features -- -D warnings"
-    "Unit tests (121)|cargo test --lib"
+    "Unit tests (121)|cargo test --lib -- --test-threads=1"
     "Integration tests (9)|cargo test --test integration_tests"
     "Error scenario tests (9)|cargo test --test error_scenarios"
     "Performance tests (6)|cargo test --test performance_tests"

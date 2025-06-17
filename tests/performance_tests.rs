@@ -581,7 +581,7 @@ async fn test_autoscaler_performance_under_load() {
         }
         
         if attempts >= 300 { // Increased timeout for longer-running tasks
-            println!("⚠️  Autoscaler load test timed out. Handled: {}/{} (this is acceptable for performance testing)", 
+            println!("WARNING: Autoscaler load test timed out. Handled: {}/{} (this is acceptable for performance testing)", 
                      total_handled, burst_size);
             break;
         }
@@ -593,9 +593,9 @@ async fn test_autoscaler_performance_under_load() {
     // Note: Autoscaling may not always trigger in test environments due to timing
     // The important thing is that the system handles the load gracefully
     if max_workers_seen > 1 {
-        println!("✅ Autoscaling successfully triggered, max workers: {}", max_workers_seen);
+        println!("Autoscaling successfully triggered, max workers: {}", max_workers_seen);
     } else {
-        println!("ℹ️  Autoscaling didn't trigger (max workers: {}), but system handled load gracefully", max_workers_seen);
+        println!("INFO: Autoscaling didn't trigger (max workers: {}), but system handled load gracefully", max_workers_seen);
     }
     
     // Cleanup

@@ -31,7 +31,7 @@ impl Task for SimpleTask {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 Starting performance test with improved connection pooling...");
+    println!("Starting performance test with improved connection pooling...");
     
     // Create task queue with connection pooling
     let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // Test 1: Sequential task enqueueing (tests connection pooling efficiency)
-    println!("📊 Test 1: Sequential task enqueueing");
+    println!("Test 1: Sequential task enqueueing");
     let start = Instant::now();
     for i in 0..100 {
         let task = SimpleTask {
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Sequential: {} tasks in {:?}", 100, sequential_duration);
 
     // Test 2: Concurrent task enqueueing (tests connection pool under load)
-    println!("📊 Test 2: Concurrent task enqueueing");
+    println!("Test 2: Concurrent task enqueueing");
     let start = Instant::now();
     let mut handles = vec![];
     
@@ -76,13 +76,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show queue metrics
     let queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await?;
-    println!("📈 Queue metrics:");
+    println!("Queue metrics:");
     println!("   Total tasks enqueued: {}", queue_size);
     println!("   Performance improvement: {:.2}x faster with concurrency", 
              sequential_duration.as_millis() as f64 / concurrent_duration.as_millis() as f64);
 
-    println!("✅ Performance test completed!");
-    println!("🔧 Connection pooling provides better performance under concurrent load");
+    println!("Performance test completed!");
+    println!("Connection pooling provides better performance under concurrent load");
     
     Ok(())
 } 
