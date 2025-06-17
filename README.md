@@ -6,31 +6,35 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Test Coverage](https://img.shields.io/badge/tests-162%20passing-brightgreen.svg)]()
 
-A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning, multi-dimensional scaling triggers, and advanced backpressure management for async Rust applications.
+A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning,
+multidimensional scaling triggers, and advanced backpressure management for async Rust applications.
 
 ## Enhanced Auto-scaling
 
 ### **Multi-dimensional Scaling Intelligence**
+
 Our enhanced auto-scaling system analyzes **5 key metrics simultaneously** for intelligent scaling decisions:
 
 - **Queue Pressure Score**: Weighted queue depth accounting for priority levels
-- **Worker Utilization**: Real-time busy/idle ratio analysis  
+- **Worker Utilization**: Real-time busy/idle ratio analysis
 - **Task Complexity Factor**: Dynamic execution pattern recognition
 - **Error Rate Monitoring**: System health and stability tracking
 - **Memory Pressure**: Per-worker resource utilization analysis
 
 ### **Adaptive Threshold Learning**
+
 The system automatically adjusts scaling triggers based on actual performance vs. your SLA targets:
 
 ```toml
 [autoscaler.target_sla]
 max_p95_latency_ms = 3000.0           # 3 second P95 latency target
 min_success_rate = 0.99               # 99% success rate target
-max_queue_wait_time_ms = 5000.0       # 5 second max queue wait
-target_worker_utilization = 0.75     # optimal 75% worker utilization
+max_queue_wait_time_ms = 5000.0       # 5-second max queue wait
+target_worker_utilization = 0.75      # optimal 75% worker utilization
 ```
 
 ### **Stability Controls**
+
 Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 
 - **Consecutive Signal Requirements**: Configurable signal thresholds (2-5 signals)
@@ -71,13 +75,13 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 
 Recent benchmark results demonstrate exceptional performance:
 
-| Operation | Time | Status |
-|-----------|------|--------|
-| Task Serialization | ~39.15 ns | Excellent |
-| Task Deserialization | ~31.51 ns | Excellent |
-| Queue Config Lookup | ~39.76 ns | Excellent |
-| Queue Management | ~1.38 µs | Very Good |
-| Enhanced AutoScaler Config | ~617 ps | Outstanding |
+| Operation                  | Time      | Status      |
+|----------------------------|-----------|-------------|
+| Task Serialization         | ~39.15 ns | Excellent   |
+| Task Deserialization       | ~31.51 ns | Excellent   |
+| Queue Config Lookup        | ~39.76 ns | Excellent   |
+| Queue Management           | ~1.38 µs  | Very Good   |
+| Enhanced AutoScaler Config | ~617 ps   | Outstanding |
 
 *Benchmarks run on optimized release builds with statistical analysis*
 
@@ -430,7 +434,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_workers: 50,
         scale_up_count: 3,
         scale_down_count: 1,
-        
+
         // Multi-dimensional scaling triggers
         scaling_triggers: ScalingTriggers {
             queue_pressure_threshold: 1.5,
@@ -439,17 +443,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             error_rate_threshold: 0.05,
             memory_pressure_threshold: 512.0,
         },
-        
+
         // Adaptive learning settings
         enable_adaptive_thresholds: true,
         learning_rate: 0.1,
         adaptation_window_minutes: 30,
-        
+
         // Stability controls
         scale_up_cooldown_seconds: 120,
         scale_down_cooldown_seconds: 600,
         consecutive_signals_required: 2,
-        
+
         // SLA targets for optimization
         target_sla: SLATargets {
             max_p95_latency_ms: 5000.0,
@@ -554,7 +558,8 @@ impl Default for MyTask {
 
 ## CLI Worker Tool
 
-The framework includes a powerful CLI tool for running workers in separate processes, now with enhanced auto-scaling support.
+The framework includes a powerful CLI tool for running workers in separate processes, now with enhanced auto-scaling
+support.
 
 ### Enhanced CLI Usage with Auto-scaling
 
@@ -814,16 +819,18 @@ Recent improvements include:
 The framework features a sophisticated async task spawning system that provides:
 
 #### **Structured Task Execution**
+
 - **Context-based spawning**: Centralized execution context for better resource management
 - **Atomic task tracking**: Real-time monitoring of active tasks using `AtomicUsize` counters
 - **Resource safety**: Proper cleanup and RAII patterns throughout the lifecycle
 
 #### **Backpressure Management**
+
 ```rust
 // Workers automatically handle capacity limits
 let worker = Worker::new("worker-1".to_string(), broker, scheduler)
-    .with_max_concurrent_tasks(10)  // Limit concurrent execution
-    .with_task_registry(registry);
+.with_max_concurrent_tasks(10)  // Limit concurrent execution
+.with_task_registry(registry);
 
 let started_worker = worker.start().await?;
 
@@ -832,6 +839,7 @@ println!("Active tasks: {}", started_worker.active_task_count());
 ```
 
 #### **Execution Flow**
+
 1. **Task Dequeuing**: Workers pull tasks from priority-ordered queues
 2. **Capacity Check**: Semaphore-based concurrency control prevents overload
 3. **Smart Spawning**: Tasks are spawned asynchronously or queued based on capacity
@@ -839,11 +847,13 @@ println!("Active tasks: {}", started_worker.active_task_count());
 5. **Graceful Cleanup**: Automatic resource cleanup when tasks complete
 
 #### **Backpressure Strategies**
+
 - **At Capacity**: Tasks are automatically re-queued for later processing
 - **Intelligent Delays**: Configurable delays prevent tight loops during high load
 - **Resource Monitoring**: Real-time feedback on worker utilization
 
 #### **Graceful Shutdown**
+
 ```rust
 // Workers wait for active tasks before shutting down
 worker.stop().await;  // Waits up to 30 seconds for task completion
@@ -852,32 +862,35 @@ worker.stop().await;  // Waits up to 30 seconds for task completion
 ### Worker Configuration Examples
 
 #### **Basic Worker Setup**
+
 ```rust
 use rust_task_queue::prelude::*;
 
 let worker = Worker::new("worker-1".to_string(), broker, scheduler)
-    .with_max_concurrent_tasks(5)
-    .with_task_registry(registry);
+.with_max_concurrent_tasks(5)
+.with_task_registry(registry);
 
 let started_worker = worker.start().await?;
 ```
 
 #### **Advanced Configuration**
+
 ```rust
 use rust_task_queue::WorkerBackpressureConfig;
 
 let backpressure_config = WorkerBackpressureConfig {
-    max_concurrent_tasks: 10,
-    queue_size_threshold: 100,
-    backpressure_delay_ms: 50,
+max_concurrent_tasks: 10,
+queue_size_threshold: 100,
+backpressure_delay_ms: 50,
 };
 
 let worker = Worker::new("worker-advanced".to_string(), broker, scheduler)
-    .with_backpressure_config(backpressure_config)
-    .with_task_registry(registry);
+.with_backpressure_config(backpressure_config)
+.with_task_registry(registry);
 ```
 
 #### **Production Monitoring**
+
 ```rust
 // Monitor worker health and performance
 let active_tasks = worker.active_task_count();
@@ -931,8 +944,8 @@ println!("Worker has {} active tasks", active_count);
 
 // Queue metrics for capacity planning
 let queue_metrics = task_queue.broker.get_queue_metrics("default").await?;
-println!("Queue depth: {} pending, {} processed", 
-         queue_metrics.pending_tasks, 
+println!("Queue depth: {} pending, {} processed",
+         queue_metrics.pending_tasks,
          queue_metrics.processed_tasks);
 
 // Auto-scaler insights  
@@ -943,7 +956,7 @@ println!("Tasks per worker: {:.2}", autoscaler_metrics.tasks_per_worker);
 #### **Key Metrics to Monitor**
 
 - **Active Task Count**: Real-time view of worker utilization
-- **Queue Depth**: Pending tasks across all priority queues  
+- **Queue Depth**: Pending tasks across all priority queues
 - **Task Processing Rate**: Completed tasks per second
 - **Backpressure Events**: Tasks re-queued due to capacity limits
 - **Graceful Shutdown Time**: How long workers take to complete active tasks

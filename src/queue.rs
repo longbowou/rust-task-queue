@@ -126,7 +126,7 @@ mod tests {
     fn test_queue_manager_creation() {
         let manager = QueueManager::new();
         let queue_names = manager.get_queue_names();
-        
+
         assert_eq!(queue_names.len(), 3);
         assert!(queue_names.contains(&queue_names::DEFAULT.to_string()));
         assert!(queue_names.contains(&queue_names::HIGH_PRIORITY.to_string()));
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn test_add_custom_queue() {
         let manager = QueueManager::new();
-        
+
         let custom_config = QueueConfig {
             name: "custom".to_string(),
             priority: 100,
@@ -151,9 +151,9 @@ mod tests {
             timeout_seconds: 30,
             rate_limit: Some(50),
         };
-        
+
         manager.add_queue(custom_config.clone());
-        
+
         let retrieved = manager.get_queue_config("custom").unwrap();
         assert_eq!(retrieved.name, "custom");
         assert_eq!(retrieved.priority, 100);
@@ -165,15 +165,17 @@ mod tests {
     #[test]
     fn test_get_queue_config_existing() {
         let manager = QueueManager::new();
-        
+
         let default_config = manager.get_queue_config(queue_names::DEFAULT).unwrap();
         assert_eq!(default_config.name, queue_names::DEFAULT);
         assert_eq!(default_config.priority, 0);
-        
-        let high_config = manager.get_queue_config(queue_names::HIGH_PRIORITY).unwrap();
+
+        let high_config = manager
+            .get_queue_config(queue_names::HIGH_PRIORITY)
+            .unwrap();
         assert_eq!(high_config.name, queue_names::HIGH_PRIORITY);
         assert_eq!(high_config.priority, 10);
-        
+
         let low_config = manager.get_queue_config(queue_names::LOW_PRIORITY).unwrap();
         assert_eq!(low_config.name, queue_names::LOW_PRIORITY);
         assert_eq!(low_config.priority, -10);
@@ -190,14 +192,14 @@ mod tests {
     fn test_get_queues_by_priority() {
         let manager = QueueManager::new();
         let queues = manager.get_queues_by_priority();
-        
+
         assert_eq!(queues.len(), 3);
-        
+
         // Should be sorted by priority in descending order
         assert_eq!(queues[0].priority, 10); // high_priority
-        assert_eq!(queues[1].priority, 0);  // default
+        assert_eq!(queues[1].priority, 0); // default
         assert_eq!(queues[2].priority, -10); // low_priority
-        
+
         assert_eq!(queues[0].name, queue_names::HIGH_PRIORITY);
         assert_eq!(queues[1].name, queue_names::DEFAULT);
         assert_eq!(queues[2].name, queue_names::LOW_PRIORITY);
@@ -206,7 +208,7 @@ mod tests {
     #[test]
     fn test_queue_priority_sorting() {
         let manager = QueueManager::new();
-        
+
         // Add some custom queues with various priorities
         manager.add_queue(QueueConfig {
             name: "highest".to_string(),
@@ -215,7 +217,7 @@ mod tests {
             timeout_seconds: 300,
             rate_limit: None,
         });
-        
+
         manager.add_queue(QueueConfig {
             name: "lowest".to_string(),
             priority: -100,
@@ -223,10 +225,10 @@ mod tests {
             timeout_seconds: 300,
             rate_limit: None,
         });
-        
+
         let queues = manager.get_queues_by_priority();
         assert_eq!(queues.len(), 5);
-        
+
         // Verify sorting: 100, 10, 0, -10, -100
         assert_eq!(queues[0].priority, 100);
         assert_eq!(queues[1].priority, 10);
@@ -244,7 +246,7 @@ mod tests {
             timeout_seconds: 600,
             rate_limit: Some(100),
         };
-        
+
         let cloned = original.clone();
         assert_eq!(original.name, cloned.name);
         assert_eq!(original.priority, cloned.priority);
@@ -265,10 +267,10 @@ mod tests {
     fn test_queue_manager_concurrent_access() {
         use std::sync::Arc;
         use std::thread;
-        
+
         let manager = Arc::new(QueueManager::new());
         let mut handles = Vec::new();
-        
+
         // Spawn multiple threads adding queues
         for i in 0..10 {
             let manager_clone = Arc::clone(&manager);
@@ -284,12 +286,12 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all threads to complete
         for handle in handles {
             handle.join().unwrap();
         }
-        
+
         // Verify all queues were added (3 default + 10 thread queues)
         let queue_names = manager.get_queue_names();
         assert_eq!(queue_names.len(), 13);
@@ -305,7 +307,7 @@ mod tests {
     #[test]
     fn test_queue_manager_overwrite_existing() {
         let manager = QueueManager::new();
-        
+
         // Overwrite the default queue with custom settings
         let custom_default = QueueConfig {
             name: queue_names::DEFAULT.to_string(),
@@ -314,9 +316,9 @@ mod tests {
             timeout_seconds: 1000,
             rate_limit: Some(1),
         };
-        
+
         manager.add_queue(custom_default);
-        
+
         let retrieved = manager.get_queue_config(queue_names::DEFAULT).unwrap();
         assert_eq!(retrieved.priority, 999);
         assert_eq!(retrieved.max_retries, 10);

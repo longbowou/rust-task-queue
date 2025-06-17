@@ -10,14 +10,14 @@ pub struct TaskScheduler {
 
 impl TaskScheduler {
     pub fn new(broker: Arc<RedisBroker>) -> Self {
-        Self { 
+        Self {
             broker,
             tick_interval_seconds: 1, // Default to 1 second for better responsiveness
         }
     }
 
     pub fn with_tick_interval(broker: Arc<RedisBroker>, interval_seconds: u64) -> Self {
-        Self { 
+        Self {
             broker,
             tick_interval_seconds: interval_seconds,
         }
@@ -27,7 +27,7 @@ impl TaskScheduler {
         let scheduler = Self::new(broker);
         let tick_interval = scheduler.tick_interval_seconds;
         let broker = scheduler.broker;
-        
+
         let handle = tokio::spawn(async move {
             loop {
                 if let Err(e) = Self::process_scheduled_tasks(&broker).await {
@@ -40,7 +40,10 @@ impl TaskScheduler {
         });
 
         #[cfg(feature = "tracing")]
-        tracing::info!("Task scheduler started with {} second tick interval", tick_interval);
+        tracing::info!(
+            "Task scheduler started with {} second tick interval",
+            tick_interval
+        );
 
         Ok(handle)
     }
@@ -65,8 +68,9 @@ impl TaskScheduler {
         };
 
         // Store in Redis sorted set with timestamp as score
-        let mut conn = self.broker.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = self.broker.pool.get().await.map_err(|e| {
+            TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e))
+        })?;
         let serialized = rmp_serde::to_vec(&scheduled_task)?;
 
         redis::AsyncCommands::zadd::<_, _, _, ()>(
@@ -84,8 +88,9 @@ impl TaskScheduler {
     }
 
     pub async fn process_scheduled_tasks(broker: &RedisBroker) -> Result<(), TaskQueueError> {
-        let mut conn = broker.pool.get().await
-            .map_err(|e| TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e)))?;
+        let mut conn = broker.pool.get().await.map_err(|e| {
+            TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e))
+        })?;
         let now = Utc::now().timestamp();
 
         // Get tasks that should execute now

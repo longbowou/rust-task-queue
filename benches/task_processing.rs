@@ -47,5 +47,9 @@ fn bench_task_deserialization(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_task_serialization, bench_task_deserialization);
-criterion_main!(benches); 
+criterion_group!(
+    benches,
+    bench_task_serialization,
+    bench_task_deserialization
+);
+criterion_main!(benches);

@@ -32,12 +32,12 @@ async fn get_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpR
             let mut response = HashMap::new();
             response.insert("metrics", report);
             Ok(HttpResponse::Ok().json(response))
-        },
+        }
         Err(e) => {
             let mut response = HashMap::new();
             response.insert("error", e.to_string());
             Ok(HttpResponse::InternalServerError().json(response))
-        },
+        }
     }
 }
 
@@ -57,7 +57,7 @@ async fn get_registered_tasks() -> ActixResult<HttpResponse> {
             response.insert("error", vec![e.to_string()]);
             response.insert("auto_registration_enabled", vec!["true".to_string()]);
             Ok(HttpResponse::InternalServerError().json(response))
-        },
+        }
     }
 }
 
@@ -146,12 +146,12 @@ macro_rules! create_task_endpoint {
                     let mut response = std::collections::HashMap::new();
                     response.insert("task_id", task_id.to_string());
                     Ok(actix_web::HttpResponse::Ok().json(response))
-                },
+                }
                 Err(e) => {
                     let mut response = std::collections::HashMap::new();
                     response.insert("error", e.to_string());
                     Ok(actix_web::HttpResponse::InternalServerError().json(response))
-                },
+                }
             }
         }
     };

@@ -1,4 +1,4 @@
-//! Simple Task App - Actix Web Server with Auto-Configuration
+//! Actix Web Server with Auto-Configuration
 mod module_tasks;
 mod tasks; // Original tasks from legacy_tasks.rs // New modular tasks from tasks/ directory
 
@@ -58,7 +58,10 @@ async fn enqueue_email(
     task_queue: web::Data<Arc<TaskQueue>>,
     email_data: Json<EmailTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(email_data.into_inner(), queue_names::DEFAULT).await {
+    match task_queue
+        .enqueue(email_data.into_inner(), queue_names::DEFAULT)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued email task: {}", task_id);
             let response = TaskResponse {
@@ -135,7 +138,10 @@ async fn enqueue_data_processing(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<DataProcessingTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), queue_names::HIGH_PRIORITY).await {
+    match task_queue
+        .enqueue(data.into_inner(), queue_names::HIGH_PRIORITY)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued data processing task: {}", task_id);
             let response = TaskResponse {
@@ -157,7 +163,10 @@ async fn enqueue_slack_notification(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<SlackNotificationTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), queue_names::DEFAULT).await {
+    match task_queue
+        .enqueue(data.into_inner(), queue_names::DEFAULT)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued Slack notification: {}", task_id);
             let response = TaskResponse {
@@ -179,7 +188,10 @@ async fn enqueue_sms(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<SmsTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), queue_names::HIGH_PRIORITY).await {
+    match task_queue
+        .enqueue(data.into_inner(), queue_names::HIGH_PRIORITY)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued SMS: {}", task_id);
             let response = TaskResponse {
@@ -201,7 +213,10 @@ async fn enqueue_analytics(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<AnalyticsTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), queue_names::LOW_PRIORITY).await {
+    match task_queue
+        .enqueue(data.into_inner(), queue_names::LOW_PRIORITY)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued analytics task: {}", task_id);
             let response = TaskResponse {
@@ -223,7 +238,10 @@ async fn enqueue_ml_training(
     task_queue: web::Data<Arc<TaskQueue>>,
     data: Json<MLTrainingTask>,
 ) -> ActixResult<HttpResponse> {
-    match task_queue.enqueue(data.into_inner(), queue_names::LOW_PRIORITY).await {
+    match task_queue
+        .enqueue(data.into_inner(), queue_names::LOW_PRIORITY)
+        .await
+    {
         Ok(task_id) => {
             println!("Enqueued ML training task: {}", task_id);
             let response = TaskResponse {

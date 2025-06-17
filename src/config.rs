@@ -109,7 +109,8 @@ pub struct ActixConfig {
 impl Default for RedisConfig {
     fn default() -> Self {
         Self {
-            url: std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string()),
+            url: std::env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string()),
             pool_size: None,
             connection_timeout: None,
             command_timeout: None,
@@ -160,7 +161,8 @@ impl Default for ActixConfig {
             auto_configure_routes: std::env::var("AUTO_CONFIGURE_ROUTES")
                 .map(|s| s.to_lowercase() == "true")
                 .unwrap_or(true),
-            route_prefix: std::env::var("ROUTE_PREFIX").unwrap_or_else(|_| "/api/v1/tasks".to_string()),
+            route_prefix: std::env::var("ROUTE_PREFIX")
+                .unwrap_or_else(|_| "/api/v1/tasks".to_string()),
             enable_metrics: std::env::var("ENABLE_METRICS")
                 .map(|s| s.to_lowercase() == "true")
                 .unwrap_or(true),
@@ -177,34 +179,34 @@ impl TaskQueueConfig {
         // Validate Redis URL
         if self.redis.url.is_empty() {
             return Err(TaskQueueError::Configuration(
-                "Redis URL cannot be empty".to_string()
+                "Redis URL cannot be empty".to_string(),
             ));
         }
 
         // Basic URL format validation
         if !self.redis.url.starts_with("redis://") && !self.redis.url.starts_with("rediss://") {
             return Err(TaskQueueError::Configuration(
-                "Redis URL must start with redis:// or rediss://".to_string()
+                "Redis URL must start with redis:// or rediss://".to_string(),
             ));
         }
 
         // Validate worker configuration
         if self.workers.initial_count == 0 {
             return Err(TaskQueueError::Configuration(
-                "Initial worker count must be greater than 0".to_string()
+                "Initial worker count must be greater than 0".to_string(),
             ));
         }
 
         if self.workers.initial_count > 1000 {
             return Err(TaskQueueError::Configuration(
-                "Initial worker count cannot exceed 1000".to_string()
+                "Initial worker count cannot exceed 1000".to_string(),
             ));
         }
 
         if let Some(max_concurrent) = self.workers.max_concurrent_tasks {
             if max_concurrent == 0 || max_concurrent > 1000 {
                 return Err(TaskQueueError::Configuration(
-                    "Max concurrent tasks per worker must be between 1 and 1000".to_string()
+                    "Max concurrent tasks per worker must be between 1 and 1000".to_string(),
                 ));
             }
         }
@@ -212,7 +214,7 @@ impl TaskQueueConfig {
         if let Some(heartbeat) = self.workers.heartbeat_interval {
             if heartbeat == 0 || heartbeat > 3600 {
                 return Err(TaskQueueError::Configuration(
-                    "Heartbeat interval must be between 1 and 3600 seconds".to_string()
+                    "Heartbeat interval must be between 1 and 3600 seconds".to_string(),
                 ));
             }
         }
@@ -220,7 +222,7 @@ impl TaskQueueConfig {
         if let Some(grace_period) = self.workers.shutdown_grace_period {
             if grace_period > 300 {
                 return Err(TaskQueueError::Configuration(
-                    "Shutdown grace period cannot exceed 300 seconds".to_string()
+                    "Shutdown grace period cannot exceed 300 seconds".to_string(),
                 ));
             }
         }
@@ -229,7 +231,7 @@ impl TaskQueueConfig {
         if let Some(pool_size) = self.redis.pool_size {
             if pool_size == 0 || pool_size > 1000 {
                 return Err(TaskQueueError::Configuration(
-                    "Redis pool size must be between 1 and 1000".to_string()
+                    "Redis pool size must be between 1 and 1000".to_string(),
                 ));
             }
         }
@@ -238,7 +240,7 @@ impl TaskQueueConfig {
         if let Some(timeout) = self.redis.connection_timeout {
             if timeout == 0 || timeout > 300 {
                 return Err(TaskQueueError::Configuration(
-                    "Connection timeout must be between 1 and 300 seconds".to_string()
+                    "Connection timeout must be between 1 and 300 seconds".to_string(),
                 ));
             }
         }
@@ -246,7 +248,7 @@ impl TaskQueueConfig {
         if let Some(timeout) = self.redis.command_timeout {
             if timeout == 0 || timeout > 300 {
                 return Err(TaskQueueError::Configuration(
-                    "Command timeout must be between 1 and 300 seconds".to_string()
+                    "Command timeout must be between 1 and 300 seconds".to_string(),
                 ));
             }
         }
@@ -255,7 +257,7 @@ impl TaskQueueConfig {
         if let Some(tick_interval) = self.scheduler.tick_interval {
             if tick_interval == 0 || tick_interval > 3600 {
                 return Err(TaskQueueError::Configuration(
-                    "Scheduler tick interval must be between 1 and 3600 seconds".to_string()
+                    "Scheduler tick interval must be between 1 and 3600 seconds".to_string(),
                 ));
             }
         }
@@ -263,7 +265,7 @@ impl TaskQueueConfig {
         if let Some(max_tasks) = self.scheduler.max_tasks_per_tick {
             if max_tasks == 0 || max_tasks > 10000 {
                 return Err(TaskQueueError::Configuration(
-                    "Max tasks per tick must be between 1 and 10000".to_string()
+                    "Max tasks per tick must be between 1 and 10000".to_string(),
                 ));
             }
         }
@@ -276,13 +278,13 @@ impl TaskQueueConfig {
         {
             if self.actix.route_prefix.is_empty() {
                 return Err(TaskQueueError::Configuration(
-                    "Actix route prefix cannot be empty".to_string()
+                    "Actix route prefix cannot be empty".to_string(),
                 ));
             }
 
             if !self.actix.route_prefix.starts_with('/') {
                 return Err(TaskQueueError::Configuration(
-                    "Actix route prefix must start with '/'".to_string()
+                    "Actix route prefix must start with '/'".to_string(),
                 ));
             }
         }
@@ -344,11 +346,9 @@ impl TaskQueueConfig {
 
         let mut builder = Config::builder()
             // Start with defaults
-            .add_source(
-                Config::try_from(&Self::default()).map_err(|e| {
-                    TaskQueueError::Configuration(format!("Failed to create default config: {}", e))
-                })?
-            );
+            .add_source(Config::try_from(&Self::default()).map_err(|e| {
+                TaskQueueError::Configuration(format!("Failed to create default config: {}", e))
+            })?);
 
         // Check for config file in common locations
         for config_path in &[
@@ -406,7 +406,7 @@ impl TaskQueueConfig {
             None => match GLOBAL_CONFIG.set(Self::load()?) {
                 Ok(()) => Ok(GLOBAL_CONFIG.get().unwrap()),
                 Err(_) => Ok(GLOBAL_CONFIG.get().unwrap()),
-            }
+            },
         }
     }
 
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn test_redis_config_default() {
         let config = RedisConfig::default();
-        
+
         // Should use environment variable or default
         assert!(!config.url.is_empty());
         assert!(config.url.starts_with("redis://"));
@@ -485,7 +485,7 @@ mod tests {
     #[test]
     fn test_worker_config_default() {
         let config = WorkerConfig::default();
-        
+
         assert!(config.initial_count > 0);
         assert!(config.max_concurrent_tasks.is_none());
         assert!(config.heartbeat_interval.is_none());
@@ -512,7 +512,7 @@ mod tests {
     #[test]
     fn test_actix_config_default() {
         let config = ActixConfig::default();
-        
+
         assert!(!config.route_prefix.is_empty());
         assert!(config.route_prefix.starts_with('/'));
         // Other defaults may vary based on environment variables
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_task_queue_config_default() {
         let config = TaskQueueConfig::default();
-        
+
         assert!(!config.redis.url.is_empty());
         assert!(config.workers.initial_count > 0);
         // Other fields should have sensible defaults
@@ -557,7 +557,7 @@ mod tests {
                 enable_health_check: true,
             },
         };
-        
+
         assert!(config.validate().is_ok());
     }
 
@@ -565,108 +565,144 @@ mod tests {
     fn test_config_validation_empty_redis_url() {
         let mut config = TaskQueueConfig::default();
         config.redis.url = "".to_string();
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Redis URL cannot be empty"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Redis URL cannot be empty"));
     }
 
     #[test]
     fn test_config_validation_invalid_redis_url() {
         let mut config = TaskQueueConfig::default();
         config.redis.url = "http://localhost:6379".to_string();
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Redis URL must start with redis://"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Redis URL must start with redis://"));
     }
 
     #[test]
     fn test_config_validation_zero_workers() {
         let mut config = TaskQueueConfig::default();
         config.workers.initial_count = 0;
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Initial worker count must be greater than 0"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Initial worker count must be greater than 0"));
     }
 
     #[test]
     fn test_config_validation_too_many_workers() {
         let mut config = TaskQueueConfig::default();
         config.workers.initial_count = 1001;
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Initial worker count cannot exceed 1000"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Initial worker count cannot exceed 1000"));
     }
 
     #[test]
     fn test_config_validation_invalid_pool_size() {
         let mut config = TaskQueueConfig::default();
         config.redis.pool_size = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Redis pool size must be between 1 and 1000"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Redis pool size must be between 1 and 1000"));
     }
 
     #[test]
     fn test_config_validation_invalid_timeouts() {
         let mut config = TaskQueueConfig::default();
         config.redis.connection_timeout = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Connection timeout must be between 1 and 300"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Connection timeout must be between 1 and 300"));
+
         config.redis.connection_timeout = Some(30);
         config.redis.command_timeout = Some(301);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Command timeout must be between 1 and 300"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Command timeout must be between 1 and 300"));
     }
 
     #[test]
     fn test_config_validation_invalid_worker_settings() {
         let mut config = TaskQueueConfig::default();
         config.workers.max_concurrent_tasks = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Max concurrent tasks per worker must be between 1 and 1000"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Max concurrent tasks per worker must be between 1 and 1000"));
+
         config.workers.max_concurrent_tasks = Some(10);
         config.workers.heartbeat_interval = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Heartbeat interval must be between 1 and 3600"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Heartbeat interval must be between 1 and 3600"));
+
         config.workers.heartbeat_interval = Some(30);
         config.workers.shutdown_grace_period = Some(301);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Shutdown grace period cannot exceed 300"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Shutdown grace period cannot exceed 300"));
     }
 
     #[test]
     fn test_config_validation_invalid_scheduler_settings() {
         let mut config = TaskQueueConfig::default();
         config.scheduler.tick_interval = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Scheduler tick interval must be between 1 and 3600"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Scheduler tick interval must be between 1 and 3600"));
+
         config.scheduler.tick_interval = Some(60);
         config.scheduler.max_tasks_per_tick = Some(0);
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Max tasks per tick must be between 1 and 10000"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Max tasks per tick must be between 1 and 10000"));
     }
 
     #[cfg(feature = "actix-integration")]
@@ -674,16 +710,22 @@ mod tests {
     fn test_config_validation_invalid_actix_settings() {
         let mut config = TaskQueueConfig::default();
         config.actix.route_prefix = "".to_string();
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Actix route prefix cannot be empty"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Actix route prefix cannot be empty"));
+
         config.actix.route_prefix = "api/tasks".to_string(); // Missing leading slash
-        
+
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Actix route prefix must start with '/'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Actix route prefix must start with '/'"));
     }
 
     #[test]
@@ -719,7 +761,7 @@ mod tests {
                 },
             })
             .build();
-        
+
         assert_eq!(config.redis.url, "redis://test:6379");
         assert_eq!(config.workers.initial_count, 8);
         assert!(config.auto_register.enabled);
@@ -731,14 +773,21 @@ mod tests {
     #[test]
     fn test_config_serialization() {
         let config = TaskQueueConfig::default();
-        
+
         // Test JSON serialization
         let json = serde_json::to_string(&config).expect("Failed to serialize to JSON");
-        let deserialized: TaskQueueConfig = serde_json::from_str(&json).expect("Failed to deserialize from JSON");
-        
+        let deserialized: TaskQueueConfig =
+            serde_json::from_str(&json).expect("Failed to deserialize from JSON");
+
         assert_eq!(config.redis.url, deserialized.redis.url);
-        assert_eq!(config.workers.initial_count, deserialized.workers.initial_count);
-        assert_eq!(config.auto_register.enabled, deserialized.auto_register.enabled);
+        assert_eq!(
+            config.workers.initial_count,
+            deserialized.workers.initial_count
+        );
+        assert_eq!(
+            config.auto_register.enabled,
+            deserialized.auto_register.enabled
+        );
         assert_eq!(config.scheduler.enabled, deserialized.scheduler.enabled);
     }
 
@@ -747,12 +796,12 @@ mod tests {
         // Set environment variables
         env::set_var("REDIS_POOL_SIZE", "15");
         env::set_var("REDIS_CONNECTION_TIMEOUT", "45");
-        
+
         let config = TaskQueueConfig::from_env().expect("Failed to load config from env");
-        
+
         assert_eq!(config.redis.pool_size, Some(15));
         assert_eq!(config.redis.connection_timeout, Some(45));
-        
+
         // Clean up
         env::remove_var("REDIS_POOL_SIZE");
         env::remove_var("REDIS_CONNECTION_TIMEOUT");
@@ -762,11 +811,14 @@ mod tests {
     fn test_config_from_env_invalid_values() {
         // Set invalid environment variable
         env::set_var("REDIS_POOL_SIZE", "invalid");
-        
+
         let result = TaskQueueConfig::from_env();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid REDIS_POOL_SIZE"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid REDIS_POOL_SIZE"));
+
         // Clean up
         env::remove_var("REDIS_POOL_SIZE");
     }
@@ -775,7 +827,7 @@ mod tests {
     fn test_config_clone() {
         let original = TaskQueueConfig::default();
         let cloned = original.clone();
-        
+
         assert_eq!(original.redis.url, cloned.redis.url);
         assert_eq!(original.workers.initial_count, cloned.workers.initial_count);
         assert_eq!(original.auto_register.enabled, cloned.auto_register.enabled);
@@ -786,7 +838,7 @@ mod tests {
     fn test_config_debug() {
         let config = TaskQueueConfig::default();
         let debug_str = format!("{:?}", config);
-        
+
         assert!(debug_str.contains("TaskQueueConfig"));
         assert!(debug_str.contains("redis"));
         assert!(debug_str.contains("workers"));
@@ -798,15 +850,15 @@ mod tests {
         let redis_config = RedisConfig::default();
         let cloned_redis = redis_config.clone();
         assert_eq!(redis_config.url, cloned_redis.url);
-        
+
         let worker_config = WorkerConfig::default();
         let cloned_worker = worker_config.clone();
         assert_eq!(worker_config.initial_count, cloned_worker.initial_count);
-        
+
         let auto_register_config = AutoRegisterConfig::default();
         let cloned_auto_register = auto_register_config.clone();
         assert_eq!(auto_register_config.enabled, cloned_auto_register.enabled);
-        
+
         let scheduler_config = SchedulerConfig::default();
         let cloned_scheduler = scheduler_config.clone();
         assert_eq!(scheduler_config.enabled, cloned_scheduler.enabled);
@@ -816,11 +868,14 @@ mod tests {
     fn test_config_builder_default() {
         let builder = ConfigBuilder::new();
         let config = builder.build();
-        
+
         // Should have the same values as TaskQueueConfig::default()
         let default_config = TaskQueueConfig::default();
         assert_eq!(config.redis.url, default_config.redis.url);
-        assert_eq!(config.workers.initial_count, default_config.workers.initial_count);
+        assert_eq!(
+            config.workers.initial_count,
+            default_config.workers.initial_count
+        );
     }
 
     #[test]
@@ -831,7 +886,7 @@ mod tests {
             .enable_auto_register(false)
             .enable_scheduler(false)
             .build();
-        
+
         assert_eq!(config.redis.url, "redis://chained:6379");
         assert_eq!(config.workers.initial_count, 5);
         assert!(!config.auto_register.enabled);
@@ -849,11 +904,11 @@ mod tests {
             ("localhost:6379", false),
             ("", false),
         ];
-        
+
         for (url, should_be_valid) in test_cases {
             let mut config = TaskQueueConfig::default();
             config.redis.url = url.to_string();
-            
+
             let result = config.validate();
             if should_be_valid {
                 assert!(result.is_ok(), "URL '{}' should be valid", url);

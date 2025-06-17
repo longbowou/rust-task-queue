@@ -267,7 +267,10 @@ impl TaskRegistry {
 
     /// Get list of registered task names
     pub fn registered_tasks(&self) -> Vec<String> {
-        self.executors.iter().map(|entry| entry.key().clone()).collect()
+        self.executors
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 }
 
@@ -323,7 +326,6 @@ mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
 
-
     #[derive(Debug, Serialize, Deserialize, Clone, Default)]
     struct TestTask {
         pub data: String,
@@ -336,21 +338,21 @@ mod tests {
             if self.should_fail {
                 return Err("Task intentionally failed".into());
             }
-            
+
             // Simulate some work
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            
+
             #[derive(Serialize)]
             struct Response {
                 status: String,
                 processed_data: String,
             }
-            
+
             let response = Response {
                 status: "completed".to_string(),
                 processed_data: format!("Processed: {}", self.data),
             };
-            
+
             Ok(rmp_serde::to_vec(&response)?)
         }
 
@@ -376,11 +378,12 @@ mod tests {
     #[tokio::test]
     async fn test_task_registration() {
         let registry = TaskRegistry::new();
-        
+
         // Register a task
-        registry.register_with_name::<TestTask>("test_task")
+        registry
+            .register_with_name::<TestTask>("test_task")
             .expect("Failed to register task");
-        
+
         let tasks = registry.registered_tasks();
         assert_eq!(tasks.len(), 1);
         assert!(tasks.contains(&"test_task".to_string()));
@@ -389,21 +392,22 @@ mod tests {
     #[tokio::test]
     async fn test_task_execution() {
         let registry = TaskRegistry::new();
-        registry.register_with_name::<TestTask>("test_task")
+        registry
+            .register_with_name::<TestTask>("test_task")
             .expect("Failed to register task");
-        
+
         let task = TestTask {
             data: "Hello, World!".to_string(),
             should_fail: false,
         };
-        
+
         let payload = rmp_serde::to_vec(&task).expect("Failed to serialize task");
         let result = registry.execute("test_task", payload).await;
-        
+
         assert!(result.is_ok());
         let response_data = result.unwrap();
         assert!(!response_data.is_empty());
-        
+
         // Verify the response contains expected data
         // Since we're using MessagePack, we need to deserialize it properly
         #[derive(serde::Deserialize)]
@@ -411,9 +415,9 @@ mod tests {
             status: String,
             processed_data: String,
         }
-        
-        let response: Response = rmp_serde::from_slice(&response_data)
-            .expect("Failed to deserialize response");
+
+        let response: Response =
+            rmp_serde::from_slice(&response_data).expect("Failed to deserialize response");
         assert_eq!(response.status, "completed");
         assert!(response.processed_data.contains("Hello, World!"));
     }
@@ -421,35 +425,42 @@ mod tests {
     #[tokio::test]
     async fn test_task_execution_failure() {
         let registry = TaskRegistry::new();
-        registry.register_with_name::<TestTask>("test_task")
+        registry
+            .register_with_name::<TestTask>("test_task")
             .expect("Failed to register task");
-        
+
         let task = TestTask {
             data: "This will fail".to_string(),
             should_fail: true,
         };
-        
+
         let payload = rmp_serde::to_vec(&task).expect("Failed to serialize task");
         let result = registry.execute("test_task", payload).await;
-        
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("intentionally failed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("intentionally failed"));
     }
 
     #[tokio::test]
     async fn test_unknown_task_execution() {
         let registry = TaskRegistry::new();
-        
+
         let result = registry.execute("unknown_task", vec![1, 2, 3]).await;
-        
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unknown task type"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown task type"));
     }
 
     #[tokio::test]
     async fn test_task_metadata_default() {
         let metadata = TaskMetadata::default();
-        
+
         assert_eq!(metadata.name, "unknown");
         assert_eq!(metadata.attempts, 0);
         assert_eq!(metadata.max_retries, 3);
@@ -466,20 +477,20 @@ mod tests {
             max_retries: 3,
             timeout_seconds: 300,
         };
-        
+
         let wrapper = TaskWrapper {
             metadata: metadata.clone(),
             payload: vec![1, 2, 3, 4],
         };
-        
+
         // Test serialization
         let serialized = rmp_serde::to_vec(&wrapper).expect("Failed to serialize wrapper");
         assert!(!serialized.is_empty());
-        
+
         // Test deserialization
-        let deserialized: TaskWrapper = rmp_serde::from_slice(&serialized)
-            .expect("Failed to deserialize wrapper");
-        
+        let deserialized: TaskWrapper =
+            rmp_serde::from_slice(&serialized).expect("Failed to deserialize wrapper");
+
         assert_eq!(deserialized.metadata.id, metadata.id);
         assert_eq!(deserialized.metadata.name, metadata.name);
         assert_eq!(deserialized.payload, vec![1, 2, 3, 4]);
@@ -488,13 +499,15 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_task_registration() {
         let registry = TaskRegistry::new();
-        
+
         // Register multiple tasks
-        registry.register_with_name::<TestTask>("task1")
+        registry
+            .register_with_name::<TestTask>("task1")
             .expect("Failed to register task1");
-        registry.register_with_name::<TestTask>("task2")
+        registry
+            .register_with_name::<TestTask>("task2")
             .expect("Failed to register task2");
-        
+
         let tasks = registry.registered_tasks();
         assert_eq!(tasks.len(), 2);
         assert!(tasks.contains(&"task1".to_string()));
@@ -504,15 +517,16 @@ mod tests {
     #[tokio::test]
     async fn test_task_registry_concurrent_access() {
         let registry = Arc::new(TaskRegistry::new());
-        registry.register_with_name::<TestTask>("test_task")
+        registry
+            .register_with_name::<TestTask>("test_task")
             .expect("Failed to register task");
-        
+
         let task = TestTask {
             data: "Concurrent test".to_string(),
             should_fail: false,
         };
         let payload = rmp_serde::to_vec(&task).expect("Failed to serialize task");
-        
+
         // Execute multiple tasks concurrently
         let mut handles = Vec::new();
         for i in 0..10 {
@@ -524,7 +538,7 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         for handle in handles {
             handle.await.expect("Task execution failed");

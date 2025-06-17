@@ -13,18 +13,18 @@ impl Task for EmailTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         println!("Sending email to: {} - {}", self.to, self.subject);
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         #[derive(Serialize)]
         struct EmailResponse {
             status: String,
             to: String,
         }
-        
+
         let response = EmailResponse {
             status: "sent".to_string(),
             to: self.to.clone(),
         };
-        
+
         Ok(rmp_serde::to_vec(&response)?)
     }
 

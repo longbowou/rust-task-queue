@@ -1,9 +1,9 @@
 use rust_task_queue::prelude::*;
-use rust_task_queue::{ScalingTriggers, SLATargets};
 use rust_task_queue::queue::queue_names;
+use rust_task_queue::{SLATargets, ScalingTriggers};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
 // Global counter for unique database numbers
@@ -11,7 +11,8 @@ static DB_COUNTER: AtomicU32 = AtomicU32::new(1);
 
 fn setup_isolated_redis_url() -> String {
     let db_num = DB_COUNTER.fetch_add(1, Ordering::SeqCst) % 16; // Redis has databases 0-15
-    let base_url = std::env::var("REDIS_TEST_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+    let base_url =
+        std::env::var("REDIS_TEST_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
     format!("{}/{}", base_url, db_num)
 }
 
@@ -39,12 +40,12 @@ impl Task for SecurityTestTask {
             processed_length: usize,
             status: String,
         }
-        
+
         let response = Response {
             processed_length: self.payload.len(),
             status: "completed".to_string(),
         };
-        
+
         Ok(rmp_serde::to_vec(&response)?)
     }
 
@@ -64,7 +65,7 @@ impl Task for MaliciousTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         // This task should NOT execute arbitrary commands or scripts
         // It should safely handle and sanitize any input
-        
+
         // Safe processing - just return information about the input
         #[derive(Serialize)]
         struct Response {
@@ -73,14 +74,14 @@ impl Task for MaliciousTask {
             contains_command: bool,
             status: String,
         }
-        
+
         let response = Response {
             input_length: self.script_content.len() + self.command.len(),
             contains_script: !self.script_content.is_empty(),
             contains_command: !self.command.is_empty(),
             status: "safely_processed".to_string(),
         };
-        
+
         Ok(rmp_serde::to_vec(&response)?)
     }
 
@@ -93,53 +94,75 @@ impl Task for MaliciousTask {
 async fn test_oversized_task_handling() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
     let registry = Arc::new(TaskRegistry::new());
-    
-    registry.register_with_name::<SecurityTestTask>("security_test_task").expect("Failed to register task");
-    
-    task_queue.start_workers_with_registry(1, registry).await.expect("Failed to start workers");
-    
+
+    registry
+        .register_with_name::<SecurityTestTask>("security_test_task")
+        .expect("Failed to register task");
+
+    task_queue
+        .start_workers_with_registry(1, registry)
+        .await
+        .expect("Failed to start workers");
+
     // Test with extremely large payload
     let large_payload = "A".repeat(10 * 1024 * 1024); // 10MB string
     let oversized_task = SecurityTestTask {
         payload: large_payload,
         size_mb: 10,
     };
-    
+
     // This should either be rejected or handled gracefully
-    let result = task_queue.enqueue(oversized_task, queue_names::DEFAULT).await;
-    
+    let result = task_queue
+        .enqueue(oversized_task, queue_names::DEFAULT)
+        .await;
+
     match result {
         Ok(_) => {
             // If accepted, ensure it's processed without crashing the system
             sleep(Duration::from_millis(5000)).await;
-            
-            let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
+
+            let metrics = task_queue
+                .broker
+                .get_queue_metrics(queue_names::DEFAULT)
+                .await
+                .expect("Failed to get metrics");
             // Task should either be processed or failed, but system should remain stable
-            assert!(metrics.processed_tasks + metrics.failed_tasks > 0, "Task should be processed or failed");
+            assert!(
+                metrics.processed_tasks + metrics.failed_tasks > 0,
+                "Task should be processed or failed"
+            );
         }
         Err(e) => {
             // Rejection is acceptable for oversized tasks
             println!("Oversized task rejected as expected: {}", e);
         }
     }
-    
+
     // Ensure system is still responsive with normal tasks
     let normal_task = SecurityTestTask {
         payload: "normal payload".to_string(),
         size_mb: 0,
     };
-    
+
     let normal_result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
-    assert!(normal_result.is_ok(), "Normal task should be accepted after oversized task");
-    
+    assert!(
+        normal_result.is_ok(),
+        "Normal task should be accepted after oversized task"
+    );
+
     // Wait for normal task to process
     sleep(Duration::from_millis(1000)).await;
-    
+
     // Cleanup
-    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    task_queue
+        .shutdown()
+        .await
+        .expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
 }
 
@@ -147,14 +170,21 @@ async fn test_oversized_task_handling() {
 async fn test_malicious_payload_safety() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
     let registry = Arc::new(TaskRegistry::new());
-    
-    registry.register_with_name::<MaliciousTask>("malicious_task").expect("Failed to register task");
-    
-    task_queue.start_workers_with_registry(1, registry).await.expect("Failed to start workers");
-    
+
+    registry
+        .register_with_name::<MaliciousTask>("malicious_task")
+        .expect("Failed to register task");
+
+    task_queue
+        .start_workers_with_registry(1, registry)
+        .await
+        .expect("Failed to start workers");
+
     // Test various potentially malicious payloads
     let malicious_payloads = vec![
         // Script injection attempts
@@ -183,46 +213,65 @@ async fn test_malicious_payload_safety() {
             command: "\r\n\t\x7f".to_string(),
         },
     ];
-    
+
     for (i, malicious_task) in malicious_payloads.into_iter().enumerate() {
         println!("Testing malicious payload {}", i + 1);
-        
-        let result = task_queue.enqueue(malicious_task, queue_names::DEFAULT).await;
-        assert!(result.is_ok(), "Malicious task {} should be accepted but processed safely", i + 1);
-        
+
+        let result = task_queue
+            .enqueue(malicious_task, queue_names::DEFAULT)
+            .await;
+        assert!(
+            result.is_ok(),
+            "Malicious task {} should be accepted but processed safely",
+            i + 1
+        );
+
         // Small delay between tasks
         sleep(Duration::from_millis(100)).await;
     }
-    
+
     // Wait for all tasks to be processed
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
+        let metrics = task_queue
+            .broker
+            .get_queue_metrics(queue_names::DEFAULT)
+            .await
+            .expect("Failed to get metrics");
         let total_handled = metrics.processed_tasks + metrics.failed_tasks;
-        
+
         if total_handled >= 5 {
             break;
         }
-        
+
         if attempts >= 100 {
-            panic!("Malicious tasks did not complete processing. Handled: {}/5", total_handled);
+            panic!(
+                "Malicious tasks did not complete processing. Handled: {}/5",
+                total_handled
+            );
         }
-        
+
         sleep(Duration::from_millis(100)).await;
         attempts += 1;
     }
-    
+
     // Verify system is still stable and responsive
     let test_task = MaliciousTask {
         script_content: "normal content".to_string(),
         command: "normal command".to_string(),
     };
-    
+
     let final_result = task_queue.enqueue(test_task, queue_names::DEFAULT).await;
-    assert!(final_result.is_ok(), "System should remain responsive after processing malicious payloads");
-    
+    assert!(
+        final_result.is_ok(),
+        "System should remain responsive after processing malicious payloads"
+    );
+
     // Cleanup
-    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    task_queue
+        .shutdown()
+        .await
+        .expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
 }
 
@@ -230,13 +279,15 @@ async fn test_malicious_payload_safety() {
 async fn test_queue_name_injection_attacks() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
     let task = SecurityTestTask {
         payload: "test".to_string(),
         size_mb: 0,
     };
-    
+
     // Test various queue name injection attempts
     let long_name = "A".repeat(10000);
     let malicious_queue_names = vec![
@@ -256,21 +307,24 @@ async fn test_queue_name_injection_attacks() {
         // Control characters
         "queue\r\nset evil value\r\nqueue",
     ];
-    
+
     for malicious_name in malicious_queue_names {
         println!("Testing malicious queue name: {:?}", malicious_name);
-        
+
         let result = task_queue.enqueue(task.clone(), malicious_name).await;
-        
+
         // The system should either reject the malicious name or handle it safely
         match result {
             Ok(_) => {
                 // If accepted, verify it doesn't affect system integrity
                 println!("Malicious queue name accepted, checking system integrity...");
-                
+
                 // Try to enqueue to a normal queue to verify system is still working
                 let normal_result = task_queue.enqueue(task.clone(), "normal_queue").await;
-                assert!(normal_result.is_ok(), "System should still work after malicious queue name");
+                assert!(
+                    normal_result.is_ok(),
+                    "System should still work after malicious queue name"
+                );
             }
             Err(e) => {
                 // Rejection is acceptable and preferred for malicious names
@@ -278,9 +332,12 @@ async fn test_queue_name_injection_attacks() {
             }
         }
     }
-    
+
     // Cleanup
-    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    task_queue
+        .shutdown()
+        .await
+        .expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
 }
 
@@ -288,53 +345,72 @@ async fn test_queue_name_injection_attacks() {
 async fn test_task_deserialization_bomb() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
     let registry = Arc::new(TaskRegistry::new());
-    
-    registry.register_with_name::<SecurityTestTask>("security_test_task").expect("Failed to register task");
-    
-    task_queue.start_workers_with_registry(1, registry).await.expect("Failed to start workers");
-    
+
+    registry
+        .register_with_name::<SecurityTestTask>("security_test_task")
+        .expect("Failed to register task");
+
+    task_queue
+        .start_workers_with_registry(1, registry)
+        .await
+        .expect("Failed to start workers");
+
     // Create a task with deeply nested structure that could cause stack overflow
-    let nested_payload = (0..1000).map(|i| format!("level_{}_", i)).collect::<String>();
-    
+    let nested_payload = (0..1000)
+        .map(|i| format!("level_{}_", i))
+        .collect::<String>();
+
     let bomb_task = SecurityTestTask {
         payload: nested_payload,
         size_mb: 0,
     };
-    
+
     let result = task_queue.enqueue(bomb_task, queue_names::DEFAULT).await;
-    
+
     match result {
         Ok(_) => {
             // Wait for processing with timeout
             let mut attempts = 0;
             while attempts < 50 {
-                let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
+                let metrics = task_queue
+                    .broker
+                    .get_queue_metrics(queue_names::DEFAULT)
+                    .await
+                    .expect("Failed to get metrics");
                 if metrics.processed_tasks + metrics.failed_tasks > 0 {
                     break;
                 }
                 sleep(Duration::from_millis(100)).await;
                 attempts += 1;
             }
-            
+
             // Verify system is still responsive
             let normal_task = SecurityTestTask {
                 payload: "normal".to_string(),
                 size_mb: 0,
             };
-            
+
             let normal_result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
-            assert!(normal_result.is_ok(), "System should remain responsive after deserialization bomb");
+            assert!(
+                normal_result.is_ok(),
+                "System should remain responsive after deserialization bomb"
+            );
         }
         Err(e) => {
             println!("Deserialization bomb rejected: {}", e);
         }
     }
-    
+
     // Cleanup
-    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    task_queue
+        .shutdown()
+        .await
+        .expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
 }
 
@@ -347,7 +423,7 @@ async fn test_redis_connection_string_injection() {
     let malicious_urls = vec![
         // Invalid protocols (these should definitely be rejected)
         "file:///etc/passwd",
-        "http://evil.com/steal-data", 
+        "http://evil.com/steal-data",
         "javascript:alert('xss')",
         // Extremely long URL
         long_url.as_str(),
@@ -357,23 +433,28 @@ async fn test_redis_connection_string_injection() {
         "redis://",
         "redis://localhost:-1",
     ];
-    
+
     for malicious_url in malicious_urls {
         println!("Testing malicious Redis URL: {:?}", malicious_url);
-        
+
         let result = TaskQueue::new(malicious_url).await;
-        
+
         // All malicious URLs should be rejected
-        assert!(result.is_err(), "Malicious Redis URL should be rejected: {}", malicious_url);
-        
+        assert!(
+            result.is_err(),
+            "Malicious Redis URL should be rejected: {}",
+            malicious_url
+        );
+
         if let Err(e) = result {
             println!("Malicious URL rejected with error: {}", e);
             // Error should indicate configuration or connection failure
             assert!(
-                e.to_string().contains("Connection") || 
-                e.to_string().contains("Configuration") ||
-                e.to_string().contains("Failed"),
-                "Error should indicate proper validation: {}", e
+                e.to_string().contains("Connection")
+                    || e.to_string().contains("Configuration")
+                    || e.to_string().contains("Failed"),
+                "Error should indicate proper validation: {}",
+                e
             );
         }
     }
@@ -514,13 +595,17 @@ async fn test_configuration_tampering() {
             },
         },
     ];
-    
+
     for (i, config) in invalid_configs.into_iter().enumerate() {
         println!("Testing invalid config {}", i + 1);
-        
+
         let validation_result = config.validate();
-        assert!(validation_result.is_err(), "Invalid config {} should be rejected", i + 1);
-        
+        assert!(
+            validation_result.is_err(),
+            "Invalid config {} should be rejected",
+            i + 1
+        );
+
         if let Err(e) = validation_result {
             println!("Invalid config rejected: {}", e);
         }
@@ -531,17 +616,26 @@ async fn test_configuration_tampering() {
 async fn test_concurrent_access_safety() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = Arc::new(TaskQueue::new(&redis_url).await.expect("Failed to create task queue"));
+
+    let task_queue = Arc::new(
+        TaskQueue::new(&redis_url)
+            .await
+            .expect("Failed to create task queue"),
+    );
     let registry = Arc::new(TaskRegistry::new());
-    
-    registry.register_with_name::<SecurityTestTask>("security_test_task").expect("Failed to register task");
-    
-    task_queue.start_workers_with_registry(4, registry).await.expect("Failed to start workers");
-    
+
+    registry
+        .register_with_name::<SecurityTestTask>("security_test_task")
+        .expect("Failed to register task");
+
+    task_queue
+        .start_workers_with_registry(4, registry)
+        .await
+        .expect("Failed to start workers");
+
     // Spawn multiple concurrent tasks that try to access the same resources
     let mut handles = Vec::new();
-    
+
     for i in 0..10 {
         let task_queue_clone = task_queue.clone();
         let handle = tokio::spawn(async move {
@@ -550,44 +644,64 @@ async fn test_concurrent_access_safety() {
                     payload: format!("concurrent_task_{}_{}", i, j),
                     size_mb: 0,
                 };
-                
+
                 let result = task_queue_clone.enqueue(task, queue_names::DEFAULT).await;
-                assert!(result.is_ok(), "Concurrent task should be enqueued successfully");
-                
+                assert!(
+                    result.is_ok(),
+                    "Concurrent task should be enqueued successfully"
+                );
+
                 // Small random delay to increase contention
                 sleep(Duration::from_millis((i * j) % 50)).await;
             }
         });
         handles.push(handle);
     }
-    
+
     // Wait for all concurrent operations to complete
     for handle in handles {
         handle.await.expect("Concurrent task should complete");
     }
-    
+
     // Wait for all tasks to be processed
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
+        let metrics = task_queue
+            .broker
+            .get_queue_metrics(queue_names::DEFAULT)
+            .await
+            .expect("Failed to get metrics");
         if metrics.processed_tasks >= 100 {
             break;
         }
-        
+
         if attempts >= 200 {
-            panic!("Concurrent tasks did not complete. Processed: {}/100", metrics.processed_tasks);
+            panic!(
+                "Concurrent tasks did not complete. Processed: {}/100",
+                metrics.processed_tasks
+            );
         }
-        
+
         sleep(Duration::from_millis(100)).await;
         attempts += 1;
     }
-    
+
     // Verify system integrity
-    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get final metrics");
-    assert_eq!(final_metrics.processed_tasks, 100, "All concurrent tasks should be processed exactly once");
-    
+    let final_metrics = task_queue
+        .broker
+        .get_queue_metrics(queue_names::DEFAULT)
+        .await
+        .expect("Failed to get final metrics");
+    assert_eq!(
+        final_metrics.processed_tasks, 100,
+        "All concurrent tasks should be processed exactly once"
+    );
+
     // Cleanup
-    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    task_queue
+        .shutdown()
+        .await
+        .expect("Failed to shutdown task queue");
     cleanup_test_database(&redis_url).await;
 }
 
@@ -595,9 +709,11 @@ async fn test_concurrent_access_safety() {
 async fn test_redis_injection_prevention() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
-    
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
+
     // Test various Redis injection attempts
     let malicious_queue_names = vec![
         "eval_malicious_code",
@@ -612,26 +728,32 @@ async fn test_redis_injection_prevention() {
         "queue$(cat /etc/passwd)",
         "queue' OR 1=1 --",
     ];
-    
+
     let test_task = SecurityTestTask {
         payload: "test_payload".to_string(),
         size_mb: 0,
     };
-    
+
     for malicious_queue in malicious_queue_names {
         let result = task_queue.enqueue(test_task.clone(), malicious_queue).await;
-        
+
         // Should fail due to input validation
-        assert!(result.is_err(), "Queue name '{}' should be rejected", malicious_queue);
-        
+        assert!(
+            result.is_err(),
+            "Queue name '{}' should be rejected",
+            malicious_queue
+        );
+
         let error_msg = result.unwrap_err().to_string();
         assert!(
-            error_msg.contains("Queue name contains invalid characters") || 
-            error_msg.contains("potentially dangerous pattern"),
-            "Error should indicate security violation for '{}': {}", malicious_queue, error_msg
+            error_msg.contains("Queue name contains invalid characters")
+                || error_msg.contains("potentially dangerous pattern"),
+            "Error should indicate security violation for '{}': {}",
+            malicious_queue,
+            error_msg
         );
     }
-    
+
     // Test valid queue names should work
     let valid_queue_names = vec![
         queue_names::DEFAULT,
@@ -640,12 +762,16 @@ async fn test_redis_injection_prevention() {
         "queue:namespace:subqueue",
         "queue123",
     ];
-    
+
     for valid_queue in valid_queue_names {
         let result = task_queue.enqueue(test_task.clone(), valid_queue).await;
-        assert!(result.is_ok(), "Valid queue name '{}' should be accepted", valid_queue);
+        assert!(
+            result.is_ok(),
+            "Valid queue name '{}' should be accepted",
+            valid_queue
+        );
     }
-    
+
     cleanup_test_database(&redis_url).await;
 }
 
@@ -653,44 +779,52 @@ async fn test_redis_injection_prevention() {
 async fn test_payload_size_limits() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
-    
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
+
     // Test oversized payload
     let huge_payload = "x".repeat(17 * 1024 * 1024); // 17MB > 16MB limit
     let large_task = SecurityTestTask {
         payload: huge_payload,
         size_mb: 0,
     };
-    
+
     let result = task_queue.enqueue(large_task, queue_names::DEFAULT).await;
     assert!(result.is_err(), "Oversized payload should be rejected");
-    
+
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("Task payload too large"), "Error should indicate payload size limit: {}", error_msg);
-    
+    assert!(
+        error_msg.contains("Task payload too large"),
+        "Error should indicate payload size limit: {}",
+        error_msg
+    );
+
     // Test normal-sized payload
     let normal_task = SecurityTestTask {
         payload: "normal_payload".to_string(),
         size_mb: 0,
     };
-    
+
     let result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
     assert!(result.is_ok(), "Normal payload should be accepted");
-    
+
     cleanup_test_database(&redis_url).await;
 }
 
 #[tokio::test]
 async fn test_task_name_validation() {
-    use rust_task_queue::TaskWrapper;
     use chrono::Utc;
-    
+    use rust_task_queue::TaskWrapper;
+
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
-    
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
+
     // Test empty task name
     let task_wrapper = TaskWrapper {
         metadata: rust_task_queue::TaskMetadata {
@@ -703,10 +837,13 @@ async fn test_task_name_validation() {
         },
         payload: b"test".to_vec(),
     };
-    
-    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await;
+
+    let result = task_queue
+        .broker
+        .enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT)
+        .await;
     assert!(result.is_err(), "Empty task name should be rejected");
-    
+
     // Test overly long task name
     let long_name = "x".repeat(300); // > 255 character limit
     let task_wrapper = TaskWrapper {
@@ -720,10 +857,13 @@ async fn test_task_name_validation() {
         },
         payload: b"test".to_vec(),
     };
-    
-    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await;
+
+    let result = task_queue
+        .broker
+        .enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT)
+        .await;
     assert!(result.is_err(), "Overly long task name should be rejected");
-    
+
     cleanup_test_database(&redis_url).await;
 }
 
@@ -731,9 +871,11 @@ async fn test_task_name_validation() {
 async fn test_comprehensive_input_sanitization() {
     let redis_url = setup_isolated_redis_url();
     cleanup_test_database(&redis_url).await;
-    
-    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
-    
+
+    let task_queue = TaskQueue::new(&redis_url)
+        .await
+        .expect("Failed to create task queue");
+
     // Test various injection patterns
     let long_name = "a".repeat(300);
     let test_cases = vec![
@@ -746,21 +888,30 @@ async fn test_comprehensive_input_sanitization() {
         ("queue-123", true, "Valid with dash and numbers"),
         ("namespace:queue", true, "Valid with colon"),
     ];
-    
+
     let test_task = SecurityTestTask {
         payload: "test".to_string(),
         size_mb: 0,
     };
-    
+
     for (queue_name, should_succeed, description) in test_cases {
         let result = task_queue.enqueue(test_task.clone(), queue_name).await;
-        
+
         if should_succeed {
-            assert!(result.is_ok(), "{}: should succeed but got {:?}", description, result);
+            assert!(
+                result.is_ok(),
+                "{}: should succeed but got {:?}",
+                description,
+                result
+            );
         } else {
-            assert!(result.is_err(), "{}: should fail but succeeded", description);
+            assert!(
+                result.is_err(),
+                "{}: should fail but succeeded",
+                description
+            );
         }
     }
-    
+
     cleanup_test_database(&redis_url).await;
-} 
+}

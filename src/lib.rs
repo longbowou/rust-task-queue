@@ -148,9 +148,9 @@ pub use inventory;
 
 pub mod prelude;
 
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 
 /// Main task queue framework
 #[derive(Clone)]
@@ -395,11 +395,15 @@ impl TaskQueue {
 
     /// Initiate graceful shutdown of the entire task queue
     pub async fn shutdown(&self) -> Result<(), TaskQueueError> {
-        self.shutdown_with_timeout(std::time::Duration::from_secs(30)).await
+        self.shutdown_with_timeout(std::time::Duration::from_secs(30))
+            .await
     }
 
     /// Shutdown with a custom timeout
-    pub async fn shutdown_with_timeout(&self, timeout: std::time::Duration) -> Result<(), TaskQueueError> {
+    pub async fn shutdown_with_timeout(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Result<(), TaskQueueError> {
         #[cfg(feature = "tracing")]
         tracing::info!("Initiating graceful shutdown of TaskQueue...");
 
@@ -457,7 +461,11 @@ impl TaskQueue {
 
     /// Get a shutdown signal receiver for external components
     pub async fn shutdown_receiver(&self) -> Option<tokio::sync::broadcast::Receiver<()>> {
-        self.shutdown_signal.read().await.as_ref().map(|tx| tx.subscribe())
+        self.shutdown_signal
+            .read()
+            .await
+            .as_ref()
+            .map(|tx| tx.subscribe())
     }
 
     /// Get comprehensive health status
@@ -471,44 +479,79 @@ impl TaskQueue {
         // Check Redis connection
         match self.broker.pool.get().await {
             Ok(mut conn) => {
-                match redis::cmd("PING").query_async::<_, String>(&mut *conn).await {
+                match redis::cmd("PING")
+                    .query_async::<_, String>(&mut *conn)
+                    .await
+                {
                     Ok(_) => {
-                        health.components.insert("redis".to_string(), ComponentHealth {
-                            status: "healthy".to_string(),
-                            message: Some("Connection successful".to_string()),
-                        });
+                        health.components.insert(
+                            "redis".to_string(),
+                            ComponentHealth {
+                                status: "healthy".to_string(),
+                                message: Some("Connection successful".to_string()),
+                            },
+                        );
                     }
                     Err(e) => {
                         health.status = "unhealthy".to_string();
-                        health.components.insert("redis".to_string(), ComponentHealth {
-                            status: "unhealthy".to_string(),
-                            message: Some(format!("Ping failed: {}", e)),
-                        });
+                        health.components.insert(
+                            "redis".to_string(),
+                            ComponentHealth {
+                                status: "unhealthy".to_string(),
+                                message: Some(format!("Ping failed: {}", e)),
+                            },
+                        );
                     }
                 }
             }
             Err(e) => {
                 health.status = "unhealthy".to_string();
-                health.components.insert("redis".to_string(), ComponentHealth {
-                    status: "unhealthy".to_string(),
-                    message: Some(format!("Connection failed: {}", e)),
-                });
+                health.components.insert(
+                    "redis".to_string(),
+                    ComponentHealth {
+                        status: "unhealthy".to_string(),
+                        message: Some(format!("Connection failed: {}", e)),
+                    },
+                );
             }
         }
 
         // Check workers
         let worker_count = self.worker_count().await;
-        health.components.insert("workers".to_string(), ComponentHealth {
-            status: if worker_count > 0 { "healthy" } else { "warning" }.to_string(),
-            message: Some(format!("{} active workers", worker_count)),
-        });
+        health.components.insert(
+            "workers".to_string(),
+            ComponentHealth {
+                status: if worker_count > 0 {
+                    "healthy"
+                } else {
+                    "warning"
+                }
+                .to_string(),
+                message: Some(format!("{} active workers", worker_count)),
+            },
+        );
 
         // Check scheduler
         let scheduler_running = self.scheduler_handle.read().await.is_some();
-        health.components.insert("scheduler".to_string(), ComponentHealth {
-            status: if scheduler_running { "healthy" } else { "stopped" }.to_string(),
-            message: Some(if scheduler_running { "Running" } else { "Stopped" }.to_string()),
-        });
+        health.components.insert(
+            "scheduler".to_string(),
+            ComponentHealth {
+                status: if scheduler_running {
+                    "healthy"
+                } else {
+                    "stopped"
+                }
+                .to_string(),
+                message: Some(
+                    if scheduler_running {
+                        "Running"
+                    } else {
+                        "Stopped"
+                    }
+                    .to_string(),
+                ),
+            },
+        );
 
         Ok(health)
     }
@@ -683,7 +726,7 @@ impl TaskQueueBuilder {
     }
 
     /// Build the `TaskQueue` instance
-    /// 
+    ///
     /// # Errors
     /// Returns `TaskQueueError` if Redis connection fails or configuration is invalid
     #[inline]
@@ -707,9 +750,7 @@ impl TaskQueueBuilder {
                     custom_registry
                         .auto_register_tasks_with_config(Some(&self.config.auto_register))
                         .map_err(|e| {
-                            TaskQueueError::Configuration(format!(
-                                "Auto-registration failed: {e}"
-                            ))
+                            TaskQueueError::Configuration(format!("Auto-registration failed: {e}"))
                         })?;
                     custom_registry
                 } else {
@@ -719,9 +760,7 @@ impl TaskQueueBuilder {
                             &self.config.auto_register,
                         ))
                         .map_err(|e| {
-                            TaskQueueError::Configuration(format!(
-                                "Auto-registration failed: {e}"
-                            ))
+                            TaskQueueError::Configuration(format!("Auto-registration failed: {e}"))
                         })?,
                     )
                 }

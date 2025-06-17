@@ -1,6 +1,7 @@
 # Rust Task Queue - Development Guide
 
-A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning, multi-dimensional scaling triggers, and advanced backpressure management designed for async Rust applications.
+A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning,
+multi-dimensional scaling triggers, and advanced backpressure management designed for async Rust applications.
 
 ## Table of Contents
 
@@ -56,42 +57,43 @@ A high-performance, Redis-backed task queue framework with **Enhanced Auto-scali
 ### Recent Improvements
 
 - **Comprehensive Test Suite**: 162 total tests across all categories
-  - 121 unit tests covering core functionality
-  - 9 integration tests for end-to-end workflows
-  - 9 error scenario tests for edge cases
-  - 6 performance tests for load handling
-  - 7 security tests for injection protection
-  - 5 benchmark tests for performance tracking
+    - 121 unit tests covering core functionality
+    - 9 integration tests for end-to-end workflows
+    - 9 error scenario tests for edge cases
+    - 6 performance tests for load handling
+    - 7 security tests for injection protection
+    - 5 benchmark tests for performance tracking
 
 - **Enhanced Auto-scaling**:
-  - Multi-dimensional scaling with 5 simultaneous metrics
-  - Adaptive threshold learning based on SLA targets
-  - Advanced hysteresis and stability controls
-  - Performance history analysis and trend monitoring
-  - Consecutive signal requirements and intelligent cooldowns
+    - Multi-dimensional scaling with 5 simultaneous metrics
+    - Adaptive threshold learning based on SLA targets
+    - Advanced hysteresis and stability controls
+    - Performance history analysis and trend monitoring
+    - Consecutive signal requirements and intelligent cooldowns
 
-- **Code Quality Improvements**: 
-  - Zero clippy warnings with strict linting
-  - Enhanced error handling with proper TaskQueueError creation
-  - Eliminated private method access issues
-  - Streamlined Default trait implementations
+- **Code Quality Improvements**:
+    - Zero clippy warnings with strict linting
+    - Enhanced error handling with proper TaskQueueError creation
+    - Eliminated private method access issues
+    - Streamlined Default trait implementations
 
 - **Performance Optimizations**:
-  - Sub-40ns serialization/deserialization
-  - Improved queue operation efficiency
-  - Optimized configuration handling
+    - Sub-40ns serialization/deserialization
+    - Improved queue operation efficiency
+    - Optimized configuration handling
 
 - **Development Experience**:
-  - Automated test script with Redis container management
-  - Comprehensive benchmark suite
-  - Enhanced development documentation
-  - CI/CD ready test infrastructure
+    - Automated test script with Redis container management
+    - Comprehensive benchmark suite
+    - Enhanced development documentation
+    - CI/CD ready test infrastructure
 
 ## Enhanced Auto-scaling Architecture
 
 ### Multi-dimensional Intelligence
 
-The enhanced auto-scaling system represents a significant evolution from simple threshold-based scaling to intelligent, multi-dimensional decision making.
+The enhanced auto-scaling system represents a significant evolution from simple threshold-based scaling to intelligent,
+multi-dimensional decision making.
 
 #### **Five-Metric Analysis System**
 
@@ -212,7 +214,7 @@ let config = AutoScalerConfig {
 
 - Old: `scale_up_threshold` and `scale_down_threshold` (removed)
 - New: `scaling_triggers` with 5-dimensional analysis
-- Old: `AutoScaler::new()` without broker parameter  
+- Old: `AutoScaler::new()` without broker parameter
 - New: `AutoScaler::with_config(broker, config)` required
 - Old: `ScalingTriggers::default()` calls
 - New: Explicit struct initialization required
@@ -429,7 +431,8 @@ queue_names::LOW_PRIORITY   // "low_priority" - Background tasks
 
 #### **🔧 Intelligent Task Spawning System**
 
-The framework features a sophisticated async task spawning architecture designed for high-performance, reliable task processing:
+The framework features a sophisticated async task spawning architecture designed for high-performance, reliable task
+processing:
 
 ##### **Core Components:**
 
@@ -657,7 +660,9 @@ cargo bench                         # Benchmark tests (5 benchmarks)
 ### Test Categories
 
 #### **Unit Tests (121 tests)**
+
 Covers all core functionality including:
+
 - Broker operations and connection handling
 - Worker lifecycle and task spawning
 - Configuration validation and builder patterns
@@ -667,7 +672,9 @@ Covers all core functionality including:
 - Task registry and automatic registration
 
 #### **Integration Tests (9 tests)**
+
 End-to-end workflow testing:
+
 - `test_basic_task_execution` - Complete task lifecycle
 - `test_task_retry_mechanism` - Failure and retry handling
 - `test_scheduler` - Scheduled task execution
@@ -679,7 +686,9 @@ End-to-end workflow testing:
 - `test_graceful_shutdown_with_active_tasks` - Clean shutdown
 
 #### **Error Scenario Tests (9 tests)**
+
 Edge cases and failure modes:
+
 - Redis connection failure recovery
 - Malformed task data handling
 - Task timeout scenarios
@@ -691,7 +700,9 @@ Edge cases and failure modes:
 - Concurrent worker scaling edge cases
 
 #### **Performance Tests (6 tests)**
+
 Load and throughput validation:
+
 - High throughput task processing
 - Concurrent task safety
 - CPU intensive workload handling
@@ -700,7 +711,9 @@ Load and throughput validation:
 - Auto-scaler performance under load
 
 #### **Security Tests (7 tests)**
+
 Safety and injection protection:
+
 - Redis connection string injection
 - Queue name injection attacks
 - Malicious payload handling
@@ -878,21 +891,23 @@ cargo bench -- --profile-time
 
 ### Current Benchmark Results
 
-| Operation | Time | Performance Level | Notes |
-|-----------|------|-----------|---------------|
-| Task Serialization | ~39.15 ns | Excellent | MessagePack encoding |
-| Task Deserialization | ~31.51 ns | Excellent | MessagePack decoding |
-| Queue Config Lookup | ~39.76 ns | Excellent | DashMap access |
-| Queue Management | ~1.38 µs | Very Good | Priority sorting |
-| AutoScaler Config | ~617 ps | Outstanding | Struct creation |
+| Operation            | Time      | Performance Level | Notes                |
+|----------------------|-----------|-------------------|----------------------|
+| Task Serialization   | ~39.15 ns | Excellent         | MessagePack encoding |
+| Task Deserialization | ~31.51 ns | Excellent         | MessagePack decoding |
+| Queue Config Lookup  | ~39.76 ns | Excellent         | DashMap access       |
+| Queue Management     | ~1.38 µs  | Very Good         | Priority sorting     |
+| AutoScaler Config    | ~617 ps   | Outstanding       | Struct creation      |
 
 ### Benchmark Categories
 
 #### **Task Processing Benchmarks** (`task_processing.rs`)
+
 - `task_serialization`: MessagePack encoding performance
 - `task_deserialization`: MessagePack decoding performance
 
 #### **Queue Operations Benchmarks** (`queue_operations.rs`)
+
 - `queue_manager_get_queues`: Queue retrieval by priority
 - `queue_manager_get_queue_config`: Configuration lookup
 - `autoscaler_config_creation`: Configuration object creation
@@ -1408,6 +1423,7 @@ grep -r "\"default\"\|\"high_priority\"" examples/
 6. **Create minimal reproduction**: Isolate the problem
 
 For more detailed troubleshooting, see the main [README.md](README.md) or create an issue with:
+
 - Rust version
 - Redis version
 - Complete error messages
@@ -1421,7 +1437,7 @@ This project is licensed under the MIT OR Apache-2.0 license.
 ## What's Next?
 
 - [ ] **Distributed Mode**: Multi-Redis support
-- [ ] **Web UI**: Task monitoring dashboard  
+- [ ] **Web UI**: Task monitoring dashboard
 - [ ] **More Integrations**: Axum, Warp, etc.
 - [ ] **Batch Processing**: Bulk task operations
 - [ ] **Dead Letter Queues**: Failed task handling

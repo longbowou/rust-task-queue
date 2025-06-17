@@ -130,9 +130,9 @@ impl Default for AlertThresholds {
     fn default() -> Self {
         Self {
             max_queue_size: 10000,
-            max_error_rate: 0.05, // 5%
-            max_task_duration_ms: 300000, // 5 minutes
-            max_memory_usage_mb: 1024, // 1GB
+            max_error_rate: 0.05,          // 5%
+            max_task_duration_ms: 300000,  // 5 minutes
+            max_memory_usage_mb: 1024,     // 1GB
             max_worker_idle_time_sec: 300, // 5 minutes
         }
     }
@@ -237,7 +237,8 @@ impl MetricsCollector {
         } else {
             drop(counters);
             let mut counters = self.counters.write().await;
-            counters.entry(name.to_string())
+            counters
+                .entry(name.to_string())
                 .or_insert_with(|| AtomicU64::new(0))
                 .fetch_add(value, Ordering::Relaxed);
         }
@@ -251,7 +252,8 @@ impl MetricsCollector {
         } else {
             drop(gauges);
             let mut gauges = self.gauges.write().await;
-            gauges.entry(name.to_string())
+            gauges
+                .entry(name.to_string())
                 .or_insert_with(|| AtomicU64::new(0))
                 .store(value, Ordering::Relaxed);
         }
@@ -260,7 +262,8 @@ impl MetricsCollector {
     /// Record a timing measurement
     pub async fn record_timing(&self, name: &str, duration: Duration) {
         let mut histograms = self.histograms.write().await;
-        let histogram = histograms.entry(name.to_string())
+        let histogram = histograms
+            .entry(name.to_string())
             .or_insert_with(TaskHistogram::new);
         histogram.record(duration);
     }
@@ -289,60 +292,75 @@ impl MetricsCollector {
     pub async fn record_task_execution(&self, task_name: &str, duration: Duration, success: bool) {
         // Update execution time histogram
         let mut histograms = self.histograms.write().await;
-        let histogram = histograms.entry(format!("task_execution_time_{}", task_name))
+        let histogram = histograms
+            .entry(format!("task_execution_time_{}", task_name))
             .or_insert_with(TaskHistogram::new);
         histogram.record(duration);
 
         // Track in performance tracker
-        self.performance_tracker.record_execution(task_name, duration, success).await;
+        self.performance_tracker
+            .record_execution(task_name, duration, success)
+            .await;
 
         // Update counters
-        self.increment_counter(&format!("tasks_executed_{}", task_name), 1).await;
+        self.increment_counter(&format!("tasks_executed_{}", task_name), 1)
+            .await;
         if success {
-            self.increment_counter(&format!("tasks_succeeded_{}", task_name), 1).await;
+            self.increment_counter(&format!("tasks_succeeded_{}", task_name), 1)
+                .await;
         } else {
-            self.increment_counter(&format!("tasks_failed_{}", task_name), 1).await;
+            self.increment_counter(&format!("tasks_failed_{}", task_name), 1)
+                .await;
         }
 
         // Check for alerts
-        self.alert_manager.check_task_performance_alerts(task_name, duration, success).await;
+        self.alert_manager
+            .check_task_performance_alerts(task_name, duration, success)
+            .await;
     }
 
     /// Get comprehensive metrics snapshot
     pub async fn get_system_metrics(&self) -> SystemMetrics {
         let uptime = self.start_time.elapsed().as_secs();
-        
+
         // Collect counter values
         let counters = self.counters.read().await;
-        let total_executed = counters.get("tasks_executed")
+        let total_executed = counters
+            .get("tasks_executed")
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
-        let total_succeeded = counters.get("tasks_succeeded")
+        let total_succeeded = counters
+            .get("tasks_succeeded")
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
-        let total_failed = counters.get("tasks_failed")
+        let total_failed = counters
+            .get("tasks_failed")
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
-        let total_retried = counters.get("tasks_retried")
+        let total_retried = counters
+            .get("tasks_retried")
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
-        let total_timed_out = counters.get("tasks_timed_out")
+        let total_timed_out = counters
+            .get("tasks_timed_out")
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
 
         // Collect gauge values
         let gauges = self.gauges.read().await;
-        let active_tasks = gauges.get("active_tasks")
+        let active_tasks = gauges
+            .get("active_tasks")
             .map(|g| g.load(Ordering::Relaxed))
             .unwrap_or(0);
-        let active_workers = gauges.get("active_workers")
+        let active_workers = gauges
+            .get("active_workers")
             .map(|g| g.load(Ordering::Relaxed))
             .unwrap_or(0);
 
         // Collect timing data
         let histograms = self.histograms.read().await;
         let execution_histogram = histograms.get("task_execution_time");
-        
+
         let (avg_execution_ms, p95_ms, p99_ms) = if let Some(hist) = execution_histogram {
             (
                 hist.average().as_millis() as f64,
@@ -442,13 +460,16 @@ impl MetricsCollector {
         for (name, histogram) in histograms.iter() {
             if name.starts_with("task_execution_time_") {
                 let task_name = name.strip_prefix("task_execution_time_").unwrap();
-                task_performance.insert(task_name.to_string(), TaskPerformanceMetrics {
-                    avg_duration_ms: histogram.average().as_millis() as f64,
-                    p50_duration_ms: histogram.percentile(0.50).as_millis() as u64,
-                    p95_duration_ms: histogram.percentile(0.95).as_millis() as u64,
-                    p99_duration_ms: histogram.percentile(0.99).as_millis() as u64,
-                    total_executions: histogram.count(),
-                });
+                task_performance.insert(
+                    task_name.to_string(),
+                    TaskPerformanceMetrics {
+                        avg_duration_ms: histogram.average().as_millis() as f64,
+                        p50_duration_ms: histogram.percentile(0.50).as_millis() as u64,
+                        p95_duration_ms: histogram.percentile(0.95).as_millis() as u64,
+                        p99_duration_ms: histogram.percentile(0.99).as_millis() as u64,
+                        total_executions: histogram.count(),
+                    },
+                );
             }
         }
 
@@ -464,8 +485,13 @@ impl MetricsCollector {
     pub async fn get_health_status(&self) -> SystemHealthStatus {
         let memory_metrics = self.memory_tracker.get_metrics();
         let active_alerts = self.alert_manager.get_active_alerts().await;
-        
-        let status = if active_alerts.iter().any(|a| matches!(a.severity, AlertSeverity::Critical | AlertSeverity::Emergency)) {
+
+        let status = if active_alerts.iter().any(|a| {
+            matches!(
+                a.severity,
+                AlertSeverity::Critical | AlertSeverity::Emergency
+            )
+        }) {
             HealthStatus::Critical
         } else if !active_alerts.is_empty() {
             HealthStatus::Warning
@@ -478,8 +504,14 @@ impl MetricsCollector {
             memory_usage_mb: (memory_metrics.current_bytes / (1024 * 1024)) as u64,
             uptime_seconds: self.start_time.elapsed().as_secs(),
             active_alert_count: active_alerts.len() as u32,
-            critical_alert_count: active_alerts.iter()
-                .filter(|a| matches!(a.severity, AlertSeverity::Critical | AlertSeverity::Emergency))
+            critical_alert_count: active_alerts
+                .iter()
+                .filter(|a| {
+                    matches!(
+                        a.severity,
+                        AlertSeverity::Critical | AlertSeverity::Emergency
+                    )
+                })
                 .count() as u32,
         }
     }
@@ -497,7 +529,7 @@ impl MemoryTracker {
 
     pub fn track_allocation(&self, bytes: usize) {
         let current = self.allocated_bytes.fetch_add(bytes, Ordering::Relaxed) + bytes;
-        
+
         // Update peak if necessary
         let mut peak = self.peak_memory.load(Ordering::Relaxed);
         while current > peak {
@@ -511,7 +543,7 @@ impl MemoryTracker {
                 Err(new_peak) => peak = new_peak,
             }
         }
-        
+
         self.total_allocations.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -561,8 +593,9 @@ impl TaskHistogram {
     pub fn record(&mut self, duration: Duration) {
         self.samples.push(duration);
         self.total_count.fetch_add(1, Ordering::Relaxed);
-        self.total_duration.fetch_add(duration.as_millis() as u64, Ordering::Relaxed);
-        
+        self.total_duration
+            .fetch_add(duration.as_millis() as u64, Ordering::Relaxed);
+
         // Keep only recent samples to prevent memory bloat
         if self.samples.len() > 10000 {
             self.samples.drain(..5000);
@@ -574,7 +607,7 @@ impl TaskHistogram {
         if count == 0 {
             return Duration::from_millis(0);
         }
-        
+
         let total_ms = self.total_duration.load(Ordering::Relaxed);
         Duration::from_millis(total_ms / count)
     }
@@ -586,7 +619,7 @@ impl TaskHistogram {
 
         let mut sorted_samples = self.samples.clone();
         sorted_samples.sort();
-        
+
         let index = (sorted_samples.len() as f64 * p).ceil() as usize - 1;
         sorted_samples[index.min(sorted_samples.len() - 1)]
     }
@@ -609,13 +642,15 @@ impl PerformanceTracker {
     pub async fn record_execution(&self, task_name: &str, duration: Duration, success: bool) {
         // Track execution time
         let mut times = self.task_execution_times.write().await;
-        times.entry(task_name.to_string())
+        times
+            .entry(task_name.to_string())
             .or_insert_with(Vec::new)
             .push(duration);
 
         // Track error rate
         let mut error_rates = self.error_rates.write().await;
-        error_rates.entry(task_name.to_string())
+        error_rates
+            .entry(task_name.to_string())
             .or_insert_with(|| ErrorRateTracker::new(Duration::from_secs(300))) // 5-minute window
             .record_execution(!success);
     }
@@ -634,21 +669,38 @@ impl AlertManager {
         }
     }
 
-    pub async fn check_task_performance_alerts(&self, task_name: &str, duration: Duration, _success: bool) {
+    pub async fn check_task_performance_alerts(
+        &self,
+        task_name: &str,
+        duration: Duration,
+        _success: bool,
+    ) {
         let thresholds = self.alert_thresholds.read().await;
-        
+
         // Check task duration
         if duration.as_millis() > thresholds.max_task_duration_ms as u128 {
             let alert = Alert {
-                id: format!("task_duration_{}_{}", task_name, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()),
+                id: format!(
+                    "task_duration_{}_{}",
+                    task_name,
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                ),
                 severity: AlertSeverity::Warning,
-                message: format!("Task {} took {}ms (threshold: {}ms)", task_name, duration.as_millis(), thresholds.max_task_duration_ms),
+                message: format!(
+                    "Task {} took {}ms (threshold: {}ms)",
+                    task_name,
+                    duration.as_millis(),
+                    thresholds.max_task_duration_ms
+                ),
                 timestamp: SystemTime::now(),
                 metric_name: "task_duration".to_string(),
                 current_value: duration.as_millis() as f64,
                 threshold: thresholds.max_task_duration_ms as f64,
             };
-            
+
             let mut alerts = self.active_alerts.write().await;
             alerts.insert(alert.id.clone(), alert);
         }
@@ -729,12 +781,11 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-
     #[tokio::test]
     async fn test_metrics_collector_creation() {
         let collector = MetricsCollector::new();
         let metrics = collector.get_system_metrics().await;
-        
+
         assert_eq!(metrics.tasks.total_executed, 0);
         assert_eq!(metrics.memory.current_bytes, 0);
     }
@@ -742,22 +793,25 @@ mod tests {
     #[tokio::test]
     async fn test_counter_increment() {
         let collector = MetricsCollector::new();
-        
+
         collector.increment_counter("test_counter", 5).await;
         collector.increment_counter("test_counter", 3).await;
-        
+
         let counters = collector.counters.read().await;
-        let value = counters.get("test_counter").unwrap().load(Ordering::Relaxed);
+        let value = counters
+            .get("test_counter")
+            .unwrap()
+            .load(Ordering::Relaxed);
         assert_eq!(value, 8);
     }
 
     #[tokio::test]
     async fn test_gauge_setting() {
         let collector = MetricsCollector::new();
-        
+
         collector.set_gauge("test_gauge", 42).await;
         collector.set_gauge("test_gauge", 100).await;
-        
+
         let gauges = collector.gauges.read().await;
         let value = gauges.get("test_gauge").unwrap().load(Ordering::Relaxed);
         assert_eq!(value, 100);
@@ -766,35 +820,39 @@ mod tests {
     #[tokio::test]
     async fn test_timing_recording() {
         let collector = MetricsCollector::new();
-        
-        collector.record_timing("test_timing", Duration::from_millis(100)).await;
-        collector.record_timing("test_timing", Duration::from_millis(200)).await;
-        
+
+        collector
+            .record_timing("test_timing", Duration::from_millis(100))
+            .await;
+        collector
+            .record_timing("test_timing", Duration::from_millis(200))
+            .await;
+
         let histograms = collector.histograms.read().await;
         let histogram = histograms.get("test_timing").unwrap();
         let avg = histogram.average();
-        
+
         assert_eq!(avg, Duration::from_millis(150));
     }
 
     #[test]
     fn test_memory_tracker() {
         let tracker = MemoryTracker::new();
-        
+
         tracker.track_allocation(1000);
         tracker.track_allocation(500);
         tracker.track_task_start();
         tracker.track_task_start();
-        
+
         let metrics = tracker.get_metrics();
         assert_eq!(metrics.current_bytes, 1500);
         assert_eq!(metrics.peak_bytes, 1500);
         assert_eq!(metrics.active_tasks, 2);
         assert_eq!(metrics.memory_efficiency, 750.0);
-        
+
         tracker.track_deallocation(300);
         tracker.track_task_end();
-        
+
         let metrics = tracker.get_metrics();
         assert_eq!(metrics.current_bytes, 1200);
         assert_eq!(metrics.active_tasks, 1);
@@ -804,12 +862,12 @@ mod tests {
     #[test]
     fn test_histogram_percentiles() {
         let mut histogram = TaskHistogram::new();
-        
+
         // Add samples: 10, 20, 30, ..., 100 ms
         for i in 1..=10 {
             histogram.record(Duration::from_millis(i * 10));
         }
-        
+
         assert_eq!(histogram.average(), Duration::from_millis(55));
         assert_eq!(histogram.percentile(0.9), Duration::from_millis(90)); // 90th percentile
         assert_eq!(histogram.percentile(0.95), Duration::from_millis(100)); // 95th percentile
@@ -818,18 +876,18 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_summary() {
         let collector = MetricsCollector::new();
-        
+
         collector.increment_counter("tasks_executed", 100).await;
         collector.increment_counter("tasks_succeeded", 95).await;
         collector.increment_counter("tasks_failed", 5).await;
         collector.set_gauge("active_workers", 3).await;
-        
+
         let summary = collector.get_metrics_summary().await;
-        
+
         assert!(summary.contains("100 executed"));
         assert!(summary.contains("95 succeeded"));
         assert!(summary.contains("5 failed"));
         assert!(summary.contains("3 active"));
         assert!(summary.contains("95.0%")); // Success rate
     }
-} 
+}

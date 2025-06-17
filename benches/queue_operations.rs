@@ -28,5 +28,9 @@ fn bench_autoscaler_config(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_queue_manager_operations, bench_autoscaler_config);
-criterion_main!(benches); 
+criterion_group!(
+    benches,
+    bench_queue_manager_operations,
+    bench_autoscaler_config
+);
+criterion_main!(benches);

@@ -23,20 +23,20 @@ impl Task for EmailTask {
             println!("   Body: {}", body);
         }
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         #[derive(Serialize)]
         struct EmailResponse {
             status: String,
             to: String,
             subject: String,
         }
-        
+
         let response = EmailResponse {
             status: "sent".to_string(),
             to: self.to.clone(),
             subject: self.subject.clone(),
         };
-        
+
         Ok(rmp_serde::to_vec(&response)?)
     }
 

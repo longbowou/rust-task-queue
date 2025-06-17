@@ -10,7 +10,7 @@ pub enum TaskQueueError {
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] rmp_serde::encode::Error),
-    
+
     #[error("Deserialization error: {0}")]
     Deserialization(#[from] rmp_serde::decode::Error),
 
@@ -83,28 +83,64 @@ mod tests {
     fn test_task_timeout_helper() {
         let error = TaskQueueError::task_timeout("task_123", 300);
         match &error {
-            TaskQueueError::TaskTimeout { id, timeout_seconds } => {
+            TaskQueueError::TaskTimeout {
+                id,
+                timeout_seconds,
+            } => {
                 assert_eq!(id, "task_123");
                 assert_eq!(*timeout_seconds, 300);
-            },
+            }
             _ => panic!("Expected TaskTimeout error"),
         }
-        assert_eq!(error.to_string(), "Task timeout: task task_123 exceeded 300s");
+        assert_eq!(
+            error.to_string(),
+            "Task timeout: task task_123 exceeded 300s"
+        );
     }
 
     #[test]
     fn test_error_display_messages() {
         let test_cases = vec![
-            (TaskQueueError::TaskExecution("Failed to process".to_string()), "Task execution error: Failed to process"),
-            (TaskQueueError::Connection("Redis down".to_string()), "Connection error: Redis down"),
-            (TaskQueueError::Configuration("Invalid config".to_string()), "Configuration error: Invalid config"),
-            (TaskQueueError::Worker("Worker crash".to_string()), "Worker error: Worker crash"),
-            (TaskQueueError::Scheduler("Schedule failed".to_string()), "Scheduler error: Schedule failed"),
-            (TaskQueueError::Queue("Queue full".to_string()), "Queue error: Queue full"),
-            (TaskQueueError::Broker("Broker error".to_string()), "Broker error: Broker error"),
-            (TaskQueueError::Scheduling("Schedule conflict".to_string()), "Scheduling error: Schedule conflict"),
-            (TaskQueueError::AutoScaling("Scale failed".to_string()), "Auto-scaling error: Scale failed"),
-            (TaskQueueError::Registry("Registry error".to_string()), "Registry error: Registry error"),
+            (
+                TaskQueueError::TaskExecution("Failed to process".to_string()),
+                "Task execution error: Failed to process",
+            ),
+            (
+                TaskQueueError::Connection("Redis down".to_string()),
+                "Connection error: Redis down",
+            ),
+            (
+                TaskQueueError::Configuration("Invalid config".to_string()),
+                "Configuration error: Invalid config",
+            ),
+            (
+                TaskQueueError::Worker("Worker crash".to_string()),
+                "Worker error: Worker crash",
+            ),
+            (
+                TaskQueueError::Scheduler("Schedule failed".to_string()),
+                "Scheduler error: Schedule failed",
+            ),
+            (
+                TaskQueueError::Queue("Queue full".to_string()),
+                "Queue error: Queue full",
+            ),
+            (
+                TaskQueueError::Broker("Broker error".to_string()),
+                "Broker error: Broker error",
+            ),
+            (
+                TaskQueueError::Scheduling("Schedule conflict".to_string()),
+                "Scheduling error: Schedule conflict",
+            ),
+            (
+                TaskQueueError::AutoScaling("Scale failed".to_string()),
+                "Auto-scaling error: Scale failed",
+            ),
+            (
+                TaskQueueError::Registry("Registry error".to_string()),
+                "Registry error: Registry error",
+            ),
         ];
 
         for (error, expected_message) in test_cases {
@@ -117,16 +153,16 @@ mod tests {
         // Test that TaskQueueError can be converted from serialization errors
         // Since it's hard to trigger a serialization error with MessagePack,
         // we'll test the error type and conversion structure
-        
+
         // Test with a direct TaskQueueError::Serialization
         let custom_error = rmp_serde::encode::Error::Syntax("Test serialization error".to_string());
         let queue_error: TaskQueueError = custom_error.into();
-        
+
         match queue_error {
-            TaskQueueError::Serialization(_) => {}, // Success
+            TaskQueueError::Serialization(_) => {} // Success
             _ => panic!("Expected Serialization error"),
         }
-        
+
         assert!(queue_error.to_string().contains("Serialization error"));
     }
 
@@ -136,12 +172,12 @@ mod tests {
         let invalid_data = vec![0xFF, 0xFF, 0xFF, 0xFF];
         let result: Result<String, rmp_serde::decode::Error> = rmp_serde::from_slice(&invalid_data);
         assert!(result.is_err());
-        
+
         let deserialization_error = result.unwrap_err();
         let queue_error: TaskQueueError = deserialization_error.into();
-        
+
         match queue_error {
-            TaskQueueError::Deserialization(_) => {}, // Success
+            TaskQueueError::Deserialization(_) => {} // Success
             _ => panic!("Expected Deserialization error"),
         }
     }
@@ -158,7 +194,7 @@ mod tests {
     fn test_error_send_sync_traits() {
         fn assert_send<T: Send>() {}
         fn assert_sync<T: Sync>() {}
-        
+
         assert_send::<TaskQueueError>();
         assert_sync::<TaskQueueError>();
     }
@@ -166,10 +202,10 @@ mod tests {
     #[test]
     fn test_error_source_chain() {
         use std::error::Error;
-        
+
         let error = TaskQueueError::TaskExecution("Root cause".to_string());
         assert!(error.source().is_none());
-        
+
         // Test that our error type properly implements the Error trait
         let _: &dyn Error = &error;
     }
