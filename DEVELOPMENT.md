@@ -1,6 +1,6 @@
 # Rust Task Queue - Development Guide
 
-A high-performance, Redis-backed task queue framework with auto-scaling capabilities designed for async Rust applications.
+A high-performance, Redis-backed task queue framework with intelligent async task spawning, auto-scaling capabilities, and advanced backpressure management designed for async Rust applications.
 
 ## 📋 Table of Contents
 
@@ -33,6 +33,10 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 - **Comprehensive error handling** with eliminated `unwrap()` calls
 - **Connection pooling** for optimal Redis performance with centralized connection management
 - **Configuration validation** with comprehensive safety checks
+- **Intelligent async task spawning** with context-based execution and proper resource management
+- **Advanced backpressure management** with automatic task re-queuing and capacity control
+- **Active task tracking** with atomic counters for real-time monitoring
+- **Graceful shutdown** with active task completion waiting
 
 ### Performance Highlights
 
@@ -42,6 +46,9 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 - **AutoScaler Config Creation**: ~651ps per operation
 - **High throughput**: Thousands of tasks per second
 - **Memory efficient**: Optimized serialization and connection pooling
+- **Smart concurrency**: Atomic task tracking with minimal overhead
+- **Efficient spawning**: Context-based execution reduces resource allocation
+- **Intelligent backpressure**: Task re-queuing prevents system overload
 
 ## 🏗️ Architecture
 
@@ -60,9 +67,10 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Worker Pool   │    │   Redis Pool    │    │   AutoScaler    │
 │                 │    │                 │    │                 │
-│ • Task Exec     │    │ • Connections   │    │ • Metrics       │
-│ • Error Handle  │    │ • Health Check  │    │ • Scaling       │
-│ • Retry Logic   │    │ • Centralized   │    │ • Validation    │
+│ • Smart Spawn   │    │ • Connections   │    │ • Metrics       │
+│ • Backpressure  │    │ • Health Check  │    │ • Scaling       │
+│ • Active Track  │    │ • Centralized   │    │ • Validation    │
+│ • Graceful Stop │    │ • Pool Mgmt     │    │ • Load Balance  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -70,10 +78,14 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 
 1. **Task Enqueue**: Tasks are serialized (MessagePack) and pushed to Redis queues using queue constants
 2. **Worker Dequeue**: Workers pull tasks from priority-ordered queues with robust error handling
-3. **Task Execution**: Tasks are deserialized and executed with timeout and retry logic
-4. **Result Handling**: Success/failure is tracked with comprehensive metrics
-5. **Auto-scaling**: System monitors load and adjusts worker count with validation
-6. **Connection Management**: Centralized Redis connection handling for reliability
+3. **Capacity Check**: Intelligent semaphore-based concurrency control prevents worker overload
+4. **Smart Spawning**: Tasks are spawned asynchronously or re-queued based on available capacity
+5. **Task Execution**: Tasks are executed with context-based tracking, timeout and retry logic
+6. **Active Monitoring**: Real-time task tracking with atomic counters for observability
+7. **Result Handling**: Success/failure is tracked with comprehensive metrics and proper cleanup
+8. **Auto-scaling**: System monitors load and adjusts worker count with validation
+9. **Graceful Shutdown**: Workers wait for active tasks before terminating
+10. **Connection Management**: Centralized Redis connection handling for reliability
 
 ### Queue Constants
 
@@ -87,6 +99,93 @@ queue_names::DEFAULT        // "default" - Standard priority tasks
 queue_names::HIGH_PRIORITY  // "high_priority" - High priority tasks  
 queue_names::LOW_PRIORITY   // "low_priority" - Background tasks
 ```
+
+### Enhanced Worker Architecture
+
+#### **🔧 Intelligent Task Spawning System**
+
+The framework now features a sophisticated async task spawning architecture designed for high-performance, reliable task processing:
+
+##### **Core Components:**
+
+1. **TaskExecutionContext**: Centralized context containing all necessary resources
+   ```rust
+   struct TaskExecutionContext {
+       broker: Arc<RedisBroker>,
+       task_registry: Arc<TaskRegistry>,
+       worker_id: String,
+       semaphore: Option<Arc<Semaphore>>,
+       active_tasks: Arc<AtomicUsize>,
+   }
+   ```
+
+2. **SpawnResult Enum**: Tracks task spawning outcomes
+   ```rust
+   enum SpawnResult {
+       Spawned,              // Task successfully spawned
+       Rejected(TaskWrapper), // Task rejected due to capacity
+       Failed(TaskQueueError), // Failed to spawn task
+   }
+   ```
+
+3. **Atomic Task Tracking**: Real-time monitoring with `AtomicUsize` counters
+   ```rust
+   // Monitor active tasks in real-time
+   let active_count = worker.active_task_count();
+   println!("Worker has {} active tasks", active_count);
+   ```
+
+##### **Execution Flow:**
+
+```
+Task Dequeued → Capacity Check → Decision Point
+                                      ↓
+              ┌─────────────────────────┼─────────────────────────┐
+              ▼                         ▼                         ▼
+        Has Capacity              At Capacity             No Semaphore
+              ↓                         ↓                         ↓
+      Spawn Async Task           Re-queue Task            Execute Direct
+              ↓                         ↓                         ↓
+      Track + Execute            Apply Backpressure        Track + Execute
+              ↓                         ↓                         ↓
+      Cleanup & Release          Delay & Retry             Cleanup
+```
+
+##### **Advanced Features:**
+
+- **Backpressure Management**: Automatic task re-queuing when at capacity
+- **Resource Safety**: RAII patterns ensure proper cleanup
+- **Graceful Shutdown**: Workers wait up to 30 seconds for active tasks
+- **Context-based Spawning**: Centralized resource management
+- **Intelligent Delays**: Configurable delays prevent tight loops
+
+##### **Configuration Options:**
+
+```rust
+// Basic worker with concurrency limits
+let worker = Worker::new("worker-1".to_string(), broker, scheduler)
+    .with_max_concurrent_tasks(10)
+    .with_task_registry(registry);
+
+// Advanced backpressure configuration
+let backpressure_config = WorkerBackpressureConfig {
+    max_concurrent_tasks: 10,
+    queue_size_threshold: 100,
+    backpressure_delay_ms: 50,
+};
+
+let worker = Worker::new("worker-advanced".to_string(), broker, scheduler)
+    .with_backpressure_config(backpressure_config)
+    .with_task_registry(registry);
+```
+
+##### **Development Benefits:**
+
+- **Consistent Architecture**: Structured approach to task spawning
+- **Resource Safety**: Eliminates resource leaks and improper cleanup
+- **Testability**: Individual components can be tested in isolation
+- **Observability**: Real-time metrics for debugging and monitoring
+- **Reliability**: Proper error handling throughout the execution pipeline
 
 ## 🚀 Development Setup
 
@@ -157,7 +256,7 @@ rust-task-queue/
 │   ├── config.rs              # Configuration management with validation
 │   ├── error.rs               # Error types & comprehensive handling
 │   ├── broker.rs              # Redis broker with connection helper
-│   ├── worker.rs              # Worker pool with safety improvements
+│   ├── worker.rs              # Enhanced worker with intelligent task spawning & backpressure
 │   ├── task.rs                # Task trait & registry with auto-register
 │   ├── scheduler.rs           # Task scheduling with persistence
 │   ├── autoscaler.rs          # Auto-scaling with validation
@@ -640,8 +739,23 @@ for queue_metric in metrics.queue_metrics {
 4. **Monitoring**: Regular health checks without overhead
 5. **Error Handling**: Proper retry strategies without panics
 6. **Configuration**: Use validation to catch issues early
+7. **Concurrency Limits**: Set `max_concurrent_tasks` based on resource capacity
+8. **Backpressure Delays**: Configure appropriate delays to prevent tight loops
+9. **Active Task Monitoring**: Use `active_task_count()` for real-time insights
+10. **Graceful Shutdown**: Allow sufficient time for task completion (30s default)
+11. **Context Reuse**: Leverage TaskExecutionContext for efficient resource management
+12. **Semaphore Configuration**: Match semaphore size to system capacity
 
 ## 🔧 Recent Improvements
+
+### Worker Architecture Overhaul
+
+1. **Intelligent Task Spawning**: Complete redesign of async task execution with context-based spawning
+2. **Advanced Backpressure Management**: Automatic task re-queuing and capacity-aware processing
+3. **Active Task Tracking**: Real-time monitoring with atomic counters for precise observability
+4. **Graceful Shutdown**: Workers wait for active tasks to complete before terminating
+5. **Resource Safety**: Proper RAII patterns and cleanup throughout the execution lifecycle
+6. **Semaphore-based Concurrency**: Intelligent capacity management prevents system overload
 
 ### Safety Enhancements
 
@@ -649,6 +763,8 @@ for queue_metric in metrics.queue_metrics {
 2. **Redis connection helper**: Centralized connection management reduces code duplication by 50+ lines
 3. **Configuration validation**: Comprehensive validation prevents runtime errors
 4. **Queue constants**: Type-safe queue names prevent typos and inconsistencies
+5. **Borrow checker compliance**: Resolved all lifetime and borrowing issues in worker spawning
+6. **Context-based execution**: Centralized resource management eliminates resource leaks
 
 ### Performance Improvements
 
@@ -656,6 +772,8 @@ for queue_metric in metrics.queue_metrics {
 2. **MessagePack serialization**: Faster and more compact than JSON
 3. **Error handling optimization**: Reduced overhead in error paths
 4. **Memory management**: Better cleanup and resource management
+5. **Atomic task tracking**: Minimal overhead for real-time monitoring
+6. **Efficient spawning**: Context reuse reduces allocation overhead
 
 ### API Enhancements
 
@@ -663,6 +781,8 @@ for queue_metric in metrics.queue_metrics {
 2. **Builder pattern improvements**: More intuitive configuration
 3. **Better error messages**: More descriptive error information
 4. **Enhanced monitoring**: More detailed metrics and health checks
+5. **Worker configuration**: Flexible backpressure and concurrency settings
+6. **Real-time metrics**: Active task count and capacity monitoring
 
 ## 🤝 Contributing
 
@@ -719,8 +839,14 @@ redis-cli monitor
 redis-cli keys "*"
 redis-cli smembers active_workers
 
-# Debug worker activity
+# Debug worker activity with spawning details
 RUST_LOG=rust_task_queue::worker=debug cargo run --bin task-worker --features cli worker
+
+# Monitor task spawning and backpressure
+RUST_LOG=rust_task_queue::worker=trace cargo test test_improved_async_task_spawning -- --nocapture
+
+# Track active task counts
+RUST_LOG=rust_task_queue=debug cargo test test_graceful_shutdown_with_active_tasks -- --nocapture
 ```
 
 ## 🔧 Troubleshooting
@@ -757,6 +883,38 @@ RUST_LOG=rust_task_queue::worker=debug cargo test
 
 # Check for failed tasks
 redis-cli smembers "queue:default:failed_tasks"
+```
+
+#### Worker Spawning and Backpressure Issues
+
+```bash
+# Monitor task spawning behavior
+RUST_LOG=rust_task_queue::worker=trace cargo test -- --nocapture
+
+# Check semaphore and capacity limits
+cargo test test_improved_async_task_spawning -- --nocapture
+
+# Verify graceful shutdown behavior
+cargo test test_graceful_shutdown_with_active_tasks -- --nocapture
+
+# Test backpressure handling
+cargo test test_backpressure_handling -- --nocapture
+
+# Monitor active task counts in real-time
+RUST_LOG=debug cargo run --example worker_monitoring
+```
+
+#### Active Task Tracking Issues
+
+```bash
+# Check if active task counts are accurate
+cargo test --test integration_tests -- test_active_task_count --nocapture
+
+# Verify task cleanup after completion
+RUST_LOG=rust_task_queue::worker=debug cargo test -- --nocapture | grep -i "cleanup\|active"
+
+# Monitor for task leaks
+watch -n 1 'redis-cli eval "return redis.call(\"keys\", \"task:*\")" 0'
 ```
 
 #### Configuration Issues
@@ -810,6 +968,12 @@ grep -r "\"default\"\|\"high_priority\"" examples/
 6. ✅ **Queue constants are used instead of hardcoded strings**
 7. ✅ **Configuration is valid**
 8. ✅ **No `unwrap()` or `panic!()` in production code**
+9. ✅ **Worker concurrency limits are properly configured**
+10. ✅ **Active task counts are being tracked correctly**
+11. ✅ **Backpressure management is functioning as expected**
+12. ✅ **Graceful shutdown completes within timeout**
+13. ✅ **Task spawning context is properly initialized**
+14. ✅ **Semaphore permits are correctly managed**
 
 ### Getting Help
 

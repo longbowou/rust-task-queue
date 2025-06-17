@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/rust-task-queue/badge.svg)](https://docs.rs/rust-task-queue)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/yourusername/rust-task-queue)
 
-A high-performance, Redis-backed task queue framework with auto-scaling capabilities for async Rust applications.
+A high-performance, Redis-backed task queue framework with intelligent async task spawning, auto-scaling capabilities, and advanced backpressure management for async Rust applications.
 
 ## Features
 
@@ -20,6 +20,9 @@ A high-performance, Redis-backed task queue framework with auto-scaling capabili
 - 🤖 **Automatic task registration** with procedural macros
 - 🚀 **Production-ready** with robust error handling and safety improvements
 - ⚡ **High performance** with MessagePack serialization and connection pooling
+- 🔧 **Advanced async task spawning** with intelligent backpressure and resource management
+- 🛡️ **Graceful shutdown** with active task tracking and cleanup
+- 📈 **Smart resource allocation** with semaphore-based concurrency control
 
 ## Quick Start
 
@@ -592,6 +595,90 @@ Recent improvements include:
 - **Connection reliability**: Centralized Redis connection management
 - **Graceful failures**: Proper task re-enqueueing on failures
 - **Configuration validation**: Comprehensive config validation
+- **Enhanced async task spawning**: Restructured task execution with proper resource management
+- **Intelligent backpressure**: Automatic task queuing when workers are at capacity
+- **Active task tracking**: Real-time monitoring of running tasks with atomic counters
+- **Graceful shutdown**: Workers wait for active tasks to complete before terminating
+
+## Advanced Worker Architecture
+
+### Intelligent Task Spawning
+
+The framework features a sophisticated async task spawning system that provides:
+
+#### **🔧 Structured Task Execution**
+- **Context-based spawning**: Centralized execution context for better resource management
+- **Atomic task tracking**: Real-time monitoring of active tasks using `AtomicUsize` counters
+- **Resource safety**: Proper cleanup and RAII patterns throughout the lifecycle
+
+#### **🛡️ Backpressure Management**
+```rust
+// Workers automatically handle capacity limits
+let worker = Worker::new("worker-1".to_string(), broker, scheduler)
+    .with_max_concurrent_tasks(10)  // Limit concurrent execution
+    .with_task_registry(registry);
+
+let started_worker = worker.start().await?;
+
+// Real-time task monitoring
+println!("Active tasks: {}", started_worker.active_task_count());
+```
+
+#### **📊 Execution Flow**
+1. **Task Dequeuing**: Workers pull tasks from priority-ordered queues
+2. **Capacity Check**: Semaphore-based concurrency control prevents overload
+3. **Smart Spawning**: Tasks are spawned asynchronously or queued based on capacity
+4. **Resource Tracking**: Active task counters provide real-time visibility
+5. **Graceful Cleanup**: Automatic resource cleanup when tasks complete
+
+#### **🔄 Backpressure Strategies**
+- **At Capacity**: Tasks are automatically re-queued for later processing
+- **Intelligent Delays**: Configurable delays prevent tight loops during high load
+- **Resource Monitoring**: Real-time feedback on worker utilization
+
+#### **🛑 Graceful Shutdown**
+```rust
+// Workers wait for active tasks before shutting down
+worker.stop().await;  // Waits up to 30 seconds for task completion
+```
+
+### Worker Configuration Examples
+
+#### **Basic Worker Setup**
+```rust
+use rust_task_queue::prelude::*;
+
+let worker = Worker::new("worker-1".to_string(), broker, scheduler)
+    .with_max_concurrent_tasks(5)
+    .with_task_registry(registry);
+
+let started_worker = worker.start().await?;
+```
+
+#### **Advanced Configuration**
+```rust
+use rust_task_queue::WorkerBackpressureConfig;
+
+let backpressure_config = WorkerBackpressureConfig {
+    max_concurrent_tasks: 10,
+    queue_size_threshold: 100,
+    backpressure_delay_ms: 50,
+};
+
+let worker = Worker::new("worker-advanced".to_string(), broker, scheduler)
+    .with_backpressure_config(backpressure_config)
+    .with_task_registry(registry);
+```
+
+#### **Production Monitoring**
+```rust
+// Monitor worker health and performance
+let active_tasks = worker.active_task_count();
+let queue_metrics = task_queue.broker.get_queue_metrics("default").await?;
+
+println!("Worker Status: {} active tasks", active_tasks);
+println!("Queue Status: {} pending tasks", queue_metrics.pending_tasks);
+```
 
 ## Monitoring and Observability
 
@@ -623,6 +710,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Worker Monitoring
+
+The enhanced worker architecture provides comprehensive monitoring capabilities:
+
+```rust
+use rust_task_queue::prelude::*;
+
+// Real-time worker status
+let active_count = worker.active_task_count();
+println!("Worker has {} active tasks", active_count);
+
+// Queue metrics for capacity planning
+let queue_metrics = task_queue.broker.get_queue_metrics("default").await?;
+println!("Queue depth: {} pending, {} processed", 
+         queue_metrics.pending_tasks, 
+         queue_metrics.processed_tasks);
+
+// Auto-scaler insights  
+let autoscaler_metrics = task_queue.autoscaler.collect_metrics().await?;
+println!("Tasks per worker: {:.2}", autoscaler_metrics.tasks_per_worker);
+```
+
+#### **Key Metrics to Monitor**
+
+- **Active Task Count**: Real-time view of worker utilization
+- **Queue Depth**: Pending tasks across all priority queues  
+- **Task Processing Rate**: Completed tasks per second
+- **Backpressure Events**: Tasks re-queued due to capacity limits
+- **Graceful Shutdown Time**: How long workers take to complete active tasks
 
 ## Installation
 
@@ -675,6 +792,9 @@ The repository includes comprehensive examples:
 - Monitor Redis memory usage and performance
 - Set up proper logging and alerting
 - Use configuration validation in production
+- Configure appropriate `max_concurrent_tasks` based on workload characteristics
+- Monitor active task counts to optimize worker capacity
+- Use graceful shutdown patterns to prevent task loss during deployments
 
 ### Development
 
@@ -692,6 +812,9 @@ The repository includes comprehensive examples:
 - **Queue Config Lookup**: ~40ns per operation
 - **High throughput**: Handles thousands of tasks per second
 - **Memory efficient**: Connection pooling and optimized serialization
+- **Smart concurrency**: Atomic task tracking with minimal overhead
+- **Efficient spawning**: Context-based execution reduces resource allocation
+- **Backpressure handling**: Intelligent task re-queuing prevents system overload
 
 ## Troubleshooting
 
@@ -701,6 +824,9 @@ The repository includes comprehensive examples:
 2. **High memory usage**: Monitor task payload sizes and Redis memory
 3. **Slow processing**: Consider increasing worker count or optimizing task logic
 4. **Connection issues**: Verify Redis URL and network connectivity
+5. **Tasks getting re-queued frequently**: Increase `max_concurrent_tasks` or optimize task execution time
+6. **Workers not shutting down gracefully**: Check for long-running tasks and adjust shutdown timeout
+7. **High active task count**: Monitor task execution patterns and consider load balancing
 
 ### Debug Mode
 

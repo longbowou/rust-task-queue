@@ -394,4 +394,198 @@ async fn test_integration_comprehensive() {
     cleanup_test_database(&redis_url).await;
     
     println!("Completed test_integration_comprehensive");
+}
+
+#[tokio::test]
+async fn test_improved_async_task_spawning() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    // Create a task registry and register our test task
+    let registry = Arc::new(TaskRegistry::new());
+    registry.register_with_name::<TestTask>("test_task").expect("Failed to register task");
+
+    // Start workers with limited concurrent tasks to test backpressure
+    let worker = Worker::new("test-worker".to_string(), task_queue.broker.clone(), task_queue.scheduler.clone())
+        .with_task_registry(registry.clone())
+        .with_max_concurrent_tasks(2); // Limit to 2 concurrent tasks
+
+    let started_worker = worker.start().await.expect("Failed to start worker");
+
+    // Verify initial state
+    assert_eq!(started_worker.active_task_count(), 0);
+
+    // Enqueue multiple tasks rapidly to test spawning
+    let mut task_ids = Vec::new();
+    for i in 0..5 {
+        let task = TestTask {
+            data: format!("test_data_{}", i),
+            should_fail: false,
+        };
+        let task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_ids.push(task_id);
+    }
+
+    // Wait a bit for tasks to be processed
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    // Verify that the worker is processing tasks (some should be active)
+    let active_count = started_worker.active_task_count();
+    assert!(active_count <= 2, "Should not exceed max concurrent tasks limit");
+
+    // Wait for all tasks to complete
+    let mut attempts = 0;
+    while started_worker.active_task_count() > 0 && attempts < 50 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        attempts += 1;
+    }
+
+    // Verify all tasks completed
+    assert_eq!(started_worker.active_task_count(), 0);
+
+    // Cleanup
+    started_worker.stop().await;
+    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_graceful_shutdown_with_active_tasks() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    // Create a task registry
+    let registry = Arc::new(TaskRegistry::new());
+    registry.register_with_name::<TestTask>("test_task").expect("Failed to register task");
+
+    // Start worker
+    let worker = Worker::new("shutdown-test-worker".to_string(), task_queue.broker.clone(), task_queue.scheduler.clone())
+        .with_task_registry(registry.clone())
+        .with_max_concurrent_tasks(1);
+
+    let started_worker = worker.start().await.expect("Failed to start worker");
+
+    // Create a custom long-running task
+    #[derive(Debug, Serialize, Deserialize, Clone)]
+    struct LongRunningTask {
+        duration_ms: u64,
+    }
+
+    #[async_trait::async_trait]
+    impl Task for LongRunningTask {
+        async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+            // Sleep for the specified duration
+            tokio::time::sleep(tokio::time::Duration::from_millis(self.duration_ms)).await;
+            
+            #[derive(Serialize)]
+            struct Response {
+                status: String,
+                duration: u64,
+            }
+            
+            let response = Response {
+                status: "completed".to_string(),
+                duration: self.duration_ms,
+            };
+            
+            Ok(rmp_serde::to_vec(&response)?)
+        }
+
+        fn name(&self) -> &str {
+            "long_running_task"
+        }
+    }
+
+    // Register the long-running task
+    registry.register_with_name::<LongRunningTask>("long_running_task").expect("Failed to register long running task");
+
+    // Enqueue a long-running task (2 seconds)
+    let task = LongRunningTask {
+        duration_ms: 2000,
+    };
+    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+
+    // Wait for task to start
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Verify task is active
+    assert!(started_worker.active_task_count() > 0);
+
+    // Test graceful shutdown
+    let shutdown_start = tokio::time::Instant::now();
+    started_worker.stop().await;
+    let shutdown_duration = shutdown_start.elapsed();
+
+    // Shutdown should wait for task completion but not take too long
+    assert!(shutdown_duration.as_millis() >= 100); // At least waited for task
+    assert!(shutdown_duration.as_secs() < 35); // But not exceed timeout + buffer
+
+    // Cleanup
+    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    cleanup_test_database(&redis_url).await;
+}
+
+#[tokio::test]
+async fn test_backpressure_handling() {
+    let redis_url = setup_isolated_redis_url();
+    cleanup_test_database(&redis_url).await;
+    let task_queue = TaskQueue::new(&redis_url).await.expect("Failed to create task queue");
+
+    // Create a task registry
+    let registry = Arc::new(TaskRegistry::new());
+    registry.register_with_name::<TestTask>("test_task").expect("Failed to register task");
+
+    // Start worker with very limited capacity
+    let worker = Worker::new("backpressure-test-worker".to_string(), task_queue.broker.clone(), task_queue.scheduler.clone())
+        .with_task_registry(registry.clone())
+        .with_max_concurrent_tasks(1); // Only 1 concurrent task
+
+    let started_worker = worker.start().await.expect("Failed to start worker");
+
+    // Enqueue multiple tasks to trigger backpressure
+    let task_count = 5;
+    let mut task_ids = Vec::new();
+    for i in 0..task_count {
+        let task = TestTask {
+            data: format!("backpressure_test_{}", i),
+            should_fail: false,
+        };
+        let task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_ids.push(task_id);
+    }
+
+    // Check that active tasks don't exceed the limit
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    let active_count = started_worker.active_task_count();
+    assert!(active_count <= 1, "Should not exceed max concurrent tasks: {} <= 1", active_count);
+
+    // Wait for all tasks to eventually complete
+    let mut attempts = 0;
+    loop {
+        let queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+        let active_count = started_worker.active_task_count();
+        
+        if queue_size == 0 && active_count == 0 {
+            break;
+        }
+        
+        if attempts >= 100 {
+            panic!("Tasks did not complete in reasonable time. Queue: {}, Active: {}", queue_size, active_count);
+        }
+        
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        attempts += 1;
+    }
+
+    // Verify final state
+    assert_eq!(started_worker.active_task_count(), 0);
+    let final_queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+    assert_eq!(final_queue_size, 0);
+
+    // Cleanup
+    started_worker.stop().await;
+    task_queue.shutdown().await.expect("Failed to shutdown task queue");
+    cleanup_test_database(&redis_url).await;
 } 
