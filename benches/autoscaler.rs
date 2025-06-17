@@ -51,10 +51,27 @@ fn bench_autoscaler_config_creation(c: &mut Criterion) {
             let config = AutoScalerConfig {
                 min_workers: 1,
                 max_workers: 20,
-                scale_up_threshold: 10.0,
-                scale_down_threshold: 2.0,
                 scale_up_count: 3,
                 scale_down_count: 1,
+                scaling_triggers: rust_task_queue::autoscaler::ScalingTriggers {
+                    queue_pressure_threshold: 1.0,
+                    worker_utilization_threshold: 0.85,
+                    task_complexity_threshold: 1.5,
+                    error_rate_threshold: 0.05,
+                    memory_pressure_threshold: 512.0,
+                },
+                enable_adaptive_thresholds: true,
+                learning_rate: 0.1,
+                adaptation_window_minutes: 30,
+                scale_up_cooldown_seconds: 60,
+                scale_down_cooldown_seconds: 300,
+                consecutive_signals_required: 2,
+                target_sla: rust_task_queue::autoscaler::SLATargets {
+                    max_p95_latency_ms: 5000.0,
+                    min_success_rate: 0.95,
+                    max_queue_wait_time_ms: 10000.0,
+                    target_worker_utilization: 0.70,
+                },
             };
             black_box(config);
         })
@@ -86,14 +103,15 @@ fn bench_scaling_decision_logic(c: &mut Criterion) {
     ];
     
     for (scenario_name, tasks_per_worker) in load_scenarios {
-        group.bench_function(&format!("scaling_decision_{}", scenario_name), |b| {
+        group.bench_function(format!("scaling_decision_{}", scenario_name), |b| {
             b.iter(|| {
                 let config = AutoScalerConfig::default();
                 let current_workers = 2;
                 
-                // Simulate scaling decision logic using the actual field types
-                let should_scale_up = tasks_per_worker > config.scale_up_threshold && current_workers < config.max_workers;
-                let should_scale_down = tasks_per_worker < config.scale_down_threshold && current_workers > config.min_workers;
+                // Simulate enhanced multi-dimensional scaling decision logic
+                let queue_pressure_threshold = config.scaling_triggers.queue_pressure_threshold;
+                let should_scale_up = tasks_per_worker > queue_pressure_threshold && current_workers < config.max_workers;
+                let should_scale_down = tasks_per_worker < queue_pressure_threshold * 0.3 && current_workers > config.min_workers;
                 
                 let decision = if should_scale_up {
                     "scale_up"
@@ -215,25 +233,42 @@ fn bench_scaling_thresholds_tuning(c: &mut Criterion) {
         ("balanced", 10.0, 3.0),      // Balanced thresholds
     ];
     
-    for (config_name, scale_up_threshold, scale_down_threshold) in threshold_configs {
-        group.bench_function(&format!("threshold_config_{}", config_name), |b| {
+    for (config_name, queue_pressure_threshold, utilization_threshold) in threshold_configs {
+        group.bench_function(format!("threshold_config_{}", config_name), |b| {
             b.iter(|| {
                 let config = AutoScalerConfig {
                     min_workers: 1,
                     max_workers: 10,
-                    scale_up_threshold,
-                    scale_down_threshold,
                     scale_up_count: 2,
                     scale_down_count: 1,
+                    scaling_triggers: rust_task_queue::autoscaler::ScalingTriggers {
+                        queue_pressure_threshold,
+                        worker_utilization_threshold: utilization_threshold / 100.0, // Convert to ratio
+                        task_complexity_threshold: 1.5,
+                        error_rate_threshold: 0.05,
+                        memory_pressure_threshold: 512.0,
+                    },
+                    enable_adaptive_thresholds: false,
+                    learning_rate: 0.1,
+                    adaptation_window_minutes: 30,
+                    scale_up_cooldown_seconds: 60,
+                    scale_down_cooldown_seconds: 300,
+                    consecutive_signals_required: 2,
+                    target_sla: rust_task_queue::autoscaler::SLATargets {
+                        max_p95_latency_ms: 5000.0,
+                        min_success_rate: 0.95,
+                        max_queue_wait_time_ms: 10000.0,
+                        target_worker_utilization: 0.70,
+                    },
                 };
                 
                 // Simulate decision making with different tasks per worker ratios
                 let tasks_per_worker_scenarios = [2.0, 4.0, 8.0, 12.0, 25.0];
                 let decisions: Vec<_> = tasks_per_worker_scenarios.iter().map(|&tasks_per_worker| {
                     let current_workers = 3;
-                    if tasks_per_worker > config.scale_up_threshold && current_workers < config.max_workers {
+                    if tasks_per_worker > config.scaling_triggers.queue_pressure_threshold && current_workers < config.max_workers {
                         "scale_up"
-                    } else if tasks_per_worker < config.scale_down_threshold && current_workers > config.min_workers {
+                    } else if tasks_per_worker < config.scaling_triggers.queue_pressure_threshold * 0.3 && current_workers > config.min_workers {
                         "scale_down"
                     } else {
                         "no_change"
@@ -256,10 +291,27 @@ fn bench_scale_count_calculation(c: &mut Criterion) {
             let config = AutoScalerConfig {
                 min_workers: 1,
                 max_workers: 10,
-                scale_up_threshold: 5.0,
-                scale_down_threshold: 1.0,
                 scale_up_count: 5, // Want to add 5 workers
                 scale_down_count: 1,
+                scaling_triggers: rust_task_queue::autoscaler::ScalingTriggers {
+                    queue_pressure_threshold: 0.75,
+                    worker_utilization_threshold: 0.80,
+                    task_complexity_threshold: 1.5,
+                    error_rate_threshold: 0.05,
+                    memory_pressure_threshold: 512.0,
+                },
+                enable_adaptive_thresholds: false,
+                learning_rate: 0.1,
+                adaptation_window_minutes: 30,
+                scale_up_cooldown_seconds: 60,
+                scale_down_cooldown_seconds: 300,
+                consecutive_signals_required: 2,
+                target_sla: rust_task_queue::autoscaler::SLATargets {
+                    max_p95_latency_ms: 5000.0,
+                    min_success_rate: 0.95,
+                    max_queue_wait_time_ms: 10000.0,
+                    target_worker_utilization: 0.70,
+                },
             };
             
             let current_workers = 8; // Only room for 2 more workers
@@ -279,10 +331,27 @@ fn bench_scale_count_calculation(c: &mut Criterion) {
             let config = AutoScalerConfig {
                 min_workers: 2,
                 max_workers: 10,
-                scale_up_threshold: 5.0,
-                scale_down_threshold: 1.0,
                 scale_up_count: 2,
                 scale_down_count: 3, // Want to remove 3 workers
+                scaling_triggers: rust_task_queue::autoscaler::ScalingTriggers {
+                    queue_pressure_threshold: 0.75,
+                    worker_utilization_threshold: 0.80,
+                    task_complexity_threshold: 1.5,
+                    error_rate_threshold: 0.05,
+                    memory_pressure_threshold: 512.0,
+                },
+                enable_adaptive_thresholds: false,
+                learning_rate: 0.1,
+                adaptation_window_minutes: 30,
+                scale_up_cooldown_seconds: 60,
+                scale_down_cooldown_seconds: 300,
+                consecutive_signals_required: 2,
+                target_sla: rust_task_queue::autoscaler::SLATargets {
+                    max_p95_latency_ms: 5000.0,
+                    min_success_rate: 0.95,
+                    max_queue_wait_time_ms: 10000.0,
+                    target_worker_utilization: 0.70,
+                },
             };
             
             let current_workers = 4; // Only room to remove 2 workers (to reach min of 2)
@@ -337,6 +406,7 @@ fn bench_worker_management_simulation(c: &mut Criterion) {
     
     // Simulate worker states and management
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct WorkerState {
         id: String,
         status: String,

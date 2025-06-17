@@ -696,10 +696,27 @@ mod tests {
             .autoscaler_config(AutoScalerConfig {
                 min_workers: 2,
                 max_workers: 16,
-                scale_up_threshold: 10.0,
-                scale_down_threshold: 2.0,
                 scale_up_count: 4,
                 scale_down_count: 2,
+                scaling_triggers: crate::autoscaler::ScalingTriggers {
+                    queue_pressure_threshold: 1.0,
+                    worker_utilization_threshold: 0.85,
+                    task_complexity_threshold: 1.5,
+                    error_rate_threshold: 0.05,
+                    memory_pressure_threshold: 512.0,
+                },
+                enable_adaptive_thresholds: true,
+                learning_rate: 0.1,
+                adaptation_window_minutes: 30,
+                scale_up_cooldown_seconds: 60,
+                scale_down_cooldown_seconds: 300,
+                consecutive_signals_required: 2,
+                target_sla: crate::autoscaler::SLATargets {
+                    max_p95_latency_ms: 5000.0,
+                    min_success_rate: 0.95,
+                    max_queue_wait_time_ms: 10000.0,
+                    target_worker_utilization: 0.70,
+                },
             })
             .build();
         

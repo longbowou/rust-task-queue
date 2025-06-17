@@ -2,7 +2,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, Benchmark
 use rust_task_queue::prelude::*;
 use rust_task_queue::{TaskResult, TaskPriority};
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
 
 // Test tasks for end-to-end benchmarking
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

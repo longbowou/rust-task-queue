@@ -2,7 +2,7 @@
 
 This directory contains a comprehensive benchmark suite for the Rust Task Queue project, designed to measure and monitor performance across all critical components and workflows.
 
-## 🎯 Overview
+## Overview
 
 The benchmark suite consists of 7 specialized benchmark modules that test different aspects of the task queue system:
 
@@ -16,18 +16,18 @@ The benchmark suite consists of 7 specialized benchmark modules that test differ
 | **queue_operations** | Basic queue management (legacy) | Queue config operations |
 | **task_processing** | Basic task operations (legacy) | Simple serialization benchmarks |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Run All Benchmarks
 ```bash
-# Run the complete benchmark suite
+# Run the complete benchmark suite inside the terminal
 ./scripts/run-benchmarks.sh
 
-# Run with custom Redis port
-./scripts/run-benchmarks.sh --redis-port 6381
+# Run the complete benchmark suite to exports reports
+./scripts/run-benchmarks-with-reports.sh
 
 # Get help
-./scripts/run-benchmarks.sh --help
+./scripts/run-benchmarks-with-reports.sh --help
 ```
 
 ### Run Individual Benchmarks
@@ -44,7 +44,7 @@ cargo bench --bench end_to_end
 cargo bench --bench autoscaler
 ```
 
-## 📊 Benchmark Details
+## Benchmark Details
 
 ### 1. Serialization Benchmark (`serialization.rs`)
 
@@ -182,7 +182,7 @@ cargo bench --bench autoscaler
 **Test Cases**:
 - Simple task serialization/deserialization
 
-## 📈 Performance Targets
+## Performance Targets
 
 Based on project requirements and industry standards:
 
@@ -237,10 +237,10 @@ Benchmarks use [Criterion.rs](https://bheisler.github.io/criterion.rs/) with:
 - Configurable measurement time and sample sizes
 - Throughput measurements where applicable
 
-## 📋 Output and Reports
+## Output and Reports
 
 ### Automated Reports
-Running `./scripts/run-benchmarks.sh` generates:
+Running `./scripts/run-benchmarks-with-reports.sh` generates:
 
 1. **HTML Reports**: `target/criterion/report/index.html`
    - Interactive charts and graphs
@@ -248,13 +248,13 @@ Running `./scripts/run-benchmarks.sh` generates:
    - Performance regression detection
    - Detailed timing distributions
 
-2. **Summary Report**: `benchmark_reports/benchmark_summary.md`
+2. **Summary Report**: `target/benchmark_reports/benchmark_summary.md`
    - Executive summary of all benchmarks
    - Performance targets vs actual results
    - Key metrics and trends
    - Failure analysis
 
-3. **Raw Logs**: `benchmark_reports/*_output.log`
+3. **Raw Logs**: `target/benchmark_reports/*_output.log`
    - Complete benchmark output
    - Error messages and warnings
    - Detailed timing information
@@ -266,7 +266,7 @@ For detailed analysis, examine:
 - Memory usage reports
 - CPU utilization metrics
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -284,7 +284,7 @@ redis-cli -h localhost -p 6379 ping
 
 **Benchmark Timeout**
 ```bash
-# Increase timeout in run-benchmarks.sh
+# Increase timeout in run-benchmarks-with-reports.sh
 # Or run individual benchmarks with more time
 cargo bench --bench <benchmark_name> -- --measurement-time 60
 ```
@@ -299,10 +299,10 @@ docker run --memory=4g --name redis-bench -p 6379:6379 redis:7-alpine
 **Port Conflicts**
 ```bash
 # Use different port
-./scripts/run-benchmarks.sh --redis-port 6381
+./scripts/run-benchmarks-with-reports.sh --redis-port 6381
 
 # Or set environment variable
-REDIS_PORT=6382 ./scripts/run-benchmarks.sh
+REDIS_PORT=6382 ./scripts/run-benchmarks-with-reports.sh
 ```
 
 ### Performance Investigation
@@ -321,7 +321,7 @@ REDIS_PORT=6382 ./scripts/run-benchmarks.sh
 4. Consider using Criterion's statistical analysis features
 5. Look for thermal throttling on mobile hardware
 
-## 🎛️ Advanced Usage
+## Advanced Usage
 
 ### Custom Benchmark Development
 
@@ -379,14 +379,14 @@ For continuous performance monitoring:
     # Upload results to performance tracking system
 ```
 
-## 📚 References
+## References
 
 - [Criterion.rs Documentation](https://bheisler.github.io/criterion.rs/)
 - [Rust Performance Optimization](https://nnethercote.github.io/perf-book/)
 - [Redis Benchmarking](https://redis.io/docs/management/optimization/benchmarks/)
 - [MessagePack Specification](https://msgpack.org/)
 
-## 🤝 Contributing
+## Contributing
 
 When adding new benchmarks:
 

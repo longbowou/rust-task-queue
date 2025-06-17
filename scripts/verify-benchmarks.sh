@@ -13,23 +13,23 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-echo -e "${CYAN}🔍 Rust Task Queue - Benchmark Verification${NC}"
+echo -e "${CYAN}Rust Task Queue - Benchmark Verification${NC}"
 echo -e "${CYAN}==========================================${NC}"
 echo
 
 # Function to print step info
 print_step() {
-    echo -e "${YELLOW}▶ $1${NC}"
+    echo -e "${YELLOW}$1${NC}"
 }
 
 # Function to print success
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}$1${NC}"
 }
 
 # Function to print error
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}$1${NC}"
 }
 
 # List of all benchmarks
@@ -136,7 +136,7 @@ print_success "Required dependencies found"
 
 print_step "Generating benchmark summary..."
 
-echo -e "\n${BLUE}📊 Benchmark Suite Summary${NC}"
+echo -e "\n${BLUE}Benchmark Suite Summary${NC}"
 echo -e "${BLUE}==========================${NC}"
 echo -e "Total benchmarks: ${#BENCHMARKS[@]}"
 echo
@@ -152,18 +152,18 @@ echo "  6. queue_operations  - Basic queue management"
 echo "  7. task_processing   - Basic task serialization"
 echo
 
-echo -e "${CYAN}📁 Files Created:${NC}"
-echo "  benches/serialization.rs       - 🆕 Comprehensive serialization benchmarks"
-echo "  benches/worker_performance.rs  - 🆕 Worker and task execution benchmarks"
-echo "  benches/redis_broker.rs        - 🆕 Redis operations benchmarks"
-echo "  benches/end_to_end.rs          - 🆕 End-to-end workflow benchmarks"  
-echo "  benches/autoscaler.rs          - 🆕 Auto-scaling performance benchmarks"
-echo "  benches/README.md              - 🆕 Comprehensive documentation"
-echo "  scripts/run-benchmarks.sh      - 🆕 Automated benchmark runner"
-echo "  scripts/verify-benchmarks.sh   - 🆕 This verification script"
+echo -e "${CYAN}Files Created:${NC}"
+echo "  benches/serialization.rs       - Comprehensive serialization benchmarks"
+echo "  benches/worker_performance.rs  - Worker and task execution benchmarks"
+echo "  benches/redis_broker.rs        - Redis operations benchmarks"
+echo "  benches/end_to_end.rs          - End-to-end workflow benchmarks"  
+echo "  benches/autoscaler.rs          - Auto-scaling performance benchmarks"
+echo "  benches/README.md              - Comprehensive documentation"
+echo "  scripts/run-benchmarks.sh      - Automated benchmark runner"
+echo "  scripts/verify-benchmarks.sh   - This verification script"
 echo
 
-echo -e "${CYAN}🚀 Usage:${NC}"
+echo -e "${CYAN}Usage:${NC}"
 echo "  # Run all benchmarks:"
 echo "  ./scripts/run-benchmarks.sh"
 echo
@@ -174,7 +174,7 @@ echo "  # Verify compilation:"
 echo "  ./scripts/verify-benchmarks.sh"
 echo
 
-echo -e "${CYAN}📈 Expected Performance Improvements:${NC}"
+echo -e "${CYAN}Expected Performance Improvements:${NC}"
 echo "  • MessagePack ~2.5x faster than JSON serialization"
 echo "  • >1,000 tasks/second throughput for simple tasks"
 echo "  • <100ms end-to-end latency for basic workflows"
@@ -182,10 +182,10 @@ echo "  • <5s auto-scaling response times"
 echo "  • Linear scaling efficiency with worker count"
 echo
 
-print_success "🎉 Benchmark verification completed successfully!"
+print_success "Benchmark verification completed successfully!"
 print_success "All ${#BENCHMARKS[@]} benchmarks are ready to run"
 
-echo -e "\n${GREEN}✨ Next Steps:${NC}"
+echo -e "\n${GREEN}Next Steps:${NC}"
 echo "1. Run full benchmark suite: ${YELLOW}./scripts/run-benchmarks.sh${NC}"
 echo "2. View HTML reports: ${YELLOW}target/criterion/report/index.html${NC}"
 echo "3. Check performance against targets in benches/README.md"

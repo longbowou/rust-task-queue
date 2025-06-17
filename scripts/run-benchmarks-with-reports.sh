@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 REDIS_CONTAINER_NAME="rust-task-queue-bench-redis"
-REDIS_PORT=${REDIS_PORT:-6380}
+REDIS_PORT=${REDIS_PORT:-6379}
 REDIS_URL="redis://localhost:${REDIS_PORT}"
 BENCHMARK_OUTPUT_DIR="target/criterion"
 BENCHMARK_REPORT_DIR="target/benchmark_reports"
@@ -24,7 +24,7 @@ BENCHMARK_REPORT_DIR="target/benchmark_reports"
 # Create benchmark reports directory
 mkdir -p "$BENCHMARK_REPORT_DIR"
 
-echo -e "${CYAN}🚀 Rust Task Queue - Comprehensive Benchmark Suite${NC}"
+echo -e "${CYAN}Rust Task Queue - Comprehensive Benchmark Suite${NC}"
 echo -e "${CYAN}=================================================${NC}"
 echo
 
@@ -41,12 +41,12 @@ print_step() {
 
 # Function to print success
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}$1${NC}"
 }
 
 # Function to print error
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}$1${NC}"
 }
 
 # Function to check if Redis container is running
@@ -111,12 +111,12 @@ run_benchmark() {
     # Set environment variables for the benchmark
     export REDIS_URL="$REDIS_URL"
     
-    # Run the benchmark with timeout
-    if timeout 300 cargo bench --bench "$bench_name" 2>&1 | tee "$BENCHMARK_REPORT_DIR/${bench_name}_output.log"; then
+    # Run the benchmark
+    if cargo bench --bench "$bench_name" 2>&1 | tee "$BENCHMARK_REPORT_DIR/${bench_name}_output.log"; then
         print_success "$bench_name benchmark completed"
         return 0
     else
-        print_error "$bench_name benchmark failed or timed out"
+        print_error "$bench_name benchmark failed"
         return 1
     fi
 }
@@ -142,7 +142,7 @@ EOF
         if [ -f "$BENCHMARK_REPORT_DIR/${bench}_output.log" ]; then
             echo "### ${bench^} Benchmark" >> "$summary_file"
             echo "" >> "$summary_file"
-            echo "Status: ✅ Completed" >> "$summary_file"
+            echo "Status: Completed" >> "$summary_file"
             echo "" >> "$summary_file"
             
             # Extract some key metrics if available
@@ -156,7 +156,7 @@ EOF
         else
             echo "### ${bench^} Benchmark" >> "$summary_file"
             echo "" >> "$summary_file"
-            echo "Status: ❌ Failed or not run" >> "$summary_file"
+            echo "Status: Failed or not run" >> "$summary_file"
             echo "" >> "$summary_file"
         fi
     done
@@ -307,7 +307,7 @@ main() {
     local total_benchmarks=7
     local successful_benchmarks=$((total_benchmarks - ${#failed_benchmarks[@]}))
     
-    echo -e "${CYAN}📊 Benchmark Execution Summary${NC}"
+    echo -e "${CYAN}Benchmark Execution Summary${NC}"
     echo -e "Total Benchmarks: $total_benchmarks"
     echo -e "Successful: ${GREEN}$successful_benchmarks${NC}"
     echo -e "Failed: ${RED}${#failed_benchmarks[@]}${NC}"
@@ -315,20 +315,20 @@ main() {
     if [ ${#failed_benchmarks[@]} -gt 0 ]; then
         echo -e "\n${RED}Failed Benchmarks:${NC}"
         for bench in "${failed_benchmarks[@]}"; do
-            echo -e "  ❌ $bench"
+            echo -e "  $bench"
         done
     fi
     
-    echo -e "\n${CYAN}📈 Reports Generated:${NC}"
-    echo -e "  📄 Summary: $BENCHMARK_REPORT_DIR/benchmark_summary.md"
-    echo -e "  🌐 HTML Reports: target/criterion/report/index.html"
-    echo -e "  📋 Raw Logs: $BENCHMARK_REPORT_DIR/*_output.log"
+    echo -e "\n${CYAN}Reports Generated:${NC}"
+    echo -e "  Summary: $BENCHMARK_REPORT_DIR/benchmark_summary.md"
+    echo -e "  HTML Reports: target/criterion/report/index.html"
+    echo -e "  Raw Logs: $BENCHMARK_REPORT_DIR/*_output.log"
     
     if [ ${#failed_benchmarks[@]} -eq 0 ]; then
-        echo -e "\n${GREEN}🎉 All benchmarks completed successfully!${NC}"
+        echo -e "\n${GREEN}All benchmarks completed successfully!${NC}"
         exit 0
     else
-        echo -e "\n${YELLOW}⚠️  Some benchmarks failed. Check the logs for details.${NC}"
+        echo -e "\n${YELLOW}Some benchmarks failed. Check the logs for details.${NC}"
         exit 1
     fi
 }

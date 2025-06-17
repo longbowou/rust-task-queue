@@ -286,7 +286,11 @@ impl TaskQueue {
                 tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
                 if let Ok(metrics) = autoscaler.collect_metrics().await {
-                    if let Ok(action) = autoscaler.decide_scaling_action(&metrics) {
+                    // Clone autoscaler for scaling decision since it requires mutable access
+                    if let Ok(action) = {
+                        let mut autoscaler_clone = (*autoscaler).clone();
+                        autoscaler_clone.decide_scaling_action(&metrics)
+                    } {
                         match action {
                             ScalingAction::ScaleUp(count) => {
                                 let mut workers_lock = workers.write().await;
@@ -533,7 +537,7 @@ impl TaskQueue {
             total_processed_tasks: total_processed,
             total_failed_tasks: total_failed,
             active_workers: autoscaler_metrics.active_workers,
-            tasks_per_worker: autoscaler_metrics.tasks_per_worker,
+            tasks_per_worker: autoscaler_metrics.queue_pressure_score,
             queue_metrics,
         })
     }
@@ -767,7 +771,7 @@ mod tests {
         let config = AutoScalerConfig::default();
         assert_eq!(config.min_workers, 1);
         assert_eq!(config.max_workers, 20);
-        assert_eq!(config.scale_up_threshold, 5.0);
+        assert_eq!(config.scaling_triggers.queue_pressure_threshold, 0.75);
     }
 
     #[test]

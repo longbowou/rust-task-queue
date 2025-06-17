@@ -31,7 +31,13 @@ This is a high-performance, Redis-backed task queue framework for Rust with auto
 - Use async/await consistently for async operations
 - Implement Debug, Clone, Serialize, Deserialize for data types
 - Use Arc<> for shared ownership, RwLock/Mutex for thread safety
-- Keep code comments professional and readable without emojis
+- **NO EMOJIS POLICY**: Never use emojis in any generated content:
+  - Code comments (use clear, professional language)
+  - Print statements and log messages
+  - Shell scripts and automation
+  - Documentation and README files
+  - Error messages and user-facing text
+  - Git commit messages and PR descriptions
 
 ### Error Handling
 - Always use the custom TaskQueueError type for this crate's errors
@@ -162,13 +168,27 @@ Comprehensive test runner that automatically manages Redis containers and runs a
 
 **Test Suites Executed:**
 1. **Clippy checks** - Strict linting with all warnings as errors
-2. **Unit tests (121)** - Core functionality testing (`cargo test --lib`)
-3. **Integration tests (9)** - End-to-end workflows (`cargo test --test integration_tests`)
-4. **Error scenario tests (9)** - Edge cases (`cargo test --test error_scenarios`)
-5. **Performance tests (6)** - Load and throughput (`cargo test --test performance_tests`)
-6. **Security tests (7)** - Injection protection (`cargo test --test security_tests`)
+2. **Unit tests** - Core functionality testing (`cargo test --lib`)
+3. **Integration test** - End-to-end workflows (`cargo test --test integration_tests`)
+4. **Error scenario test** - Edge cases (`cargo test --test error_scenarios_tests`)
+5. **Performance test** - Load and throughput (`cargo test --test performance_tests`)
+6. **Security test** - Injection protection (`cargo test --test security_tests`)
 7. **Build check** - Full compilation verification (`cargo build --all-targets --all-features`)
-8. **Benchmarks (5)** - Performance regression testing (`cargo bench`)
+
+#### Dedicated Benchmarking Script: `run-benches.sh`
+Standalone benchmark runner for performance testing:
+
+```bash
+# Run comprehensive benchmarks after tests
+./scripts/run-benches.sh
+```
+
+**Features:**
+- Focused performance benchmarking
+- Dedicated Redis container management for benchmarks
+- Performance regression tracking
+- Optimized for benchmark-specific environment setup
+- Should be run after successful test execution
 
 #### Cleanup Script: `cleanup-redis.sh`
 Emergency cleanup for orphaned test containers:
@@ -192,7 +212,7 @@ For individual test suites during development:
 # Individual test categories
 cargo test --lib                    # Unit tests only
 cargo test --test integration_tests # Integration tests
-cargo test --test error_scenarios   # Error handling tests
+cargo test --test error_scenarios_tests   # Error handling tests
 cargo test --test performance_tests # Performance tests
 cargo test --test security_tests    # Security tests
 cargo bench                         # Benchmarks
@@ -264,7 +284,7 @@ export REDIS_PORT=6379
 - Verify documentation builds with `cargo doc`
 
 ### Git Commit Guidelines
-- **NO EMOJIS**: Never use emojis in commit messages - keep them professional and readable
+- **STRICTLY NO EMOJIS**: Follow the NO EMOJIS POLICY - keep all commit messages professional and readable
 - Use conventional commit format: `type(scope): description`
 - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`
 - Use imperative mood ("Add feature" not "Added feature")

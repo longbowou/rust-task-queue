@@ -1,6 +1,10 @@
 # Production Task Queue Configuration
 # This configuration is optimized for production environments with
 # security, performance, and monitoring best practices
+#
+# ENHANCED AUTO-SCALING: 
+# Features multidimensional scaling metrics, adaptive threshold learning,
+# and stability controls for intelligent worker management
 
 [redis]
 # Redis connection with SSL/TLS support for production
@@ -20,11 +24,41 @@ shutdown_grace_period = 120  # seconds
 enabled = true
 min_workers = 5
 max_workers = 50
-scale_up_threshold = 8.0     # tasks per worker
-scale_down_threshold = 2.0   # tasks per worker
-scale_up_cooldown = 300      # seconds
-scale_down_cooldown = 600    # seconds
-check_interval = 60          # seconds
+scale_up_count = 2           # workers to add when scaling up
+scale_down_count = 1         # workers to remove when scaling down
+
+# Multidimensional scaling triggers (Enhanced Auto-scaling)
+# The system now considers 5 different metrics simultaneously for scaling decisions:
+# - Queue pressure: weighted queue depth accounting for priority queues
+# - Worker utilization: actual busy/idle ratio of workers
+# - Task complexity: analysis of task execution patterns
+# - Error rate: system health indicator
+# - Memory pressure: resource utilization per worker
+[autoscaler.scaling_triggers]
+queue_pressure_threshold = 1.2        # weighted queue depth per worker
+worker_utilization_threshold = 0.85   # target worker utilization (85%)
+task_complexity_threshold = 2.0       # complex task overload factor
+error_rate_threshold = 0.03           # maximum 3% error rate
+memory_pressure_threshold = 1024.0    # memory usage per worker (MB)
+
+# Adaptive threshold learning (SLA-driven optimization)
+enable_adaptive_thresholds = true
+learning_rate = 0.05                  # conservative learning for production
+adaptation_window_minutes = 60        # longer window for stability
+
+# Hysteresis and stability controls
+scale_up_cooldown_seconds = 180       # 3 minutes between scale-ups
+scale_down_cooldown_seconds = 900     # 15 minutes between scale-downs
+consecutive_signals_required = 3      # require 3 consecutive signals
+
+# SLA performance targets for adaptive learning
+# When adaptive thresholds are enabled, the system automatically adjusts
+# scaling triggers based on actual performance vs these SLA targets
+[autoscaler.target_sla]
+max_p95_latency_ms = 3000.0           # 3 second P95 latency target
+min_success_rate = 0.99               # 99% success rate target
+max_queue_wait_time_ms = 5000.0       # 5 second max queue wait
+target_worker_utilization = 0.75     # optimal 75% worker utilization
 
 [scheduler]
 enabled = true
@@ -41,6 +75,12 @@ export_interval = 60         # seconds
 retention_days = 30
 enable_alerts = true
 
+# Enhanced auto-scaling metrics collection
+collect_scaling_metrics = true
+collect_sla_metrics = true
+collect_adaptive_threshold_metrics = true
+scaling_metrics_resolution = 30      # seconds between scaling metric snapshots
+
 [alerts]
 # Production alert thresholds
 max_queue_size = 10000
@@ -48,6 +88,14 @@ max_error_rate = 0.05        # 5%
 max_task_duration_ms = 300000 # 5 minutes
 max_memory_usage_mb = 2048   # 2GB
 max_worker_idle_time_sec = 600 # 10 minutes
+
+# Enhanced auto-scaling monitoring thresholds
+max_queue_pressure_score = 2.0      # alert if queue pressure exceeds 2.0
+min_worker_utilization = 0.10       # alert if workers severely underutilized
+max_worker_utilization = 0.95       # alert if workers overloaded
+max_scaling_frequency_per_hour = 10 # alert if scaling too frequently
+min_sla_success_rate = 0.98         # alert if SLA success rate drops
+max_p95_latency_breach_ms = 5000    # alert if P95 latency exceeds 5s
 
 [security]
 # Security configurations

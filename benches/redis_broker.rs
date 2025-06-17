@@ -52,7 +52,7 @@ impl MockQueue {
     
     fn enqueue(&mut self, queue_name: &str, data: Vec<u8>) {
         self.queues.entry(queue_name.to_string())
-            .or_insert_with(VecDeque::new)
+            .or_default()
             .push_back(data);
     }
     

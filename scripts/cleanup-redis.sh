@@ -20,18 +20,18 @@ print_status() {
 }
 
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}$1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}$1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}$1${NC}"
 }
 
-print_status "🧹 Redis Test Container Cleanup"
+print_status "Redis Test Container Cleanup"
 print_status "================================"
 
 # Check if container exists and is running

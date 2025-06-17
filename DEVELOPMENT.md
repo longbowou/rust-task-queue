@@ -1,10 +1,11 @@
 # Rust Task Queue - Development Guide
 
-A high-performance, Redis-backed task queue framework with intelligent async task spawning, auto-scaling capabilities, and advanced backpressure management designed for async Rust applications.
+A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning, multi-dimensional scaling triggers, and advanced backpressure management designed for async Rust applications.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
+- [Enhanced Auto-scaling Architecture](#enhanced-auto-scaling-architecture)
 - [Architecture](#architecture)
 - [Development Setup](#development-setup)
 - [Project Structure](#project-structure)
@@ -18,17 +19,17 @@ A high-performance, Redis-backed task queue framework with intelligent async tas
 - [Contributing](#contributing)
 - [Troubleshooting](#troubleshooting)
 
-## 🎯 Overview
+## Overview
 
 ### Key Features
 
 - **Redis-backed broker** with connection pooling and optimized operations
-- **Auto-scaling workers** based on queue load with configurable thresholds
+- **Enhanced Multi-dimensional Auto-scaling** with 5-metric analysis and adaptive learning
 - **Task scheduling** with delay support and persistent scheduling
 - **Multiple queue priorities** with predefined queue constants for type safety
 - **Retry logic** with exponential backoff and configurable attempts
 - **Task timeouts** and comprehensive failure handling
-- **Metrics and monitoring** with health checks and performance tracking
+- **Advanced metrics and monitoring** with SLA tracking and performance insights
 - **Actix Web integration** (optional) with built-in endpoints
 - **Automatic task registration** via procedural macros
 - **Comprehensive error handling** with eliminated `unwrap()` calls
@@ -45,16 +46,16 @@ A high-performance, Redis-backed task queue framework with intelligent async tas
 - **Task Deserialization**: ~31.51ns per operation
 - **Queue Config Lookup**: ~39.76ns per operation
 - **Queue Management**: ~1.38µs per operation
-- **AutoScaler Config Creation**: ~617ps per operation
+- **Enhanced AutoScaler Config Creation**: ~617ps per operation
 - **High throughput**: Thousands of tasks per second
 - **Memory efficient**: Optimized serialization and connection pooling
 - **Smart concurrency**: Atomic task tracking with minimal overhead
 - **Efficient spawning**: Context-based execution reduces resource allocation
 - **Intelligent backpressure**: Task re-queuing prevents system overload
 
-### Recent Improvements ✨
+### Recent Improvements
 
-- **🧪 Comprehensive Test Suite**: 162 total tests across all categories
+- **Comprehensive Test Suite**: 162 total tests across all categories
   - 121 unit tests covering core functionality
   - 9 integration tests for end-to-end workflows
   - 9 error scenario tests for edge cases
@@ -62,24 +63,161 @@ A high-performance, Redis-backed task queue framework with intelligent async tas
   - 7 security tests for injection protection
   - 5 benchmark tests for performance tracking
 
-- **🔧 Code Quality Improvements**: 
+- **Enhanced Auto-scaling**:
+  - Multi-dimensional scaling with 5 simultaneous metrics
+  - Adaptive threshold learning based on SLA targets
+  - Advanced hysteresis and stability controls
+  - Performance history analysis and trend monitoring
+  - Consecutive signal requirements and intelligent cooldowns
+
+- **Code Quality Improvements**: 
   - Zero clippy warnings with strict linting
   - Enhanced error handling with proper TaskQueueError creation
   - Eliminated private method access issues
   - Streamlined Default trait implementations
 
-- **🚀 Performance Optimizations**:
+- **Performance Optimizations**:
   - Sub-40ns serialization/deserialization
   - Improved queue operation efficiency
   - Optimized configuration handling
 
-- **🛠️ Development Experience**:
+- **Development Experience**:
   - Automated test script with Redis container management
   - Comprehensive benchmark suite
   - Enhanced development documentation
   - CI/CD ready test infrastructure
 
-## 🏗️ Architecture
+## Enhanced Auto-scaling Architecture
+
+### Multi-dimensional Intelligence
+
+The enhanced auto-scaling system represents a significant evolution from simple threshold-based scaling to intelligent, multi-dimensional decision making.
+
+#### **Five-Metric Analysis System**
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    Multi-dimensional Scaling Engine                │
+├────────────────────────────────────────────────────────────────────┤
+│ 1. Queue Pressure Score    │ Weighted queue depth by priority      │
+│ 2. Worker Utilization      │ Real-time busy/idle ratio analysis    │
+│ 3. Task Complexity Factor  │ Dynamic execution pattern recognition │
+│ 4. Error Rate Monitoring   │ System health and stability tracking  │
+│ 5. Memory Pressure         │ Per-worker resource utilization       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+#### **Adaptive Threshold Learning**
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SLATargets {
+    pub max_p95_latency_ms: f64,        // 3000.0ms target
+    pub min_success_rate: f64,          // 99% success rate
+    pub max_queue_wait_time_ms: f64,    // 5000.0ms max wait
+    pub target_worker_utilization: f64, // 75% optimal utilization
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScalingTriggers {
+    pub queue_pressure_threshold: f64,      // 1.2 weighted queue depth
+    pub worker_utilization_threshold: f64,  // 85% utilization trigger
+    pub task_complexity_threshold: f64,     // 2.0 complexity factor
+    pub error_rate_threshold: f64,          // 3% error rate limit
+    pub memory_pressure_threshold: f64,     // 1024MB per worker
+}
+```
+
+#### **Stability and Hysteresis Controls**
+
+```
+Scaling Decision Pipeline:
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Multi-metric   │───►│ Consecutive     │───►│ Cooldown        │
+│  Analysis       │    │ Signal Check    │    │ Period Check    │
+│  (5 metrics)    │    │ (2-5 signals)   │    │ (3-15 minutes)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+   Scale Decision         Signal History          Final Action
+   (Up/Down/None)        Buffer & Count         (Execute/Skip)
+```
+
+#### **Configuration Structure**
+
+```toml
+[autoscaler]
+# Basic scaling parameters
+min_workers = 5
+max_workers = 50
+scale_up_count = 2
+scale_down_count = 1
+
+# Multi-dimensional triggers
+[autoscaler.scaling_triggers]
+queue_pressure_threshold = 1.2
+worker_utilization_threshold = 0.85
+task_complexity_threshold = 2.0
+error_rate_threshold = 0.03
+memory_pressure_threshold = 1024.0
+
+# Adaptive learning (SLA-driven)
+enable_adaptive_thresholds = true
+learning_rate = 0.05
+adaptation_window_minutes = 60
+
+# Stability controls
+scale_up_cooldown_seconds = 180     # 3 minutes
+scale_down_cooldown_seconds = 900   # 15 minutes
+consecutive_signals_required = 3
+
+# Performance targets
+[autoscaler.target_sla]
+max_p95_latency_ms = 3000.0
+min_success_rate = 0.99
+max_queue_wait_time_ms = 5000.0
+target_worker_utilization = 0.75
+```
+
+#### **API Changes and Usage**
+
+**Enhanced AutoScaler Constructor:**
+
+```rust
+// New API requires broker parameter for metrics collection
+let autoscaler = AutoScaler::with_config(broker.clone(), enhanced_config);
+
+// Configuration structure uses explicit field initialization
+let config = AutoScalerConfig {
+    min_workers: 2,
+    max_workers: 20,
+    scaling_triggers: ScalingTriggers {
+        queue_pressure_threshold: 1.5,
+        worker_utilization_threshold: 0.80,
+        task_complexity_threshold: 2.0,
+        error_rate_threshold: 0.05,
+        memory_pressure_threshold: 512.0,
+    },
+    target_sla: SLATargets {
+        max_p95_latency_ms: 5000.0,
+        min_success_rate: 0.95,
+        max_queue_wait_time_ms: 10000.0,
+        target_worker_utilization: 0.70,
+    },
+    // ... other fields
+};
+```
+
+**Breaking Changes from Simple Scaling:**
+
+- Old: `scale_up_threshold` and `scale_down_threshold` (removed)
+- New: `scaling_triggers` with 5-dimensional analysis
+- Old: `AutoScaler::new()` without broker parameter  
+- New: `AutoScaler::with_config(broker, config)` required
+- Old: `ScalingTriggers::default()` calls
+- New: Explicit struct initialization required
+
+## Architecture
 
 ### Core Components
 
@@ -93,15 +231,26 @@ A high-performance, Redis-backed task queue framework with intelligent async tas
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Worker Pool   │    │   Redis Pool    │    │   AutoScaler    │
-│                 │    │                 │    │                 │
-│ • Smart Spawn   │    │ • Connections   │    │ • Metrics       │
-│ • Backpressure  │    │ • Health Check  │    │ • Scaling       │
-│ • Active Track  │    │ • Centralized   │    │ • Validation    │
-│ • Graceful Stop │    │ • Pool Mgmt     │    │ • Load Balance  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌────────────────────┐
+│   Worker Pool   │    │   Redis Pool    │    │Enhanced AutoScaler │
+│                 │    │                 │    │                    │
+│ • Smart Spawn   │    │ • Connections   │    │ • 5-Metric Analysis│
+│ • Backpressure  │    │ • Health Check  │    │ • Adaptive Learning│
+│ • Active Track  │    │ • Centralized   │    │ • SLA Monitoring   │
+│ • Graceful Stop │    │ • Pool Mgmt     │    │ • Stability Control│
+└─────────────────┘    └─────────────────┘    └────────────────────┘
 ```
+
+### Enhanced Auto-scaling Data Flow
+
+1. **Enhanced Metrics Collection**: 5-dimensional real-time analysis
+2. **Multi-signal Analysis**: Simultaneous evaluation of all scaling factors
+3. **Adaptive Threshold Check**: SLA-driven threshold adjustments
+4. **Consecutive Signal Validation**: Stability through signal consistency
+5. **Cooldown Period Enforcement**: Prevent oscillation with time-based controls
+6. **Scaling Decision Execution**: Intelligent worker count adjustments
+7. **Performance History Recording**: Learning from scaling outcomes
+8. **SLA Compliance Monitoring**: Continuous performance vs. target analysis
 
 ### Data Flow
 
@@ -112,9 +261,156 @@ A high-performance, Redis-backed task queue framework with intelligent async tas
 5. **Task Execution**: Tasks are executed with context-based tracking, timeout and retry logic
 6. **Active Monitoring**: Real-time task tracking with atomic counters for observability
 7. **Result Handling**: Success/failure is tracked with comprehensive metrics and proper cleanup
-8. **Auto-scaling**: System monitors load and adjusts worker count with validation
+8. **Enhanced Auto-scaling**: System monitors 5 metrics and adjusts worker count with SLA optimization
 9. **Graceful Shutdown**: Workers wait for active tasks before terminating
 10. **Connection Management**: Centralized Redis connection handling for reliability
+
+## Configuration
+
+### Enhanced Auto-scaling Configuration
+
+The enhanced auto-scaling introduces a sophisticated configuration structure:
+
+```toml
+[autoscaler]
+enabled = true
+min_workers = 5
+max_workers = 50
+scale_up_count = 2           # workers to add when scaling up
+scale_down_count = 1         # workers to remove when scaling down
+
+# Multi-dimensional scaling triggers (Enhancement)
+[autoscaler.scaling_triggers]
+queue_pressure_threshold = 1.2        # weighted queue depth per worker
+worker_utilization_threshold = 0.85   # target worker utilization (85%)
+task_complexity_threshold = 1.5       # complex task overload factor
+error_rate_threshold = 0.05           # maximum 5% error rate
+memory_pressure_threshold = 512.0    # memory usage per worker (MB)
+
+# Adaptive threshold learning (SLA-driven optimization)
+enable_adaptive_thresholds = true
+learning_rate = 0.1
+adaptation_window_minutes = 30
+scale_up_cooldown_seconds = 60
+scale_down_cooldown_seconds = 300
+consecutive_signals_required = 2
+
+# SLA performance targets for adaptive learning
+[autoscaler.target_sla]
+max_p95_latency_ms = 5000.0
+min_success_rate = 0.95
+max_queue_wait_time_ms = 10000.0
+target_worker_utilization = 0.70
+```
+
+### Configuration Sources (Priority Order)
+
+1. **Environment Variables** (highest priority)
+2. **Configuration Files** (`task-queue.toml`, `task-queue.yaml`)
+3. **Default Values** (lowest priority)
+
+### Configuration Options
+
+```toml
+# task-queue.toml
+[redis]
+url = "redis://127.0.0.1:6379"
+pool_size = 10
+connection_timeout = 30
+command_timeout = 30
+
+[workers]
+initial_count = 4
+max_concurrent_tasks = 10
+heartbeat_interval = 30
+shutdown_grace_period = 60
+
+# Enhanced auto-scaling configuration
+[autoscaler]
+enabled = true
+min_workers = 1
+max_workers = 20
+scale_up_count = 2
+scale_down_count = 1
+
+[autoscaler.scaling_triggers]
+queue_pressure_threshold = 0.75
+worker_utilization_threshold = 0.80
+task_complexity_threshold = 1.5
+error_rate_threshold = 0.05
+memory_pressure_threshold = 512.0
+
+enable_adaptive_thresholds = true
+learning_rate = 0.1
+adaptation_window_minutes = 30
+scale_up_cooldown_seconds = 60
+scale_down_cooldown_seconds = 300
+consecutive_signals_required = 2
+
+[autoscaler.target_sla]
+max_p95_latency_ms = 5000.0
+min_success_rate = 0.95
+max_queue_wait_time_ms = 10000.0
+target_worker_utilization = 0.70
+
+[scheduler]
+enabled = true
+tick_interval = 10
+max_tasks_per_tick = 100
+
+[auto_register]
+enabled = true
+
+[actix]
+auto_configure_routes = true
+route_prefix = "/tasks"
+enable_metrics = true
+enable_health_check = true
+```
+
+### Configuration Validation
+
+All configurations are automatically validated with enhanced auto-scaling validation:
+
+```rust
+use rust_task_queue::config::TaskQueueConfig;
+use rust_task_queue::{AutoScalerConfig, ScalingTriggers, SLATargets};
+
+// Enhanced auto-scaling configuration validation
+let autoscaler_config = AutoScalerConfig {
+    min_workers: 2,
+    max_workers: 50,
+    scaling_triggers: ScalingTriggers {
+        queue_pressure_threshold: 1.5,
+        worker_utilization_threshold: 0.80,
+        task_complexity_threshold: 2.0,
+        error_rate_threshold: 0.05,
+        memory_pressure_threshold: 512.0,
+    },
+    target_sla: SLATargets {
+        max_p95_latency_ms: 5000.0,
+        min_success_rate: 0.95,
+        max_queue_wait_time_ms: 10000.0,
+        target_worker_utilization: 0.70,
+    },
+    // ... other fields
+};
+
+// Comprehensive validation is built-in
+autoscaler_config.validate()?; // Validates all thresholds, limits, and ranges
+```
+
+### Enhanced Builder Pattern
+
+```rust
+let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+    .initial_workers(4)
+    .auto_register_tasks()
+    .with_scheduler()
+    .with_autoscaler_config(enhanced_autoscaler_config)  // Use enhanced configuration
+    .build()
+    .await?;
+```
 
 ### Queue Constants
 
@@ -133,7 +429,7 @@ queue_names::LOW_PRIORITY   // "low_priority" - Background tasks
 
 #### **🔧 Intelligent Task Spawning System**
 
-The framework now features a sophisticated async task spawning architecture designed for high-performance, reliable task processing:
+The framework features a sophisticated async task spawning architecture designed for high-performance, reliable task processing:
 
 ##### **Core Components:**
 
@@ -168,16 +464,16 @@ The framework now features a sophisticated async task spawning architecture desi
 
 ```
 Task Dequeued → Capacity Check → Decision Point
-                                      ↓
+                                        ↓
               ┌─────────────────────────┼─────────────────────────┐
               ▼                         ▼                         ▼
-        Has Capacity              At Capacity             No Semaphore
+        Has Capacity              At Capacity                No Semaphore
               ↓                         ↓                         ↓
-      Spawn Async Task           Re-queue Task            Execute Direct
+      Spawn Async Task            Re-queue Task             Execute Direct
               ↓                         ↓                         ↓
-      Track + Execute            Apply Backpressure        Track + Execute
+      Track + Execute           Apply Backpressure          Track + Execute
               ↓                         ↓                         ↓
-      Cleanup & Release          Delay & Retry             Cleanup
+      Cleanup & Release           Delay & Retry                Cleanup
 ```
 
 ##### **Advanced Features:**
@@ -216,7 +512,7 @@ let worker = Worker::new("worker-advanced".to_string(), broker, scheduler)
 - **Observability**: Real-time metrics for debugging and monitoring
 - **Reliability**: Proper error handling throughout the execution pipeline
 
-## 🚀 Development Setup
+## Development Setup
 
 ### Prerequisites
 
@@ -242,6 +538,10 @@ docker run -d --name redis-dev -p 6379:6379 redis:7-alpine
 cargo build
 
 # Run tests (requires Redis running)
+# Use automated test script (recommended)
+./scripts/run-tests.sh
+
+# Or run tests manually
 cargo test
 
 # Run integration tests specifically
@@ -253,8 +553,9 @@ cargo bench
 # Build documentation
 cargo doc --open
 
-# Start worker CLI for testing
-cargo run --bin task-worker --features cli,auto-register worker --workers 2
+# Start worker CLI for testing with enhanced auto-scaling
+cargo run --bin task-worker --features cli,auto-register worker \
+  --workers 2 --enable-autoscaler
 ```
 
 ### Environment Variables
@@ -271,12 +572,18 @@ export TASK_QUEUE_WORKERS=4
 export TASK_QUEUE_AUTO_REGISTER=true
 export TASK_QUEUE_SCHEDULER=true
 
+# Enhanced Auto-scaling Configuration
+export TASK_QUEUE_AUTOSCALER_ENABLED=true
+export TASK_QUEUE_AUTOSCALER_MIN_WORKERS=2
+export TASK_QUEUE_AUTOSCALER_MAX_WORKERS=20
+export TASK_QUEUE_ADAPTIVE_THRESHOLDS=true
+
 # Development/Testing
 export REDIS_TEST_URL="redis://127.0.0.1:6379/15"
 export RUST_LOG=rust_task_queue=debug
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 rust-task-queue/
@@ -288,19 +595,25 @@ rust-task-queue/
 │   ├── worker.rs              # Enhanced worker with intelligent task spawning & backpressure
 │   ├── task.rs                # Task trait & registry with auto-register
 │   ├── scheduler.rs           # Task scheduling with persistence
-│   ├── autoscaler.rs          # Auto-scaling with validation
+│   ├── autoscaler.rs          # Enhanced multi-dimensional auto-scaling
 │   ├── queue.rs               # Queue constants & configuration
 │   ├── actix.rs               # Actix Web integration with endpoints
 │   ├── cli.rs                 # CLI utilities with full feature support
+│   ├── metrics.rs             # Metrics collection and SLA monitoring
 │   ├── prelude.rs             # Common imports for convenience
 │   └── bin/
 │       ├── task-worker.rs     # Main worker binary with CLI
 │       └── task-worker-env-only.rs # Environment-only worker
 ├── tests/
-│   └── integration_tests.rs   # Comprehensive integration tests
+│   ├── integration_tests.rs   # Comprehensive integration tests (9 tests)
+│   ├── error_scenarios_tests.rs     # Error handling tests (9 tests)
+│   ├── performance_tests.rs   # Performance tests (6 tests)
+│   └── security_tests.rs      # Security tests (7 tests)
 ├── benches/
 │   ├── task_processing.rs     # Task processing benchmarks
-│   └── queue_operations.rs    # Queue operation benchmarks
+│   ├── queue_operations.rs    # Queue operation benchmarks
+│   ├── autoscaler.rs          # Enhanced auto-scaling benchmarks
+│   └── serialization.rs       # MessagePack serialization benchmarks
 ├── examples/
 │   ├── performance_test.rs    # Performance testing examples
 │   └── actix-integration/     # Full Actix Web integration
@@ -309,89 +622,17 @@ rust-task-queue/
 │       │   └── tasks.rs       # Task definitions
 │       └── src/bin/           # Worker binaries
 ├── macros/                    # Procedural macros for auto-registration
+├── scripts/                   # Development and testing scripts
+│   ├── run-tests.sh          # Comprehensive automated test suite
+│   ├── cleanup-redis.sh      # Redis container cleanup
+│   └── run-benchmarks-with-reports.sh # Benchmark execution and reporting
 ├── Cargo.toml                 # Dependencies & metadata
 ├── README.md                  # User-facing documentation
 ├── DEVELOPMENT.md             # This development guide
-├── CONFIGURATION.md           # Configuration documentation
 └── docker-compose.yml         # Redis setup for development
 ```
 
-## ⚙️ Configuration
-
-### Configuration Sources (Priority Order)
-
-1. **Environment Variables** (highest priority)
-2. **Configuration Files** (`task-queue.toml`, `task-queue.yaml`)
-3. **Default Values** (lowest priority)
-
-### Configuration Options
-
-```toml
-# task-queue.toml
-[redis]
-url = "redis://127.0.0.1:6379"
-pool_size = 10
-connection_timeout = 30
-command_timeout = 30
-
-[workers]
-initial_count = 4
-max_concurrent_tasks = 10
-heartbeat_interval = 30
-shutdown_grace_period = 60
-
-[autoscaler]
-min_workers = 1
-max_workers = 20
-scale_up_threshold = 5.0
-scale_down_threshold = 1.0
-scale_up_count = 2
-scale_down_count = 1
-
-[scheduler]
-enabled = true
-tick_interval = 10
-max_tasks_per_tick = 100
-
-[auto_register]
-enabled = true
-
-[actix]
-auto_configure_routes = true
-route_prefix = "/tasks"
-enable_metrics = true
-enable_health_check = true
-```
-
-### Configuration Validation
-
-All configurations are automatically validated:
-
-```rust
-use rust_task_queue::config::TaskQueueConfig;
-use rust_task_queue::autoscaler::AutoScalerConfig;
-
-// Configuration validation is built-in
-let config = TaskQueueConfig::default();
-config.validate()?; // Comprehensive validation
-
-let autoscaler_config = AutoScalerConfig::default();
-autoscaler_config.validate()?; // Validates worker limits, thresholds, etc.
-```
-
-### Builder Pattern
-
-```rust
-let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
-    .initial_workers(4)
-    .auto_register_tasks()
-    .with_scheduler()
-    .with_autoscaler()
-    .build()
-    .await?;
-```
-
-## 🧪 Testing
+## Testing
 
 ### Comprehensive Test Suite
 
@@ -407,7 +648,7 @@ The project maintains a comprehensive test suite with **162 total tests** across
 # Individual test suites:
 cargo test --lib                    # Unit tests (121 tests)
 cargo test --test integration_tests # Integration tests (9 tests)
-cargo test --test error_scenarios   # Error handling tests (9 tests)
+cargo test --test error_scenarios_tests   # Error handling tests (9 tests)
 cargo test --test performance_tests # Performance tests (6 tests)
 cargo test --test security_tests    # Security tests (7 tests)
 cargo bench                         # Benchmark tests (5 benchmarks)
@@ -523,7 +764,7 @@ The `scripts/run-tests.sh` script now includes:
 - Automatic detection and cleanup of leftover containers
 - Dedicated cleanup script for manual intervention
 
-## 🔧 Code Quality
+## Code Quality
 
 ### Linting and Formatting
 
@@ -551,11 +792,11 @@ cargo check --all-targets --all-features
 
 ### Recent Quality Improvements
 
-- ✅ **Enhanced Error Handling**: Proper TaskQueueError creation patterns
-- ✅ **Eliminated Private Method Access**: Proper encapsulation with test helpers
-- ✅ **Streamlined Implementations**: Derive macros for Default traits
-- ✅ **Removed Unnecessary Casts**: Type-safe operations throughout
-- ✅ **Dead Code Cleanup**: Proper annotations for test utilities
+- **Enhanced Error Handling**: Proper TaskQueueError creation patterns
+- **Eliminated Private Method Access**: Proper encapsulation with test helpers
+- **Streamlined Implementations**: Derive macros for Default traits
+- **Removed Unnecessary Casts**: Type-safe operations throughout
+- **Dead Code Cleanup**: Proper annotations for test utilities
 
 ### Test Structure
 
@@ -603,17 +844,17 @@ async fn test_with_queue_constants() {
 
 ### Test Coverage Areas
 
-- ✅ **Basic Task Execution** with queue constants
-- ✅ **Retry Mechanism** with proper error handling
-- ✅ **Task Scheduling** with delay support
-- ✅ **Auto-scaling Metrics** with validation
-- ✅ **Queue Priorities** using predefined constants
-- ✅ **Health Checks** with comprehensive status
-- ✅ **Error Handling** without unsafe operations
-- ✅ **Configuration Validation** with all edge cases
-- ✅ **Connection Reliability** with centralized management
+- **Basic Task Execution** with queue constants
+- **Retry Mechanism** with proper error handling
+- **Task Scheduling** with delay support
+- **Auto-scaling Metrics** with validation
+- **Queue Priorities** using predefined constants
+- **Health Checks** with comprehensive status
+- **Error Handling** without unsafe operations
+- **Configuration Validation** with all edge cases
+- **Connection Reliability** with centralized management
 
-## 📊 Benchmarking
+## Benchmarking
 
 ### Running Benchmarks
 
@@ -638,12 +879,12 @@ cargo bench -- --profile-time
 ### Current Benchmark Results
 
 | Operation | Time | Performance Level | Notes |
-|-----------|------|-------------------|-------|
-| Task Serialization | ~39.15 ns | ✅ Excellent | MessagePack encoding |
-| Task Deserialization | ~31.51 ns | ✅ Excellent | MessagePack decoding |
-| Queue Config Lookup | ~39.76 ns | ✅ Excellent | DashMap access |
-| Queue Management | ~1.38 µs | ✅ Very Good | Priority sorting |
-| AutoScaler Config | ~617 ps | ✅ Outstanding | Struct creation |
+|-----------|------|-----------|---------------|
+| Task Serialization | ~39.15 ns | Excellent | MessagePack encoding |
+| Task Deserialization | ~31.51 ns | Excellent | MessagePack decoding |
+| Queue Config Lookup | ~39.76 ns | Excellent | DashMap access |
+| Queue Management | ~1.38 µs | Very Good | Priority sorting |
+| AutoScaler Config | ~617 ps | Outstanding | Struct creation |
 
 ### Benchmark Categories
 
@@ -681,7 +922,7 @@ criterion_group!(benches, bench_queue_operation);
 criterion_main!(benches);
 ```
 
-## 📚 API Reference
+## API Reference
 
 ### Core Types
 
@@ -889,7 +1130,7 @@ for queue_metric in metrics.queue_metrics {
 }
 ```
 
-## 🚀 Performance Characteristics
+## Performance Characteristics
 
 ### Throughput
 
@@ -928,7 +1169,7 @@ for queue_metric in metrics.queue_metrics {
 11. **Context Reuse**: Leverage TaskExecutionContext for efficient resource management
 12. **Semaphore Configuration**: Match semaphore size to system capacity
 
-## 🔧 Recent Improvements
+## Recent Improvements
 
 ### Worker Architecture Overhaul
 
@@ -966,7 +1207,7 @@ for queue_metric in metrics.queue_metrics {
 5. **Worker configuration**: Flexible backpressure and concurrency settings
 6. **Real-time metrics**: Active task count and capacity monitoring
 
-## 🤝 Contributing
+## Contributing
 
 ### Development Workflow
 
@@ -1031,7 +1272,7 @@ RUST_LOG=rust_task_queue::worker=trace cargo test test_improved_async_task_spawn
 RUST_LOG=rust_task_queue=debug cargo test test_graceful_shutdown_with_active_tasks -- --nocapture
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -1142,20 +1383,20 @@ grep -r "\"default\"\|\"high_priority\"" examples/
 
 ### Debugging Checklist
 
-1. ✅ **Redis is running and accessible**
-2. ✅ **Correct Redis URL format**
-3. ✅ **All dependencies are up to date**
-4. ✅ **Environment variables are set correctly**
-5. ✅ **Tasks are properly registered**
-6. ✅ **Queue constants are used instead of hardcoded strings**
-7. ✅ **Configuration is valid**
-8. ✅ **No `unwrap()` or `panic!()` in production code**
-9. ✅ **Worker concurrency limits are properly configured**
-10. ✅ **Active task counts are being tracked correctly**
-11. ✅ **Backpressure management is functioning as expected**
-12. ✅ **Graceful shutdown completes within timeout**
-13. ✅ **Task spawning context is properly initialized**
-14. ✅ **Semaphore permits are correctly managed**
+1. **Redis is running and accessible**
+2. **Correct Redis URL format**
+3. **All dependencies are up to date**
+4. **Environment variables are set correctly**
+5. **Tasks are properly registered**
+6. **Queue constants are used instead of hardcoded strings**
+7. **Configuration is valid**
+8. **No `unwrap()` or `panic!()` in production code**
+9. **Worker concurrency limits are properly configured**
+10. **Active task counts are being tracked correctly**
+11. **Backpressure management is functioning as expected**
+12. **Graceful shutdown completes within timeout**
+13. **Task spawning context is properly initialized**
+14. **Semaphore permits are correctly managed**
 
 ### Getting Help
 
@@ -1173,11 +1414,11 @@ For more detailed troubleshooting, see the main [README.md](README.md) or create
 - Minimal reproduction code
 - Environment details
 
-## 📄 License
+## License
 
 This project is licensed under the MIT OR Apache-2.0 license.
 
-## 🚀 What's Next?
+## What's Next?
 
 - [ ] **Distributed Mode**: Multi-Redis support
 - [ ] **Web UI**: Task monitoring dashboard  
@@ -1190,4 +1431,4 @@ This project is licensed under the MIT OR Apache-2.0 license.
 
 ---
 
-Happy coding! 🦀✨ 
+Happy coding!

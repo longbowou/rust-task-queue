@@ -1,9 +1,10 @@
 use rust_task_queue::prelude::*;
+use rust_task_queue::{ScalingTriggers, SLATargets};
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::time::{sleep, Duration, timeout};
-
 
 // Global counter for unique database numbers
 static DB_COUNTER: AtomicU8 = AtomicU8::new(1);
@@ -165,13 +166,13 @@ async fn test_malformed_task_handling() {
     // The worker should handle the malformed data gracefully and continue working
     // Enqueue a valid task to verify the worker is still functioning
     let task = TimeoutTask { duration_ms: 100 };
-    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue valid task");
+    let _task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue valid task");
     
     // Wait for the valid task to be processed
     let mut attempts = 0;
     let mut processed = false;
     while attempts < 50 {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks > 0 {
             processed = true;
             break;
@@ -201,13 +202,13 @@ async fn test_task_timeout_handling() {
     
     // Enqueue a task that will timeout (sleeps 5 seconds but timeout is 1 second)
     let task = TimeoutTask { duration_ms: 5000 };
-    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+    let _task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
     
     // Wait for timeout to occur
     sleep(Duration::from_millis(2500)).await;
     
     // Check that the task was marked as failed due to timeout
-    let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+    let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
     
     // Note: The exact behavior depends on implementation - the task might be retried
     // But it should eventually be marked as failed
@@ -233,12 +234,12 @@ async fn test_worker_panic_recovery() {
     
     // First, enqueue a normal task to verify basic functionality
     let normal_task_first = PanicTask { should_panic: false };
-    let _normal_task_id = task_queue.enqueue(normal_task_first, "default").await.expect("Failed to enqueue normal task");
+    let _normal_task_id = task_queue.enqueue(normal_task_first, queue_names::DEFAULT).await.expect("Failed to enqueue normal task");
     
     // Wait for the normal task to be processed
     let mut attempts = 0;
     while attempts < 30 {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks > 0 {
             break;
         }
@@ -249,24 +250,24 @@ async fn test_worker_panic_recovery() {
     // Enqueue multiple normal tasks and one panic task
     for _i in 0..3 {
         let normal_task = PanicTask { should_panic: false };
-        let _normal_task_id = task_queue.enqueue(normal_task, "default").await.expect("Failed to enqueue normal task");
+        let _normal_task_id = task_queue.enqueue(normal_task, queue_names::DEFAULT).await.expect("Failed to enqueue normal task");
     }
     
     // Add one panic task
     let panic_task = PanicTask { should_panic: true };
-    let _panic_task_id = task_queue.enqueue(panic_task, "default").await.expect("Failed to enqueue panic task");
+    let _panic_task_id = task_queue.enqueue(panic_task, queue_names::DEFAULT).await.expect("Failed to enqueue panic task");
     
     // Add more normal tasks after the panic task
     for _i in 0..3 {
         let normal_task = PanicTask { should_panic: false };
-        let _normal_task_id = task_queue.enqueue(normal_task, "default").await.expect("Failed to enqueue normal task after panic");
+        let _normal_task_id = task_queue.enqueue(normal_task, queue_names::DEFAULT).await.expect("Failed to enqueue normal task after panic");
     }
     
     // Wait for a reasonable time for all tasks to be processed
     sleep(Duration::from_millis(3000)).await;
     
     // Check if the system is still functional by checking metrics
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
     println!("Panic recovery test final metrics: processed={}, failed={}", 
              final_metrics.processed_tasks, final_metrics.failed_tasks);
     
@@ -278,7 +279,7 @@ async fn test_worker_panic_recovery() {
     
     // Test that the system can still accept new tasks
     let recovery_task = PanicTask { should_panic: false };
-    let recovery_result = task_queue.enqueue(recovery_task, "default").await;
+    let recovery_result = task_queue.enqueue(recovery_task, queue_names::DEFAULT).await;
     assert!(recovery_result.is_ok(), "System should still accept tasks after panic handling");
     
     // Cleanup - be more tolerant of shutdown issues
@@ -308,7 +309,7 @@ async fn test_concurrent_worker_scaling_edge_cases() {
     // Enqueue many tasks rapidly to test scaling behavior
     for i in 0..20 {
         let task = TimeoutTask { duration_ms: 100 };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
         
         // Add some jitter to make it more realistic
         if i % 3 == 0 {
@@ -322,7 +323,9 @@ async fn test_concurrent_worker_scaling_edge_cases() {
     assert!(metrics.active_workers >= 2);
     
     // Test scaling decision making
-    let scaling_action = task_queue.autoscaler.decide_scaling_action(&metrics)
+    // Create a temporary mutable autoscaler for testing decision logic
+    let mut test_autoscaler = AutoScaler::with_config(task_queue.broker.clone(), AutoScalerConfig::default());
+    let scaling_action = test_autoscaler.decide_scaling_action(&metrics)
         .expect("Failed to decide scaling action");
     
     println!("Scaling decision: {:?}", scaling_action);
@@ -330,7 +333,7 @@ async fn test_concurrent_worker_scaling_edge_cases() {
     // Wait for tasks to complete
     let mut attempts = 0;
     while attempts < 100 {
-        let queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+        let queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await.expect("Failed to get queue size");
         if queue_size == 0 {
             break;
         }
@@ -361,14 +364,14 @@ async fn test_memory_usage_and_leaks() {
     // Enqueue tasks that allocate memory
     for _i in 0..5 {
         let task = ResourceLeakTask { allocate_mb: 1 }; // 1MB each
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue resource task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue resource task");
     }
     
     // Wait for tasks to complete - use processed count instead of queue size
     let mut attempts = 0;
     let mut all_processed = false;
     while attempts < 100 {
-        let queue_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get queue metrics");
+        let queue_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get queue metrics");
         println!("Memory test progress: processed={}, failed={}", queue_metrics.processed_tasks, queue_metrics.failed_tasks);
         
         if queue_metrics.processed_tasks + queue_metrics.failed_tasks >= 5 {
@@ -386,7 +389,7 @@ async fn test_memory_usage_and_leaks() {
     assert!(system_metrics.memory.current_bytes > 0);
     
     // Verify that tasks were handled (either processed or failed is acceptable)
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get queue metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get queue metrics");
     assert!(final_metrics.processed_tasks + final_metrics.failed_tasks >= 5, 
             "Should have handled all memory tasks (processed: {}, failed: {})", 
             final_metrics.processed_tasks, final_metrics.failed_tasks);
@@ -473,10 +476,27 @@ async fn test_configuration_validation_edge_cases() {
     let invalid_config = AutoScalerConfig {
         min_workers: 0, // Should be > 0
         max_workers: 5,
-        scale_up_threshold: 5.0,
-        scale_down_threshold: 1.0,
+        scaling_triggers: ScalingTriggers {
+            queue_pressure_threshold: 0.75,
+            worker_utilization_threshold: 0.80,
+            task_complexity_threshold: 1.5,
+            error_rate_threshold: 0.05,
+            memory_pressure_threshold: 512.0,
+        },
+        enable_adaptive_thresholds: false,
+        learning_rate: 0.1,
+        adaptation_window_minutes: 30,
+        scale_up_cooldown_seconds: 60,
+        scale_down_cooldown_seconds: 300,
         scale_up_count: 2,
         scale_down_count: 1,
+        consecutive_signals_required: 2,
+        target_sla: SLATargets {
+            max_p95_latency_ms: 5000.0,
+            min_success_rate: 0.95,
+            max_queue_wait_time_ms: 10000.0,
+            target_worker_utilization: 0.70,
+        },
     };
     
     let validation_result = invalid_config.validate();
@@ -485,10 +505,27 @@ async fn test_configuration_validation_edge_cases() {
     let invalid_config2 = AutoScalerConfig {
         min_workers: 10,
         max_workers: 5, // Should be >= min_workers
-        scale_up_threshold: 5.0,
-        scale_down_threshold: 1.0,
+        scaling_triggers: ScalingTriggers {
+            queue_pressure_threshold: 0.75,
+            worker_utilization_threshold: 0.80,
+            task_complexity_threshold: 1.5,
+            error_rate_threshold: 0.05,
+            memory_pressure_threshold: 512.0,
+        },
+        enable_adaptive_thresholds: false,
+        learning_rate: 0.1,
+        adaptation_window_minutes: 30,
+        scale_up_cooldown_seconds: 60,
+        scale_down_cooldown_seconds: 300,
         scale_up_count: 2,
         scale_down_count: 1,
+        consecutive_signals_required: 2,
+        target_sla: SLATargets {
+            max_p95_latency_ms: 5000.0,
+            min_success_rate: 0.95,
+            max_queue_wait_time_ms: 10000.0,
+            target_worker_utilization: 0.70,
+        },
     };
     
     let validation_result2 = invalid_config2.validate();

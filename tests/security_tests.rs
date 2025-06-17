@@ -1,4 +1,6 @@
 use rust_task_queue::prelude::*;
+use rust_task_queue::{ScalingTriggers, SLATargets};
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -107,14 +109,14 @@ async fn test_oversized_task_handling() {
     };
     
     // This should either be rejected or handled gracefully
-    let result = task_queue.enqueue(oversized_task, "default").await;
+    let result = task_queue.enqueue(oversized_task, queue_names::DEFAULT).await;
     
     match result {
         Ok(_) => {
             // If accepted, ensure it's processed without crashing the system
             sleep(Duration::from_millis(5000)).await;
             
-            let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+            let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
             // Task should either be processed or failed, but system should remain stable
             assert!(metrics.processed_tasks + metrics.failed_tasks > 0, "Task should be processed or failed");
         }
@@ -130,7 +132,7 @@ async fn test_oversized_task_handling() {
         size_mb: 0,
     };
     
-    let normal_result = task_queue.enqueue(normal_task, "default").await;
+    let normal_result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
     assert!(normal_result.is_ok(), "Normal task should be accepted after oversized task");
     
     // Wait for normal task to process
@@ -185,7 +187,7 @@ async fn test_malicious_payload_safety() {
     for (i, malicious_task) in malicious_payloads.into_iter().enumerate() {
         println!("Testing malicious payload {}", i + 1);
         
-        let result = task_queue.enqueue(malicious_task, "default").await;
+        let result = task_queue.enqueue(malicious_task, queue_names::DEFAULT).await;
         assert!(result.is_ok(), "Malicious task {} should be accepted but processed safely", i + 1);
         
         // Small delay between tasks
@@ -195,7 +197,7 @@ async fn test_malicious_payload_safety() {
     // Wait for all tasks to be processed
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         let total_handled = metrics.processed_tasks + metrics.failed_tasks;
         
         if total_handled >= 5 {
@@ -216,7 +218,7 @@ async fn test_malicious_payload_safety() {
         command: "normal command".to_string(),
     };
     
-    let final_result = task_queue.enqueue(test_task, "default").await;
+    let final_result = task_queue.enqueue(test_task, queue_names::DEFAULT).await;
     assert!(final_result.is_ok(), "System should remain responsive after processing malicious payloads");
     
     // Cleanup
@@ -302,14 +304,14 @@ async fn test_task_deserialization_bomb() {
         size_mb: 0,
     };
     
-    let result = task_queue.enqueue(bomb_task, "default").await;
+    let result = task_queue.enqueue(bomb_task, queue_names::DEFAULT).await;
     
     match result {
         Ok(_) => {
             // Wait for processing with timeout
             let mut attempts = 0;
             while attempts < 50 {
-                let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+                let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
                 if metrics.processed_tasks + metrics.failed_tasks > 0 {
                     break;
                 }
@@ -323,7 +325,7 @@ async fn test_task_deserialization_bomb() {
                 size_mb: 0,
             };
             
-            let normal_result = task_queue.enqueue(normal_task, "default").await;
+            let normal_result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
             assert!(normal_result.is_ok(), "System should remain responsive after deserialization bomb");
         }
         Err(e) => {
@@ -385,46 +387,131 @@ async fn test_configuration_tampering() {
         AutoScalerConfig {
             min_workers: 0,
             max_workers: 10,
-            scale_up_threshold: 5.0,
-            scale_down_threshold: 1.0,
+            scaling_triggers: ScalingTriggers {
+                queue_pressure_threshold: 0.75,
+                worker_utilization_threshold: 0.80,
+                task_complexity_threshold: 1.5,
+                error_rate_threshold: 0.05,
+                memory_pressure_threshold: 512.0,
+            },
+            enable_adaptive_thresholds: false,
+            learning_rate: 0.1,
+            adaptation_window_minutes: 30,
+            scale_up_cooldown_seconds: 60,
+            scale_down_cooldown_seconds: 300,
             scale_up_count: 2,
             scale_down_count: 1,
+            consecutive_signals_required: 2,
+            target_sla: SLATargets {
+                max_p95_latency_ms: 5000.0,
+                min_success_rate: 0.95,
+                max_queue_wait_time_ms: 10000.0,
+                target_worker_utilization: 0.70,
+            },
         },
         // Impossible ratios
         AutoScalerConfig {
             min_workers: 10,
             max_workers: 5, // max < min
-            scale_up_threshold: 5.0,
-            scale_down_threshold: 1.0,
+            scaling_triggers: ScalingTriggers {
+                queue_pressure_threshold: 0.75,
+                worker_utilization_threshold: 0.80,
+                task_complexity_threshold: 1.5,
+                error_rate_threshold: 0.05,
+                memory_pressure_threshold: 512.0,
+            },
+            enable_adaptive_thresholds: false,
+            learning_rate: 0.1,
+            adaptation_window_minutes: 30,
+            scale_up_cooldown_seconds: 60,
+            scale_down_cooldown_seconds: 300,
             scale_up_count: 2,
             scale_down_count: 1,
+            consecutive_signals_required: 2,
+            target_sla: SLATargets {
+                max_p95_latency_ms: 5000.0,
+                min_success_rate: 0.95,
+                max_queue_wait_time_ms: 10000.0,
+                target_worker_utilization: 0.70,
+            },
         },
         // Extreme values
         AutoScalerConfig {
             min_workers: 1,
             max_workers: 999999, // Unreasonably high
-            scale_up_threshold: 5.0,
-            scale_down_threshold: 1.0,
+            scaling_triggers: ScalingTriggers {
+                queue_pressure_threshold: 0.75,
+                worker_utilization_threshold: 0.80,
+                task_complexity_threshold: 1.5,
+                error_rate_threshold: 0.05,
+                memory_pressure_threshold: 512.0,
+            },
+            enable_adaptive_thresholds: false,
+            learning_rate: 0.1,
+            adaptation_window_minutes: 30,
+            scale_up_cooldown_seconds: 60,
+            scale_down_cooldown_seconds: 300,
             scale_up_count: 2,
             scale_down_count: 1,
+            consecutive_signals_required: 2,
+            target_sla: SLATargets {
+                max_p95_latency_ms: 5000.0,
+                min_success_rate: 0.95,
+                max_queue_wait_time_ms: 10000.0,
+                target_worker_utilization: 0.70,
+            },
         },
         // Invalid thresholds
         AutoScalerConfig {
             min_workers: 1,
             max_workers: 5,
-            scale_up_threshold: -1.0, // Negative threshold
-            scale_down_threshold: 1.0,
+            scaling_triggers: ScalingTriggers {
+                queue_pressure_threshold: -1.0, // Negative threshold
+                worker_utilization_threshold: 0.8,
+                task_complexity_threshold: 1.0,
+                error_rate_threshold: 0.05,
+                memory_pressure_threshold: 512.0,
+            },
+            enable_adaptive_thresholds: false,
+            learning_rate: 0.1,
+            adaptation_window_minutes: 30,
+            scale_up_cooldown_seconds: 60,
+            scale_down_cooldown_seconds: 300,
             scale_up_count: 2,
             scale_down_count: 1,
+            consecutive_signals_required: 2,
+            target_sla: SLATargets {
+                max_p95_latency_ms: 5000.0,
+                min_success_rate: 0.95,
+                max_queue_wait_time_ms: 10000.0,
+                target_worker_utilization: 0.70,
+            },
         },
         // Scale counts that could cause DoS
         AutoScalerConfig {
             min_workers: 1,
             max_workers: 5,
-            scale_up_threshold: 5.0,
-            scale_down_threshold: 1.0,
+            scaling_triggers: ScalingTriggers {
+                queue_pressure_threshold: 0.75,
+                worker_utilization_threshold: 0.80,
+                task_complexity_threshold: 1.5,
+                error_rate_threshold: 0.05,
+                memory_pressure_threshold: 512.0,
+            },
+            enable_adaptive_thresholds: false,
+            learning_rate: 0.1,
+            adaptation_window_minutes: 30,
+            scale_up_cooldown_seconds: 60,
+            scale_down_cooldown_seconds: 300,
             scale_up_count: 999999, // Extreme scale up
             scale_down_count: 1,
+            consecutive_signals_required: 2,
+            target_sla: SLATargets {
+                max_p95_latency_ms: 5000.0,
+                min_success_rate: 0.95,
+                max_queue_wait_time_ms: 10000.0,
+                target_worker_utilization: 0.70,
+            },
         },
     ];
     
@@ -464,7 +551,7 @@ async fn test_concurrent_access_safety() {
                     size_mb: 0,
                 };
                 
-                let result = task_queue_clone.enqueue(task, "default").await;
+                let result = task_queue_clone.enqueue(task, queue_names::DEFAULT).await;
                 assert!(result.is_ok(), "Concurrent task should be enqueued successfully");
                 
                 // Small random delay to increase contention
@@ -482,7 +569,7 @@ async fn test_concurrent_access_safety() {
     // Wait for all tasks to be processed
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks >= 100 {
             break;
         }
@@ -496,7 +583,7 @@ async fn test_concurrent_access_safety() {
     }
     
     // Verify system integrity
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get final metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get final metrics");
     assert_eq!(final_metrics.processed_tasks, 100, "All concurrent tasks should be processed exactly once");
     
     // Cleanup
@@ -547,7 +634,7 @@ async fn test_redis_injection_prevention() {
     
     // Test valid queue names should work
     let valid_queue_names = vec![
-        "default",
+        queue_names::DEFAULT,
         "high-priority",
         "worker_queue",
         "queue:namespace:subqueue",
@@ -576,7 +663,7 @@ async fn test_payload_size_limits() {
         size_mb: 0,
     };
     
-    let result = task_queue.enqueue(large_task, "default").await;
+    let result = task_queue.enqueue(large_task, queue_names::DEFAULT).await;
     assert!(result.is_err(), "Oversized payload should be rejected");
     
     let error_msg = result.unwrap_err().to_string();
@@ -588,7 +675,7 @@ async fn test_payload_size_limits() {
         size_mb: 0,
     };
     
-    let result = task_queue.enqueue(normal_task, "default").await;
+    let result = task_queue.enqueue(normal_task, queue_names::DEFAULT).await;
     assert!(result.is_ok(), "Normal payload should be accepted");
     
     cleanup_test_database(&redis_url).await;
@@ -617,7 +704,7 @@ async fn test_task_name_validation() {
         payload: b"test".to_vec(),
     };
     
-    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, "default").await;
+    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await;
     assert!(result.is_err(), "Empty task name should be rejected");
     
     // Test overly long task name
@@ -634,7 +721,7 @@ async fn test_task_name_validation() {
         payload: b"test".to_vec(),
     };
     
-    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, "default").await;
+    let result = task_queue.broker.enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT).await;
     assert!(result.is_err(), "Overly long task name should be rejected");
     
     cleanup_test_database(&redis_url).await;

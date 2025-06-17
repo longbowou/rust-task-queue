@@ -1,11 +1,13 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 use rust_task_queue::prelude::*;
+use rust_task_queue::{ScalingTriggers, SLATargets};
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
-use tokio::time::{sleep, Duration, Instant};
-
+use std::time::Instant;
+use tokio::time::{sleep, Duration};
 
 // Global counter for unique database numbers
 static DB_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -199,7 +201,7 @@ async fn test_high_throughput_task_processing() {
             payload_size: 100, // Small payload for throughput test
             processing_time_ms: 1, // Minimal processing time
         };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
     }
     
     let enqueue_time = start_time.elapsed();
@@ -210,7 +212,7 @@ async fn test_high_throughput_task_processing() {
     let process_start = Instant::now();
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks >= task_count as i64 {
             break;
         }
@@ -264,7 +266,7 @@ async fn test_memory_intensive_workload() {
             payload_size: large_payload_size,
             processing_time_ms: 100,
         };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue large task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue large task");
         
         // Small delay to avoid overwhelming the system
         sleep(Duration::from_millis(100)).await;
@@ -273,7 +275,7 @@ async fn test_memory_intensive_workload() {
     // Wait for tasks to complete
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks >= task_count as i64 {
             break;
         }
@@ -320,13 +322,13 @@ async fn test_cpu_intensive_workload() {
     // Enqueue CPU-intensive tasks
     for i in 0..task_count {
         let task = CpuIntensiveTask { iterations };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue CPU task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue CPU task");
     }
     
     // Wait for completion
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks >= task_count as i64 {
             break;
         }
@@ -372,13 +374,13 @@ async fn test_concurrent_task_safety() {
             task_id: i,
             counter_value: i as u64,
         };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue concurrent task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue concurrent task");
     }
     
     // Wait for completion
     let mut attempts = 0;
     loop {
-        let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
         if metrics.processed_tasks >= task_count as i64 {
             break;
         }
@@ -393,7 +395,7 @@ async fn test_concurrent_task_safety() {
     }
     
     // Verify that all tasks were processed
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get final metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get final metrics");
     assert_eq!(final_metrics.processed_tasks, task_count as i64, 
                "All concurrent tasks should be processed exactly once");
     
@@ -430,7 +432,7 @@ async fn test_queue_priority_performance() {
                 payload_size: 50,
                 processing_time_ms: 50,
             };
-            task_queue_clone.enqueue(task, "high_priority").await
+            task_queue_clone.enqueue(task, queue_names::HIGH_PRIORITY).await
         });
         enqueue_tasks.push(task);
         
@@ -442,7 +444,7 @@ async fn test_queue_priority_performance() {
                 payload_size: 50,
                 processing_time_ms: 50,
             };
-            task_queue_clone.enqueue(task, "default").await
+            task_queue_clone.enqueue(task, queue_names::DEFAULT).await
         });
         enqueue_tasks.push(task);
         
@@ -454,7 +456,7 @@ async fn test_queue_priority_performance() {
                 payload_size: 50,
                 processing_time_ms: 50,
             };
-            task_queue_clone.enqueue(task, "low_priority").await
+            task_queue_clone.enqueue(task, queue_names::LOW_PRIORITY).await
         });
         enqueue_tasks.push(task);
     }
@@ -470,9 +472,9 @@ async fn test_queue_priority_performance() {
     // Wait for all tasks to complete
     let mut attempts = 0;
     loop {
-        let high_metrics = task_queue.broker.get_queue_metrics("high_priority").await.expect("Failed to get high priority metrics");
-        let default_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get default metrics");
-        let low_metrics = task_queue.broker.get_queue_metrics("low_priority").await.expect("Failed to get low priority metrics");
+        let high_metrics = task_queue.broker.get_queue_metrics(queue_names::HIGH_PRIORITY).await.expect("Failed to get high priority metrics");
+        let default_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get default metrics");
+        let low_metrics = task_queue.broker.get_queue_metrics(queue_names::LOW_PRIORITY).await.expect("Failed to get low priority metrics");
         
         let total_processed = high_metrics.processed_tasks + default_metrics.processed_tasks + low_metrics.processed_tasks;
         
@@ -508,10 +510,27 @@ async fn test_autoscaler_performance_under_load() {
     let autoscaler_config = AutoScalerConfig {
         min_workers: 1,
         max_workers: 8,
-        scale_up_threshold: 2.0, // Scale up when > 2 tasks per worker
-        scale_down_threshold: 0.5, // Scale down when < 0.5 tasks per worker
+        scaling_triggers: ScalingTriggers {
+            queue_pressure_threshold: 2.0,
+            worker_utilization_threshold: 0.8,
+            task_complexity_threshold: 1.0,
+            error_rate_threshold: 0.05,
+            memory_pressure_threshold: 512.0,
+        },
+        enable_adaptive_thresholds: false,
+        learning_rate: 0.1,
+        adaptation_window_minutes: 30,
+        scale_up_cooldown_seconds: 30, // Faster scaling for tests
+        scale_down_cooldown_seconds: 60,
         scale_up_count: 2,
         scale_down_count: 1,
+        consecutive_signals_required: 1, // Faster scaling for tests
+        target_sla: SLATargets {
+            max_p95_latency_ms: 5000.0,
+            min_success_rate: 0.95,
+            max_queue_wait_time_ms: 10000.0,
+            target_worker_utilization: 0.70,
+        },
     };
     
     let task_queue = TaskQueueBuilder::new(&redis_url)
@@ -535,7 +554,7 @@ async fn test_autoscaler_performance_under_load() {
             payload_size: 100,
             processing_time_ms: 1000, // Longer processing time to ensure queue buildup
         };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
         
         // Rapid enqueueing to build up queue faster than processing
         if i % 5 == 0 {
@@ -551,12 +570,14 @@ async fn test_autoscaler_performance_under_load() {
     // Check metrics more frequently during the initial burst
     for _ in 0..10 {
         let metrics = task_queue.autoscaler.collect_metrics().await.expect("Failed to collect metrics");
-        let scaling_action = task_queue.autoscaler.decide_scaling_action(&metrics).expect("Failed to decide scaling");
+        // Create a temporary mutable autoscaler for testing decision logic
+        let mut test_autoscaler = AutoScaler::with_config(task_queue.broker.clone(), AutoScalerConfig::default());
+        let scaling_action = test_autoscaler.decide_scaling_action(&metrics).expect("Failed to decide scaling");
         
         max_workers_seen = max_workers_seen.max(metrics.active_workers as usize);
         
-        println!("Autoscaler metrics: workers={}, pending={}, tasks_per_worker={:.2}, action={:?}", 
-                 metrics.active_workers, metrics.total_pending_tasks, metrics.tasks_per_worker, scaling_action);
+        println!("Autoscaler metrics: workers={}, pending={}, queue_pressure={:.2}, action={:?}", 
+                 metrics.active_workers, metrics.total_pending_tasks, metrics.queue_pressure_score, scaling_action);
         
         // Break early if we see scaling activity
         if max_workers_seen > 1 {

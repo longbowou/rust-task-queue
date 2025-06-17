@@ -1,4 +1,5 @@
 use rust_task_queue::prelude::*;
+use rust_task_queue::queue::queue_names;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
@@ -119,13 +120,13 @@ async fn test_basic_task_execution() {
         should_fail: false,
     };
     
-    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+    let _task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
     
     // Wait for task to be processed
     let success = wait_for_condition(|| {
         let broker = task_queue.broker.clone();
         async move {
-            if let Ok(metrics) = broker.get_queue_metrics("default").await {
+            if let Ok(metrics) = broker.get_queue_metrics(queue_names::DEFAULT).await {
                 metrics.processed_tasks > 0
             } else {
                 false
@@ -135,7 +136,7 @@ async fn test_basic_task_execution() {
     
     assert!(success, "Task was not processed within timeout");
     
-    let metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+    let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
     println!("Basic test metrics: processed={}, failed={}, pending={}", 
              metrics.processed_tasks, metrics.failed_tasks, metrics.pending_tasks);
     
@@ -170,13 +171,13 @@ async fn test_task_retry_mechanism() {
         should_fail: true,
     };
     
-    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+    let _task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
     
     // Wait for retries to complete and task to be marked as failed
     let success = wait_for_condition(|| {
         let broker = task_queue.broker.clone();
         async move {
-            if let Ok(metrics) = broker.get_queue_metrics("default").await {
+            if let Ok(metrics) = broker.get_queue_metrics(queue_names::DEFAULT).await {
                 metrics.failed_tasks > 0
             } else {
                 false
@@ -186,7 +187,7 @@ async fn test_task_retry_mechanism() {
     
     assert!(success, "Task was not marked as failed within timeout");
     
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
     println!("Retry test metrics: processed={}, failed={}, pending={}", 
              final_metrics.processed_tasks, final_metrics.failed_tasks, final_metrics.pending_tasks);
     
@@ -222,13 +223,13 @@ async fn test_scheduler() {
     };
     
     let delay = chrono::Duration::seconds(1);
-    let _task_id = task_queue.schedule(task, "default", delay).await.expect("Failed to schedule task");
+    let _task_id = task_queue.schedule(task, queue_names::DEFAULT, delay).await.expect("Failed to schedule task");
     
     // Wait for task to be moved to the queue
     let success = wait_for_condition(|| {
         let broker = task_queue.broker.clone();
         async move {
-            if let Ok(queue_size) = broker.get_queue_size("default").await {
+            if let Ok(queue_size) = broker.get_queue_size(queue_names::DEFAULT).await {
                 queue_size > 0
             } else {
                 false
@@ -238,7 +239,7 @@ async fn test_scheduler() {
     
     assert!(success, "Scheduled task was not moved to queue within timeout");
     
-    let queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+    let queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await.expect("Failed to get queue size");
     println!("Scheduler test: queue_size={}", queue_size);
     
     // Cleanup
@@ -299,15 +300,15 @@ async fn test_queue_priorities() {
     };
     
     // Enqueue to different priority queues
-    let _high_id = task_queue.enqueue(high_priority_task, "high_priority").await.expect("Failed to enqueue high priority task");
-    let _low_id = task_queue.enqueue(low_priority_task, "low_priority").await.expect("Failed to enqueue low priority task");
+    let _high_id = task_queue.enqueue(high_priority_task, queue_names::HIGH_PRIORITY).await.expect("Failed to enqueue high priority task");
+    let _low_id = task_queue.enqueue(low_priority_task, queue_names::LOW_PRIORITY).await.expect("Failed to enqueue low priority task");
     
     // Wait for enqueue operations to complete
     sleep(Duration::from_millis(300)).await;
     
     // Verify queue sizes
-    let high_size = task_queue.broker.get_queue_size("high_priority").await.expect("Failed to get high priority queue size");
-    let low_size = task_queue.broker.get_queue_size("low_priority").await.expect("Failed to get low priority queue size");
+    let high_size = task_queue.broker.get_queue_size(queue_names::HIGH_PRIORITY).await.expect("Failed to get high priority queue size");
+    let low_size = task_queue.broker.get_queue_size(queue_names::LOW_PRIORITY).await.expect("Failed to get low priority queue size");
     
     println!("Queue priorities test: high_priority_size={}, low_priority_size={}", high_size, low_size);
     
@@ -346,7 +347,7 @@ async fn test_integration_comprehensive() {
             data: format!("Batch task {} from test {}", i, test_id),
             should_fail: false,
         };
-        task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
     }
     
     // Test 2: Schedule a task
@@ -355,20 +356,20 @@ async fn test_integration_comprehensive() {
         should_fail: false,
     };
     let delay = chrono::Duration::seconds(1);
-    task_queue.schedule(scheduled_task, "default", delay).await.expect("Failed to schedule task");
+    task_queue.schedule(scheduled_task, queue_names::DEFAULT, delay).await.expect("Failed to schedule task");
     
     // Test 3: Enqueue a failing task
     let failing_task = TestTask {
         data: format!("Failing task from comprehensive test {}", test_id),
         should_fail: true,
     };
-    task_queue.enqueue(failing_task, "default").await.expect("Failed to enqueue failing task");
+    task_queue.enqueue(failing_task, queue_names::DEFAULT).await.expect("Failed to enqueue failing task");
     
     // Wait for all tasks to be processed
-    let success = wait_for_condition(|| {
+            let success = wait_for_condition(|| {
         let broker = task_queue.broker.clone();
         async move {
-            if let Ok(metrics) = broker.get_queue_metrics("default").await {
+            if let Ok(metrics) = broker.get_queue_metrics(queue_names::DEFAULT).await {
                 // Expect: 3 successful tasks + 1 scheduled task + 1 failed task = 4 processed, 1 failed
                 metrics.processed_tasks >= 4 && metrics.failed_tasks >= 1
             } else {
@@ -377,7 +378,7 @@ async fn test_integration_comprehensive() {
         }
     }, 25).await;
     
-    let final_metrics = task_queue.broker.get_queue_metrics("default").await.expect("Failed to get metrics");
+    let final_metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await.expect("Failed to get metrics");
     println!("Comprehensive test metrics: processed={}, failed={}, pending={}", 
              final_metrics.processed_tasks, final_metrics.failed_tasks, final_metrics.pending_tasks);
     
@@ -423,7 +424,7 @@ async fn test_improved_async_task_spawning() {
             data: format!("test_data_{}", i),
             should_fail: false,
         };
-        let task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
         task_ids.push(task_id);
     }
 
@@ -505,7 +506,7 @@ async fn test_graceful_shutdown_with_active_tasks() {
     let task = LongRunningTask {
         duration_ms: 2000,
     };
-    let _task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+    let _task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
 
     // Wait for task to start
     tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
@@ -552,7 +553,7 @@ async fn test_backpressure_handling() {
             data: format!("backpressure_test_{}", i),
             should_fail: false,
         };
-        let task_id = task_queue.enqueue(task, "default").await.expect("Failed to enqueue task");
+        let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.expect("Failed to enqueue task");
         task_ids.push(task_id);
     }
 
@@ -564,7 +565,7 @@ async fn test_backpressure_handling() {
     // Wait for all tasks to eventually complete
     let mut attempts = 0;
     loop {
-        let queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+        let queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await.expect("Failed to get queue size");
         let active_count = started_worker.active_task_count();
         
         if queue_size == 0 && active_count == 0 {
@@ -581,7 +582,7 @@ async fn test_backpressure_handling() {
 
     // Verify final state
     assert_eq!(started_worker.active_task_count(), 0);
-    let final_queue_size = task_queue.broker.get_queue_size("default").await.expect("Failed to get queue size");
+    let final_queue_size = task_queue.broker.get_queue_size(queue_names::DEFAULT).await.expect("Failed to get queue size");
     assert_eq!(final_queue_size, 0);
 
     // Cleanup

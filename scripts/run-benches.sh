@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Comprehensive test script for rust-task-queue with Redis container
-# This script starts a Redis container, runs all tests, and cleans up
-# Improved with robust cleanup and error handling
+# Dedicated benchmark runner for rust-task-queue with Redis container
+# This script starts a Redis container, runs all benchmarks, and cleans up
+# Extracted from run-tests.sh for dedicated benchmark execution
 
 set -e
 
@@ -103,25 +103,25 @@ wait_for_redis() {
     return 1
 }
 
-# Function to run a test command with error handling
-run_test() {
-    local test_name="$1"
-    local test_command="$2"
+# Function to run a benchmark command with error handling
+run_benchmark() {
+    local bench_name="$1"
+    local bench_command="$2"
     
     print_status ""
-    print_status "Running ${test_name}..."
+    print_status "Running ${bench_name}..."
     
-    if eval "$test_command"; then
-        print_success "${test_name}: PASSED"
+    if eval "$bench_command"; then
+        print_success "${bench_name}: COMPLETED"
         return 0
     else
-        print_error "${test_name}: FAILED"
+        print_error "${bench_name}: FAILED"
         return 1
     fi
 }
 
 # Main execution starts here
-print_status "Starting comprehensive test suite for rust-task-queue"
+print_status "Starting benchmark suite for rust-task-queue"
 print_status "Container: ${CONTAINER_NAME} | Port: ${REDIS_PORT} | Image: ${REDIS_IMAGE}"
 print_status ""
 
@@ -164,81 +164,81 @@ else
     exit 1
 fi
 
-# Initialize test results tracking
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Initialize benchmark results tracking
+TOTAL_BENCHMARKS=0
+PASSED_BENCHMARKS=0
+FAILED_BENCHMARKS=0
 
-# Run all test suites
-test_suites=(
-    "Clippy checks|cargo clippy --all-targets --all-features -- -D warnings"
-    "Unit tests|cargo test --lib -- --test-threads=1"
-    "Integration test|cargo test --test integration_tests"
-    "Error scenario test|cargo test --test error_scenarios_tests"
-    "Performance test|cargo test --test performance_tests"
-    "Security test|cargo test --test security_tests"
-    "Build check|cargo build --all-targets --all-features"
+# Run all benchmark suites
+benchmark_suites=(
+#    "Serialization benchmarks|cargo bench --bench serialization"
+#    "Worker performance benchmarks|cargo bench --bench worker_performance"
+#    "Redis broker benchmarks|cargo bench --bench redis_broker"
+#    "End-to-end benchmarks|cargo bench --bench end_to_end"
+#    "Autoscaler benchmarks|cargo bench --bench autoscaler"
+#    "Queue operations benchmarks|cargo bench --bench queue_operations"
+#    "Task processing benchmarks|cargo bench --bench task_processing"
+    "All benchmarks|cargo bench"
 )
 
-for test_suite in "${test_suites[@]}"; do
-    IFS='|' read -r test_name test_command <<< "$test_suite"
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+for benchmark_suite in "${benchmark_suites[@]}"; do
+    IFS='|' read -r bench_name bench_command <<< "$benchmark_suite"
+    TOTAL_BENCHMARKS=$((TOTAL_BENCHMARKS + 1))
     
-    if run_test "$test_name" "$test_command"; then
-        PASSED_TESTS=$((PASSED_TESTS + 1))
+    if run_benchmark "$bench_name" "$bench_command"; then
+        PASSED_BENCHMARKS=$((PASSED_BENCHMARKS + 1))
     else
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        # Continue with other tests instead of exiting immediately
-        print_warning "Continuing with remaining tests..."
+        FAILED_BENCHMARKS=$((FAILED_BENCHMARKS + 1))
+        # Continue with other benchmarks instead of exiting immediately
+        print_warning "Continuing with remaining benchmarks..."
     fi
 done
 
 # Print comprehensive summary
 print_status ""
-print_status "Comprehensive Test Summary:"
+print_status "Benchmark Summary:"
 print_status "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-if [ $FAILED_TESTS -eq 0 ]; then
-    print_success "All tests completed successfully!"
-    print_success "   Total test suites: $TOTAL_TESTS"
-    print_success "   Passed: $PASSED_TESTS"
-    print_success "   Failed: $FAILED_TESTS"
+if [ $FAILED_BENCHMARKS -eq 0 ]; then
+    print_success "All benchmarks completed successfully!"
+    print_success "   Total benchmark suites: $TOTAL_BENCHMARKS"
+    print_success "   Completed: $PASSED_BENCHMARKS"
+    print_success "   Failed: $FAILED_BENCHMARKS"
 else
-    print_warning "Some tests failed!"
-    print_status "   Total test suites: $TOTAL_TESTS"
-    print_success "   Passed: $PASSED_TESTS"
-    print_error "   Failed: $FAILED_TESTS"
+    print_warning "Some benchmarks failed!"
+    print_status "   Total benchmark suites: $TOTAL_BENCHMARKS"
+    print_success "   Completed: $PASSED_BENCHMARKS"
+    print_error "   Failed: $FAILED_BENCHMARKS"
 fi
 
 print_status ""
-print_status "Test Coverage Areas:"
-print_status "   • Core functionality and task processing (unit tests)"
-print_status "   • End-to-end workflows (integration test)"
-print_status "   • Error handling and edge cases (error scenario test)"
-print_status "   • Performance and load testing (performance test)"
-print_status "   • Security and injection protection (security test)"
-print_status "   • Auto-scaling and worker management"
-print_status "   • Redis connection handling and recovery"
-print_status "   • Memory management and resource leaks"
-print_status "   • Concurrent access and race condition safety"
-print_status "   • Configuration validation and compliance"
+print_status "Benchmark Coverage Areas:"
+print_status "   • Serialization performance (MessagePack vs JSON)"
+print_status "   • Worker task execution and concurrency"
+print_status "   • Redis broker operations and connection pooling"
+print_status "   • End-to-end task queue workflow performance"
+print_status "   • Auto-scaling decision making and responsiveness"
+print_status "   • Basic queue operations and management"
+print_status "   • Task processing serialization/deserialization"
 
 print_status ""
-print_status "Development Commands:"
-print_status "   Run individual test suites:"
-print_status "   • cargo test --lib                    # Unit tests"
-print_status "   • cargo test --test integration_tests # Integration tests"
-print_status "   • cargo test --test error_scenarios_tests   # Error handling tests"
-print_status "   • cargo test --test performance_tests # Performance tests"
-print_status "   • cargo test --test security_tests    # Security tests"
-print_status "   • cargo clippy --all-targets --all-features -- -D warnings"
+print_status "Individual Benchmark Commands:"
+print_status "   Run specific benchmark suites:"
+print_status "   • cargo bench --bench serialization      # Serialization performance"
+print_status "   • cargo bench --bench worker_performance # Worker and task execution"
+print_status "   • cargo bench --bench redis_broker       # Redis operations"
+print_status "   • cargo bench --bench end_to_end         # Full workflow"
+print_status "   • cargo bench --bench autoscaler         # Auto-scaling performance"
+print_status "   • cargo bench --bench queue_operations   # Queue management"
+print_status "   • cargo bench --bench task_processing    # Task serialization"
+print_status "   • cargo bench                            # All benchmarks"
+
 print_status ""
-print_status "   Run benchmarks separately:"
-print_status "   • ./scripts/run-benches.sh            # All benchmarks"
-print_status "   • cargo bench                         # Manual benchmark run"
+print_status "Benchmark results are saved in: target/criterion/"
+print_status "Open target/criterion/report/index.html for detailed reports"
 
 # Exit with appropriate code
-if [ $FAILED_TESTS -eq 0 ]; then
+if [ $FAILED_BENCHMARKS -eq 0 ]; then
     exit 0
 else
     exit 1
