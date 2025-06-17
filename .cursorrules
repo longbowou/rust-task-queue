@@ -263,6 +263,18 @@ export REDIS_PORT=6379
 - Execute full test suite including benchmarks
 - Verify documentation builds with `cargo doc`
 
+### Git Commit Guidelines
+- **NO EMOJIS**: Never use emojis in commit messages - keep them professional and readable
+- Use conventional commit format: `type(scope): description`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`
+- Use imperative mood ("Add feature" not "Added feature")
+- Include issue references when applicable: `fixes #123`
+- Examples:
+  - `feat(broker): add connection pooling for Redis operations`
+  - `fix(autoscaler): prevent negative worker count calculation`
+  - `docs(readme): update performance benchmarks section`
+  - `test(integration): add Redis failover scenario tests`
+
 ### CI/CD Integration
 - Test against multiple Redis versions
 - Run security audits with `cargo audit`
