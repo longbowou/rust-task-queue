@@ -1,0 +1,339 @@
+# Rust Task Queue Project - Cursor Rules
+
+## Project Overview
+This is a high-performance, Redis-backed task queue framework for Rust with auto-scaling capabilities. The project provides a comprehensive solution for distributed task processing with features like scheduling, retry logic, metrics, and Actix Web integration.
+
+## Architecture & Core Concepts
+
+### Core Components
+- **TaskQueue**: Main orchestrator managing broker, scheduler, autoscaler, and workers
+- **RedisBroker**: Redis-backed message broker with connection pooling
+- **Task trait**: Core trait for defining executable tasks with serialization
+- **TaskRegistry**: Type-erased task executor registry with auto-registration
+- **AutoScaler**: Dynamic worker scaling based on queue load
+- **TaskScheduler**: Delayed task execution with persistent scheduling
+- **MetricsCollector**: Performance monitoring and health checks
+
+### Key Patterns
+- Builder pattern for configuration (TaskQueueBuilder)
+- Feature-gated modules (`actix-integration`, `auto-register`, `cli`, etc.)
+- Async-first design with tokio runtime
+- MessagePack serialization (rmp-serde) for performance
+- Type-erased executors for dynamic task dispatch
+- Inventory-based automatic task registration
+
+## Coding Standards & Best Practices
+
+### Code Style
+- Use standard Rust formatting (rustfmt)
+- Follow Rust naming conventions (snake_case, PascalCase)
+- Prefer explicit error handling over unwrap/expect
+- Use async/await consistently for async operations
+- Implement Debug, Clone, Serialize, Deserialize for data types
+- Use Arc<> for shared ownership, RwLock/Mutex for thread safety
+
+### Error Handling
+- Always use the custom TaskQueueError type for this crate's errors
+- Implement thiserror-based error enums for comprehensive error types
+- Return Result<T, TaskQueueError> from public APIs
+- Use boxed trait objects for dynamic error types in Task execution
+
+### Task Implementation Guidelines
+```rust
+// Always implement these traits for tasks
+#[derive(Debug, Serialize, Deserialize)]
+struct MyTask {
+    // fields
+}
+
+#[async_trait::async_trait]
+impl Task for MyTask {
+    async fn execute(&self) -> TaskResult {
+        // Use MessagePack for response serialization
+        let response = MyResponse { /* ... */ };
+        Ok(rmp_serde::to_vec(&response)?)
+    }
+    
+    fn name(&self) -> &str {
+        "my_task"  // Snake case task names
+    }
+    
+    // Optional overrides
+    fn max_retries(&self) -> u32 { 3 }
+    fn timeout_seconds(&self) -> u64 { 300 }
+}
+```
+
+### Auto-Registration Pattern
+- Use `#[derive(AutoRegisterTask)]` for automatic registration
+- Tasks must implement Default trait for auto-registration
+- Use inventory pattern for compile-time task discovery
+
+### Module Organization
+- Core functionality in `src/` (broker, queue, task, worker, etc.)
+- Feature-gated modules use `#[cfg(feature = "...")]`
+- Examples in `examples/` with realistic use cases
+- Benchmarks in `benches/` for performance testing
+- Tests organized by functionality (unit, integration, performance, security)
+
+## Dependencies & Features
+
+### Core Dependencies
+- **redis**: Redis client with tokio-comp and connection-manager features
+- **tokio**: Full async runtime
+- **serde**: Serialization with derive feature
+- **rmp-serde**: MessagePack for performance
+- **uuid**: Task ID generation
+- **async-trait**: Async traits
+- **dashmap**: Concurrent hash maps
+
+### Optional Features
+- `tracing`: Structured logging (recommended)
+- `actix-integration`: Web framework integration
+- `auto-register`: Automatic task discovery
+- `cli`: Standalone worker binaries
+- `config-support`: External configuration files
+
+### Feature Combinations
+```toml
+# Recommended default
+rust-task-queue = { version = "0.1", features = ["default"] }
+
+# Web application
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration"] }
+
+# Minimal setup
+rust-task-queue = { version = "0.1", default-features = false, features = ["tracing"] }
+```
+
+## Configuration Patterns
+
+### Builder Pattern Usage
+```rust
+let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+    .auto_register_tasks()
+    .initial_workers(2)
+    .with_autoscaler()
+    .build()
+    .await?;
+```
+
+### External Configuration
+- Support TOML and YAML configuration files
+- Use `task-queue.toml` or `task-queue.yaml` naming convention
+- Configuration sections: redis, workers, autoscaler, scheduler, actix
+
+## Testing Guidelines
+
+### Test Organization
+- **Unit tests**: In-module tests for individual components (121 tests)
+- **Integration tests**: End-to-end workflow testing in `tests/` (9 tests)
+- **Performance tests**: Benchmarking critical operations (6 tests)
+- **Security tests**: Input validation and injection protection (7 tests)
+- **Error scenario tests**: Edge cases and failure modes (9 tests)
+- **Benchmarks**: Performance benchmarking (5 benchmark tests)
+
+### Testing Patterns
+- Use `tokio-test` for async testing
+- Use Redis containers for integration testing
+- Test with realistic payloads and error conditions
+- Benchmark serialization/deserialization performance
+
+### Automated Testing Scripts
+
+The project includes comprehensive testing scripts in the `scripts/` folder:
+
+#### Primary Testing Script: `test-with-redis.sh`
+Comprehensive test runner that automatically manages Redis containers and runs all test suites:
+
+```bash
+# Run all tests with automated Redis setup/cleanup
+./scripts/test-with-redis.sh
+```
+
+**Features:**
+- Automatically starts Redis container (`redis:7-alpine`)
+- Runs comprehensive test suite (162 total tests)
+- Includes colored output and progress tracking
+- Automatic cleanup on success, failure, or interruption
+- Port conflict detection and resolution
+- Robust error handling and reporting
+
+**Test Suites Executed:**
+1. **Clippy checks** - Strict linting with all warnings as errors
+2. **Unit tests (121)** - Core functionality testing (`cargo test --lib`)
+3. **Integration tests (9)** - End-to-end workflows (`cargo test --test integration_tests`)
+4. **Error scenario tests (9)** - Edge cases (`cargo test --test error_scenarios`)
+5. **Performance tests (6)** - Load and throughput (`cargo test --test performance_tests`)
+6. **Security tests (7)** - Injection protection (`cargo test --test security_tests`)
+7. **Build check** - Full compilation verification (`cargo build --all-targets --all-features`)
+8. **Benchmarks (5)** - Performance regression testing (`cargo bench`)
+
+#### Cleanup Script: `cleanup-redis.sh`
+Emergency cleanup for orphaned test containers:
+
+```bash
+# Clean up stuck Redis containers
+./scripts/cleanup-redis.sh
+```
+
+**Use cases:**
+- When `test-with-redis.sh` is interrupted
+- Port conflicts from previous test runs
+- Manual container management
+- Development environment reset
+
+### Manual Testing Commands
+
+For individual test suites during development:
+
+```bash
+# Individual test categories
+cargo test --lib                    # Unit tests only
+cargo test --test integration_tests # Integration tests
+cargo test --test error_scenarios   # Error handling tests
+cargo test --test performance_tests # Performance tests
+cargo test --test security_tests    # Security tests
+cargo bench                         # Benchmarks
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Quick development cycle
+cargo test --lib && cargo clippy --all-targets --all-features -- -D warnings
+```
+
+### CI/CD Integration
+
+The test scripts are designed for CI/CD integration:
+
+```bash
+# In CI environments
+export REDIS_PORT=6379
+./scripts/test-with-redis.sh
+```
+
+**Exit codes:**
+- `0`: All tests passed
+- `1`: One or more test suites failed
+- Detailed failure reporting with test counts
+
+### Testing Best Practices
+
+1. **Always use scripts for integration testing** - Ensures Redis dependency management
+2. **Run full test suite before PRs** - Use `./scripts/test-with-redis.sh`
+3. **Use individual commands for quick iteration** - During development
+4. **Monitor test coverage** - Currently at 162 comprehensive tests
+5. **Check performance regression** - Benchmarks included in test suite
+
+## Documentation Standards
+
+### Doc Comments
+- Use `//!` for module-level documentation
+- Use `///` for item documentation
+- Include usage examples in doc comments
+- Document safety requirements and panics
+- Use `#[cfg_attr(docsrs, doc(cfg(feature = "...")))]` for feature gates
+
+### README and Examples
+- Maintain comprehensive README with feature matrix
+- Include performance benchmarks and test coverage
+- Provide realistic examples for common use cases
+- Document configuration options and patterns
+
+## Performance Considerations
+
+### Optimization Guidelines
+- Use MessagePack over JSON for serialization (40ns vs 100ns+)
+- Prefer connection pooling for Redis operations
+- Use Arc for shared data structures
+- Implement proper backpressure with semaphores
+- Monitor and tune auto-scaler thresholds
+
+### Memory Management
+- Avoid unnecessary cloning of large data structures
+- Use streaming for large payloads
+- Implement proper cleanup in shutdown handlers
+- Monitor memory usage in long-running workers
+
+## Development Workflow
+
+### Pre-commit Checks
+- Run `cargo fmt` for formatting
+- Run `cargo clippy` with strict linting
+- Execute full test suite including benchmarks
+- Verify documentation builds with `cargo doc`
+
+### CI/CD Integration
+- Test against multiple Redis versions
+- Run security audits with `cargo audit`
+- Performance regression testing
+- Cross-platform compatibility testing
+
+## Common Pitfalls to Avoid
+
+1. **Task Serialization**: Always ensure tasks are Serialize + Deserialize + Send + Sync
+2. **Feature Gates**: Don't forget `#[cfg(feature = "...")]` for optional dependencies
+3. **Error Propagation**: Use `?` operator consistently with proper error conversion
+4. **Resource Cleanup**: Implement proper shutdown for long-running operations
+5. **Testing**: Don't skip async test setup - use proper test harness
+
+## AI Assistant Guidelines
+
+When helping with this project:
+1. **Understand Context**: This is a production-ready library, prioritize reliability and performance
+2. **Feature Awareness**: Check which features are enabled before suggesting code
+3. **Error Handling**: Always implement proper error handling with TaskQueueError
+4. **Performance**: Consider serialization performance and async patterns
+5. **Documentation**: Include comprehensive examples and error scenarios
+6. **Testing**: Suggest appropriate test coverage for new functionality
+7. **Backwards Compatibility**: Consider API stability for library users
+
+## Examples and Templates
+
+### Basic Task Implementation
+```rust
+use rust_task_queue::prelude::*;
+
+#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
+struct ProcessDataTask {
+    data: String,
+    options: ProcessingOptions,
+}
+
+#[async_trait]
+impl Task for ProcessDataTask {
+    async fn execute(&self) -> TaskResult {
+        // Process data...
+        let result = ProcessingResult { 
+            status: "completed".to_string(),
+            processed_data: self.data.to_uppercase(),
+        };
+        Ok(rmp_serde::to_vec(&result)?)
+    }
+    
+    fn name(&self) -> &str { "process_data" }
+    fn max_retries(&self) -> u32 { 5 }
+    fn timeout_seconds(&self) -> u64 { 600 }
+}
+```
+
+### Actix Web Integration
+```rust
+use actix_web::{web, App, HttpServer};
+use rust_task_queue::prelude::*;
+
+async fn configure_app() -> Result<(), TaskQueueError> {
+    let task_queue = create_auto_registered_task_queue().await?;
+    
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(task_queue.clone()))
+            .configure(configure_task_queue_routes_auto)
+            .service(/* your routes */)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+}
+```
+
+Remember: This project emphasizes performance, reliability, and developer experience. Always consider these aspects when making suggestions or implementing features. 
