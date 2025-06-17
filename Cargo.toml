@@ -83,3 +83,23 @@ harness = false
 [[bench]]
 name = "queue_operations"
 harness = false
+
+[[bench]]
+name = "serialization"
+harness = false
+
+[[bench]]
+name = "worker_performance"
+harness = false
+
+[[bench]]
+name = "redis_broker"
+harness = false
+
+[[bench]]
+name = "end_to_end"
+harness = false
+
+[[bench]]
+name = "autoscaler"
+harness = false

@@ -1,38 +1,83 @@
-# Example Task Queue Configuration File
-# This file demonstrates how to configure the rust-task-queue crate using TOML
+# Production Task Queue Configuration
+# This configuration is optimized for production environments with
+# security, performance, and monitoring best practices
 
 [redis]
-url = "redis://127.0.0.1:6379"
-pool_size = 10
-connection_timeout = 30  # seconds
-command_timeout = 10     # seconds
+# Redis connection with SSL/TLS support for production
+url = "rediss://redis-cluster.production.com:6380"
+pool_size = 20
+connection_timeout = 10  # seconds
+command_timeout = 5      # seconds
 
 [workers]
-initial_count = 4
-max_concurrent_tasks = 50
-heartbeat_interval = 30  # seconds
-shutdown_grace_period = 10  # seconds
+# Optimized for production workloads
+initial_count = 10
+max_concurrent_tasks = 25
+heartbeat_interval = 30      # seconds
+shutdown_grace_period = 120  # seconds
 
 [autoscaler]
 enabled = true
-min_workers = 2
-max_workers = 20
-scale_up_threshold = 5.0
-scale_down_threshold = 2.0
-scale_up_cooldown = 60   # seconds
-scale_down_cooldown = 300  # seconds
+min_workers = 5
+max_workers = 50
+scale_up_threshold = 8.0     # tasks per worker
+scale_down_threshold = 2.0   # tasks per worker
+scale_up_cooldown = 300      # seconds
+scale_down_cooldown = 600    # seconds
+check_interval = 60          # seconds
+
+[scheduler]
+enabled = true
+tick_interval = 30           # seconds
+max_tasks_per_tick = 100
 
 [auto_register]
 enabled = true
 
-[scheduler]
+[metrics]
+# Enhanced production monitoring
 enabled = true
-tick_interval = 10  # seconds
-max_tasks_per_tick = 100
+export_interval = 60         # seconds
+retention_days = 30
+enable_alerts = true
 
-# Actix Web integration settings (only used when actix-integration feature is enabled)
+[alerts]
+# Production alert thresholds
+max_queue_size = 10000
+max_error_rate = 0.05        # 5%
+max_task_duration_ms = 300000 # 5 minutes
+max_memory_usage_mb = 2048   # 2GB
+max_worker_idle_time_sec = 600 # 10 minutes
+
+[security]
+# Security configurations
+max_payload_size_mb = 16
+enable_input_validation = true
+allowed_queue_patterns = ["^[a-zA-Z0-9_-]+$"]
+rate_limiting = true
+max_requests_per_minute = 1000
+
+[logging]
+# Structured logging for production
+level = "info"
+format = "json"
+enable_metrics_logging = true
+log_sensitive_data = false
+
+[health_checks]
+# Health check endpoints configuration
+enabled = true
+port = 8080
+path = "/health"
+include_detailed_metrics = false
+timeout_ms = 5000
+
 [actix]
+# Production web server settings
 auto_configure_routes = true
-route_prefix = "/rust-task-queue"
+route_prefix = "/api/v1/tasks"
 enable_metrics = true
-enable_health_check = true 
+enable_health_check = true
+cors_enabled = true
+cors_origins = ["https://dashboard.company.com"]
+rate_limit_requests_per_minute = 100 

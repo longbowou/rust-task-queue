@@ -399,7 +399,7 @@ The project maintains a comprehensive test suite with **162 total tests** across
 
 ```bash
 # Automated test script (recommended) - handles Redis setup/cleanup
-./scripts/test-with-redis.sh
+./scripts/run-tests.sh
 
 # If tests fail and leave containers running, clean up with:
 ./scripts/cleanup-redis.sh
@@ -476,7 +476,7 @@ The project includes robust testing infrastructure with improved container manag
 
 ```bash
 # Primary test script (recommended)
-./scripts/test-with-redis.sh                # Comprehensive test suite with automatic cleanup
+./scripts/run-tests.sh                      # Comprehensive test suite with automatic cleanup
 
 # Cleanup script for recovery
 ./scripts/cleanup-redis.sh                  # Removes leftover containers from failed runs
@@ -496,7 +496,7 @@ docker stop redis-test && docker rm redis-test
 
 #### **Improved Container Management**
 
-The `scripts/test-with-redis.sh` script now includes:
+The `scripts/run-tests.sh` script now includes:
 
 - **Trap Handlers**: Automatic cleanup on script exit (success, failure, or interruption)
 - **Port Checking**: Detects and handles existing containers on the target port

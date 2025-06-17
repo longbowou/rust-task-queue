@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-CONTAINER_NAME="redis-test"
+CONTAINER_NAME="rust-task-queue-bench-redis"
 REDIS_PORT="6379"
 REDIS_IMAGE="redis:7-alpine"
 

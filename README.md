@@ -864,7 +864,7 @@ The project includes a comprehensive test suite with automated Redis setup:
 
 ```bash
 # Run all tests with Redis container (recommended)
-./scripts/test-with-redis.sh
+./scripts/run-tests.sh
 
 # If tests fail and leave containers running, clean up with:
 ./scripts/cleanup-redis.sh
@@ -935,7 +935,7 @@ If tests fail with Redis connection errors:
 docker run -d --name redis-test -p 6379:6379 redis:7-alpine
 
 # Or use the automated test script
-./scripts/test-with-redis.sh
+./scripts/run-tests.sh
 ```
 
 ## Documentation

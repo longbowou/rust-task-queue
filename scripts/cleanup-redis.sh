@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Cleanup script for Redis test containers
-# Use this if test-with-redis.sh fails and leaves containers running
+# Use this if run-tests.sh fails and leaves containers running
 
 set -e
 
-CONTAINER_NAME="redis-test"
+CONTAINER_NAME="rust-task-queue-bench-redis"
 REDIS_PORT="6379"
 
 # Colors for output
@@ -82,4 +82,4 @@ fi
 
 print_status ""
 print_success "Cleanup completed!"
-print_status "You can now run ./scripts/test-with-redis.sh again" 
+print_status "You can now run ./scripts/run-tests.sh again" 

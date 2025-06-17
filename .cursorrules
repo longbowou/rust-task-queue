@@ -144,12 +144,12 @@ let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
 
 The project includes comprehensive testing scripts in the `scripts/` folder:
 
-#### Primary Testing Script: `test-with-redis.sh`
+#### Primary Testing Script: `run-tests.sh`
 Comprehensive test runner that automatically manages Redis containers and runs all test suites:
 
 ```bash
 # Run all tests with automated Redis setup/cleanup
-./scripts/test-with-redis.sh
+./scripts/run-tests.sh
 ```
 
 **Features:**
@@ -179,7 +179,7 @@ Emergency cleanup for orphaned test containers:
 ```
 
 **Use cases:**
-- When `test-with-redis.sh` is interrupted
+- When `run-tests.sh` is interrupted
 - Port conflicts from previous test runs
 - Manual container management
 - Development environment reset
@@ -209,7 +209,7 @@ The test scripts are designed for CI/CD integration:
 ```bash
 # In CI environments
 export REDIS_PORT=6379
-./scripts/test-with-redis.sh
+./scripts/run-tests.sh
 ```
 
 **Exit codes:**
@@ -220,7 +220,7 @@ export REDIS_PORT=6379
 ### Testing Best Practices
 
 1. **Always use scripts for integration testing** - Ensures Redis dependency management
-2. **Run full test suite before PRs** - Use `./scripts/test-with-redis.sh`
+2. **Run full test suite before PRs** - Use `./scripts/run-tests.sh`
 3. **Use individual commands for quick iteration** - During development
 4. **Monitor test coverage** - Currently at 162 comprehensive tests
 5. **Check performance regression** - Benchmarks included in test suite
