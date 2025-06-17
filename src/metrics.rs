@@ -140,7 +140,7 @@ impl MetricsCollector {
     pub async fn record_timing(&self, name: &str, duration: Duration) {
         let mut histograms = self.histograms.write().await;
         let histogram = histograms.entry(name.to_string())
-            .or_insert_with(|| TaskHistogram::new());
+            .or_insert_with(TaskHistogram::new);
         histogram.record(duration);
     }
 
@@ -399,6 +399,18 @@ impl TaskHistogram {
 }
 
 impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for MemoryTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for TaskHistogram {
     fn default() -> Self {
         Self::new()
     }
