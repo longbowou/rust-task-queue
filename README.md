@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/rust-task-queue/badge.svg)](https://docs.rs/rust-task-queue)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/yourusername/rust-task-queue)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Test Coverage](https://img.shields.io/badge/tests-162%20passing-brightgreen.svg)]()
+[![Test Coverage](https://img.shields.io/badge/tests-220+%20passing-brightgreen.svg)]()
 
 A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning,
 multidimensional scaling triggers, and advanced backpressure management for async Rust applications.
@@ -43,7 +43,8 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 
 ## Recent Improvements
 
-- **Comprehensive test suite**: 162 total tests (121 unit + 31 integration + 10 benchmarks)
+- **Comprehensive test suite**: 220+ total tests (122 unit + 9 integration + 22 actix + 6 performance + 11 security + 9 error scenario + 5 benchmarks)
+- **New Actix Web metrics API**: 15+ comprehensive endpoints for monitoring and diagnostics
 - **Performance optimizations**: Sub-40ns serialization/deserialization
 - **Clippy compliance**: Zero warnings with strict linting rules
 - **Enhanced error handling**: Improved TaskQueueError creation and private method access
@@ -89,14 +90,51 @@ Recent benchmark results demonstrate exceptional performance:
 
 The project maintains comprehensive test coverage across multiple dimensions:
 
-- **Unit Tests**: 121 tests covering all core functionality
+- **Unit Tests**: 122 tests covering all core functionality
 - **Integration Tests**: 9 tests for end-to-end workflows
+- **Actix Integration Tests**: 22 tests for web endpoints and metrics API
 - **Error Scenario Tests**: 9 tests for edge cases and failure modes
 - **Performance Tests**: 6 tests for throughput and load handling
-- **Security Tests**: 7 tests for injection attacks and safety
+- **Security Tests**: 11 tests for injection attacks and safety
 - **Benchmarks**: 5 performance benchmarks for optimization
 
-**Total**: 162 tests ensuring reliability and performance
+**Total**: 220+ tests ensuring reliability and performance
+
+## Comprehensive Metrics API
+
+The framework includes a production-ready metrics API with 15+ endpoints for monitoring and diagnostics:
+
+### Health & Status Endpoints
+- **`/tasks/health`** - Detailed health check with component status (Redis, workers, scheduler)
+- **`/tasks/status`** - System status with health metrics and worker information
+
+### Core Metrics Endpoints
+- **`/tasks/metrics`** - Comprehensive metrics combining all available data
+- **`/tasks/metrics/system`** - Enhanced system metrics with memory and performance data
+- **`/tasks/metrics/performance`** - Performance report with task execution metrics and SLA data
+- **`/tasks/metrics/autoscaler`** - AutoScaler metrics and scaling recommendations
+- **`/tasks/metrics/queues`** - Individual queue metrics for all queues
+- **`/tasks/metrics/workers`** - Worker-specific metrics and status
+- **`/tasks/metrics/memory`** - Memory usage metrics and tracking
+- **`/tasks/metrics/summary`** - Quick metrics summary for debugging
+
+### Task Registry Endpoints
+- **`/tasks/registered`** - Auto-registered tasks information
+- **`/tasks/registry/info`** - Detailed task registry information and features
+
+### Administrative Endpoints
+- **`/tasks/alerts`** - Active alerts from the metrics system
+- **`/tasks/sla`** - SLA status and violations with performance percentages
+- **`/tasks/diagnostics`** - Comprehensive diagnostics with queue health analysis
+- **`/tasks/uptime`** - System uptime and runtime information
+
+```bash
+# Example usage
+curl http://localhost:3000/tasks/health              # Component health check
+curl http://localhost:3000/tasks/metrics            # All metrics combined
+curl http://localhost:3000/tasks/metrics/queues     # Queue-specific metrics
+curl http://localhost:3000/tasks/diagnostics        # System diagnostics
+```
 
 ## Quick Start
 
@@ -902,17 +940,29 @@ println!("Queue Status: {} pending tasks", queue_metrics.pending_tasks);
 
 ## Monitoring and Observability
 
-The framework provides built-in monitoring endpoints when using Actix integration:
+The framework provides comprehensive built-in monitoring endpoints when using Actix integration:
 
 ```bash
-# View registered tasks
-curl http://localhost:3000/tasks/registered
+# Health and system status
+curl http://localhost:3000/tasks/health             # Component health
+curl http://localhost:3000/tasks/status             # System status
 
-# View queue statistics
-curl http://localhost:3000/queues/stats
+# Comprehensive metrics
+curl http://localhost:3000/tasks/metrics            # All metrics combined
+curl http://localhost:3000/tasks/metrics/system     # System metrics
+curl http://localhost:3000/tasks/metrics/queues     # Queue metrics
+curl http://localhost:3000/tasks/metrics/workers    # Worker metrics
+curl http://localhost:3000/tasks/metrics/autoscaler # AutoScaler metrics
 
-# Health check
-curl http://localhost:3000/health
+# Administrative endpoints
+curl http://localhost:3000/tasks/diagnostics        # System diagnostics
+curl http://localhost:3000/tasks/alerts             # Active alerts
+curl http://localhost:3000/tasks/sla                # SLA violations
+curl http://localhost:3000/tasks/uptime             # Runtime information
+
+# Task registry
+curl http://localhost:3000/tasks/registered         # Registered tasks
+curl http://localhost:3000/tasks/registry/info      # Registry information
 ```
 
 ### Logging
@@ -1050,14 +1100,15 @@ The project includes a comprehensive test suite with automated Redis setup:
 ./scripts/cleanup-redis.sh
 
 # Or run individual test suites:
-cargo test --lib                    # Unit tests (121 tests)
-cargo test --test integration_tests # Integration tests (9 tests)
-cargo test --test error_scenarios_tests   # Error handling tests (9 tests) 
-cargo test --test performance_tests # Performance tests (6 tests)
-cargo test --test security_tests    # Security tests (7 tests)
+cargo test --lib                           # Unit tests (122 tests)
+cargo test --test integration_tests        # Integration tests (9 tests)
+cargo test --test actix_integration_tests  # Actix Web tests (22 tests)
+cargo test --test error_scenarios_tests    # Error handling tests (9 tests) 
+cargo test --test performance_tests        # Performance tests (6 tests)
+cargo test --test security_tests           # Security tests (11 tests)
 
 # Run benchmarks
-cargo bench                         # Performance benchmarks (5 benchmarks)
+cargo bench                                # Performance benchmarks (5 benchmarks)
 ```
 
 ### Code Quality

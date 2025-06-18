@@ -57,6 +57,7 @@ libloading = { version = "0.8", optional = true }
 tokio-test = "0.4"
 tracing-subscriber = "0.3"
 criterion = { version = "0.5", features = ["html_reports"] }
+actix-web = { version = "4.4", features = ["macros"] }
 
 [dependencies.tracing-subscriber]
 version = "0.3"

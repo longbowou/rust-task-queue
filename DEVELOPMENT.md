@@ -56,12 +56,13 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
 
 ### Recent Improvements
 
-- **Comprehensive Test Suite**: 162 total tests across all categories
-    - 121 unit tests covering core functionality
+- **Comprehensive Test Suite**: 220+ total tests across all categories
+    - 122 unit tests covering core functionality
     - 9 integration tests for end-to-end workflows
+    - 22 actix integration tests for web endpoints and metrics API
     - 9 error scenario tests for edge cases
     - 6 performance tests for load handling
-    - 7 security tests for injection protection
+    - 11 security tests for injection protection
     - 5 benchmark tests for performance tracking
 
 - **Enhanced Auto-scaling**:
@@ -87,6 +88,14 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
     - Comprehensive benchmark suite
     - Enhanced development documentation
     - CI/CD ready test infrastructure
+
+- **Comprehensive Actix Metrics API**:
+    - 15+ production-ready monitoring endpoints
+    - Health checks with component-level status
+    - Performance metrics with SLA tracking
+    - Real-time diagnostics and alerting
+    - Administrative endpoints for system management
+    - 22 comprehensive tests covering all endpoints
 
 ## Enhanced Auto-scaling Architecture
 
@@ -639,7 +648,7 @@ rust-task-queue/
 
 ### Comprehensive Test Suite
 
-The project maintains a comprehensive test suite with **162 total tests** across multiple categories:
+The project maintains a comprehensive test suite with **220+ total tests** across multiple categories:
 
 ```bash
 # Automated test script (recommended) - handles Redis setup/cleanup
@@ -649,17 +658,18 @@ The project maintains a comprehensive test suite with **162 total tests** across
 ./scripts/cleanup-redis.sh
 
 # Individual test suites:
-cargo test --lib                    # Unit tests (121 tests)
-cargo test --test integration_tests # Integration tests (9 tests)
-cargo test --test error_scenarios_tests   # Error handling tests (9 tests)
-cargo test --test performance_tests # Performance tests (6 tests)
-cargo test --test security_tests    # Security tests (7 tests)
-cargo bench                         # Benchmark tests (5 benchmarks)
+cargo test --lib                           # Unit tests (122 tests)
+cargo test --test integration_tests        # Integration tests (9 tests)
+cargo test --test actix_integration_tests  # Actix Web tests (22 tests)
+cargo test --test error_scenarios_tests    # Error handling tests (9 tests)
+cargo test --test performance_tests        # Performance tests (6 tests)
+cargo test --test security_tests           # Security tests (11 tests)
+cargo bench                                # Benchmark tests (5 benchmarks)
 ```
 
 ### Test Categories
 
-#### **Unit Tests (121 tests)**
+#### **Unit Tests (122 tests)**
 
 Covers all core functionality including:
 
@@ -684,6 +694,42 @@ End-to-end workflow testing:
 - `test_improved_async_task_spawning` - Advanced worker features
 - `test_backpressure_handling` - Capacity management
 - `test_graceful_shutdown_with_active_tasks` - Clean shutdown
+
+#### **Actix Integration Tests (22 tests)**
+
+Comprehensive web endpoints and metrics API testing:
+
+- **Health & Status Tests** (3 tests)
+  - `test_health_endpoint` - Component health checking
+  - `test_detailed_health_endpoint` - Detailed health status
+  - `test_status_endpoint` - System status information
+
+- **Core Metrics Tests** (8 tests)
+  - `test_metrics_endpoint` - Combined metrics data
+  - `test_system_metrics_endpoint` - System performance metrics
+  - `test_performance_metrics_endpoint` - Task execution performance
+  - `test_autoscaler_metrics_endpoint` - AutoScaler status and recommendations
+  - `test_queue_metrics_endpoint` - Individual queue metrics
+  - `test_worker_metrics_endpoint` - Worker-specific metrics
+  - `test_memory_metrics_endpoint` - Memory usage tracking
+  - `test_metrics_summary_endpoint` - Quick metrics overview
+
+- **Task Registry Tests** (2 tests)
+  - `test_registered_tasks_endpoint` - Auto-registered tasks
+  - `test_registry_info_endpoint` - Registry information
+
+- **Administrative Tests** (4 tests)
+  - `test_alerts_endpoint` - System alerts
+  - `test_sla_endpoint` - SLA violations and performance
+  - `test_diagnostics_endpoint` - System diagnostics
+  - `test_uptime_endpoint` - Runtime information
+
+- **Quality Assurance Tests** (5 tests)
+  - `test_all_endpoints_return_valid_json` - JSON validation
+  - `test_endpoints_with_real_data` - Real task processing
+  - `test_error_handling` - Error response validation
+  - `test_endpoint_performance` - Response time benchmarks
+  - `test_concurrent_endpoint_access` - Concurrent request handling
 
 #### **Error Scenario Tests (9 tests)**
 
@@ -710,7 +756,7 @@ Load and throughput validation:
 - Queue priority performance
 - Auto-scaler performance under load
 
-#### **Security Tests (7 tests)**
+#### **Security Tests (11 tests)**
 
 Safety and injection protection:
 
