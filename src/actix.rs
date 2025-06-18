@@ -163,27 +163,6 @@ async fn get_metrics_summary(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResu
     })))
 }
 
-#[cfg(all(feature = "actix-integration", feature = "auto-register"))]
-/// Get auto-registered tasks information
-async fn get_registered_tasks() -> ActixResult<HttpResponse> {
-    match TaskRegistry::with_auto_registered() {
-        Ok(registry) => {
-            let registered_tasks = registry.registered_tasks();
-            Ok(HttpResponse::Ok().json(json!({
-                "auto_registered_tasks": registered_tasks,
-                "count": registered_tasks.len(),
-                "auto_registration_enabled": true,
-                "timestamp": Utc::now()
-            })))
-        }
-        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
-            "error": e.to_string(),
-            "auto_registration_enabled": true,
-            "timestamp": Utc::now()
-        }))),
-    }
-}
-
 #[cfg(not(all(feature = "actix-integration", feature = "auto-register")))]
 /// Fallback when auto-register feature is not enabled
 async fn get_registered_tasks() -> ActixResult<HttpResponse> {
@@ -400,8 +379,7 @@ pub fn configure_task_queue_routes_auto(cfg: &mut web::ServiceConfig) {
                     .route("/metrics/workers", web::get().to(get_worker_metrics))
                     .route("/metrics/memory", web::get().to(get_memory_metrics))
                     .route("/metrics/summary", web::get().to(get_metrics_summary))
-                    .route("/registered", web::get().to(get_registered_tasks))
-                    .route("/registry/info", web::get().to(get_registry_info))
+                    .route("/registry", web::get().to(get_registry_info))
                     .route("/alerts", web::get().to(get_active_alerts))
                     .route("/sla", web::get().to(get_sla_status))
                     .route("/diagnostics", web::get().to(get_diagnostics))
@@ -437,8 +415,7 @@ pub fn configure_task_queue_routes(cfg: &mut web::ServiceConfig) {
             .route("/metrics/memory", web::get().to(get_memory_metrics))
             .route("/metrics/summary", web::get().to(get_metrics_summary))
             // Task Registry endpoints
-            .route("/registered", web::get().to(get_registered_tasks))
-            .route("/registry/info", web::get().to(get_registry_info))
+            .route("/registry", web::get().to(get_registry_info))
             // Administrative endpoints
             .route("/alerts", web::get().to(get_active_alerts))
             .route("/sla", web::get().to(get_sla_status))
