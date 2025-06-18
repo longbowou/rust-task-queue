@@ -1,12 +1,12 @@
 [package]
 name = "rust-task-queue"
 version = "0.1.0"
-edition = "2021"
-authors = ["Rust Task Queue Contributors"]
+edition = "2024"
+authors = ["Longbowou <blandedaniel@gmail.com>"]
 description = "A high-performance, Redis-backed task queue framework with auto-scaling capabilities"
-documentation = "https://docs.rs/rust-task-queue"
-homepage = "https://github.com/rust-task-queue/rust-task-queue"
-repository = "https://github.com/rust-task-queue/rust-task-queue"
+documentation = "https://github.com/longbowou/rust-task-queue"
+homepage = "https://github.com/longbowou/rust-task-queue"
+repository = "https://github.com/longbowou/rust-task-queue"
 license = "MIT OR Apache-2.0"
 keywords = ["task-queue", "redis", "async", "worker", "celery"]
 categories = ["asynchronous", "web-programming", "concurrency"]
