@@ -153,7 +153,7 @@ pub enum ScalingAction {
 }
 
 /// Enhanced metrics with multi-dimensional analysis
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AutoScalerMetrics {
     pub active_workers: i64,
     pub total_pending_tasks: i64,
