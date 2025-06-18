@@ -1968,7 +1968,6 @@ dependencies = [
  "once_cell",
  "redis",
  "rmp-serde",
- "rust-task-queue-macros",
  "serde",
  "serde_json",
  "serde_yaml",

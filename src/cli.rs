@@ -4,8 +4,9 @@
 //! task workers with minimal boilerplate code.
 
 use crate::config::{ConfigBuilder, TaskQueueConfig};
-use crate::task::TaskRegistry;
 use crate::TaskQueueBuilder;
+#[cfg(feature = "auto-register")]
+use crate::task::TaskRegistry;
 use std::env;
 
 #[cfg(feature = "cli")]
@@ -92,8 +93,12 @@ pub async fn start_cli_worker(config: TaskQueueConfig) -> Result<(), Box<dyn std
     }
 
     // Create task queue with configuration
+    #[cfg(feature = "auto-register")]
     let mut task_queue_builder = TaskQueueBuilder::new(&config.redis.url);
+    #[cfg(not(feature = "auto-register"))]
+    let task_queue_builder = TaskQueueBuilder::new(&config.redis.url);
 
+    #[cfg(feature = "auto-register")]
     if config.auto_register.enabled {
         task_queue_builder = task_queue_builder.auto_register_tasks();
     }
@@ -108,6 +113,7 @@ pub async fn start_cli_worker(config: TaskQueueConfig) -> Result<(), Box<dyn std
         .await?;
 
     // Show discovered tasks if auto-registration is enabled
+    #[cfg(feature = "auto-register")]
     if config.auto_register.enabled {
         let task_registry = TaskRegistry::with_auto_registered()
             .map_err(|e| format!("Failed to create registry: {}", e))?;

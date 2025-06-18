@@ -139,10 +139,15 @@ pub use scheduler::*;
 pub use task::*;
 pub use worker::*;
 
-// Re-export procedural macros
-#[cfg(feature = "auto-register")]
-#[cfg_attr(docsrs, doc(cfg(feature = "auto-register")))]
-pub use rust_task_queue_macros::{register_task as proc_register_task, AutoRegisterTask};
+// Re-export macros when auto-register feature is enabled
+// #[cfg(feature = "auto-register")]
+// pub use rust_task_queue_macros::{register_task as proc_register_task, AutoRegisterTask};
+
+// Provide placeholder when auto-register is disabled
+// #[cfg(not(feature = "auto-register"))]
+// pub use std::marker::PhantomData as AutoRegisterTask;
+// #[cfg(not(feature = "auto-register"))]
+// pub use std::marker::PhantomData as proc_register_task;
 
 // Re-export inventory for users who want to use it directly
 #[cfg(feature = "auto-register")]
