@@ -4,7 +4,13 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Longbowou <blandedaniel@gmail.com>"]
 description = "Procedural macros for rust-task-queue automatic task registration"
+documentation = "https://github.com/longbowou/rust-task-queue"
+homepage = "https://github.com/longbowou/rust-task-queue"
+repository = "https://github.com/longbowou/rust-task-queue"
 license = "MIT OR Apache-2.0"
+keywords = ["task-queue", "macros", "proc-macro", "async", "registration"]
+categories = ["development-tools::procedural-macro-helpers", "asynchronous"]
+readme = "../README.md"
 
 [lib]
 proc-macro = true
