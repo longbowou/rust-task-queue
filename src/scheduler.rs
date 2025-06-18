@@ -2,6 +2,7 @@ use crate::{RedisBroker, Task, TaskId, TaskQueueError};
 use chrono::{DateTime, Duration, Utc};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
+use std::collections::HashMap;
 
 pub struct TaskScheduler {
     broker: Arc<RedisBroker>,
@@ -54,8 +55,20 @@ impl TaskScheduler {
         queue: &str,
         delay: Duration,
     ) -> Result<TaskId, TaskQueueError> {
+        let schedule_start = std::time::Instant::now();
         let execute_at = Utc::now() + delay;
         let task_id = uuid::Uuid::new_v4();
+        let task_name = task.name();
+        
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            task_id = %task_id,
+            task_name = task_name,
+            queue = queue,
+            delay_seconds = delay.num_seconds(),
+            execute_at = %execute_at,
+            "Scheduling task for delayed execution"
+        );
 
         let scheduled_task = ScheduledTask {
             id: task_id,
@@ -76,22 +89,39 @@ impl TaskScheduler {
         redis::AsyncCommands::zadd::<_, _, _, ()>(
             &mut *conn,
             "scheduled_tasks",
-            serialized,
+            serialized.clone(),
             execute_at.timestamp(),
         )
         .await?;
 
         #[cfg(feature = "tracing")]
-        tracing::info!("Scheduled task {} to execute at {}", task_id, execute_at);
+        tracing::info!(
+            task_id = %task_id,
+            task_name = task_name,
+            queue = queue,
+            execute_at = %execute_at,
+            delay_seconds = delay.num_seconds(),
+            duration_ms = schedule_start.elapsed().as_millis(),
+            payload_size_bytes = serialized.len(),
+            redis_score = execute_at.timestamp(),
+            "Task scheduled successfully"
+        );
 
         Ok(task_id)
     }
 
     pub async fn process_scheduled_tasks(broker: &RedisBroker) -> Result<(), TaskQueueError> {
+        let process_start = std::time::Instant::now();
         let mut conn = broker.pool.get().await.map_err(|e| {
             TaskQueueError::Connection(format!("Failed to get Redis connection: {}", e))
         })?;
         let now = Utc::now().timestamp();
+
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            timestamp_threshold = now,
+            "Processing scheduled tasks ready for execution"
+        );
 
         // Get tasks that should execute now
         let tasks: Vec<Vec<u8>> = redis::AsyncCommands::zrangebyscore_limit(
@@ -104,13 +134,48 @@ impl TaskScheduler {
         )
         .await?;
 
+        let batch_size = tasks.len();
+        
+        if batch_size == 0 {
+            #[cfg(feature = "tracing")]
+            tracing::trace!(
+                duration_ms = process_start.elapsed().as_millis(),
+                "No scheduled tasks ready for execution"
+            );
+            return Ok(());
+        }
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            batch_size = batch_size,
+            timestamp_threshold = now,
+            "Found scheduled tasks ready for execution"
+        );
+
+        let mut processed_count = 0;
+        let mut failed_count = 0;
+        let mut queue_distribution = HashMap::new();
+
         for serialized_task in tasks {
             if let Ok(scheduled_task) = rmp_serde::from_slice::<ScheduledTask>(&serialized_task) {
+                // Track queue distribution
+                *queue_distribution.entry(scheduled_task.queue.clone()).or_insert(0) += 1;
+                
+                #[cfg(feature = "tracing")]
+                tracing::debug!(
+                    task_id = %scheduled_task.id,
+                    task_name = %scheduled_task.task_name,
+                    queue = %scheduled_task.queue,
+                    scheduled_execute_at = %scheduled_task.execute_at,
+                    delay_from_scheduled = (now - scheduled_task.execute_at.timestamp()),
+                    "Moving scheduled task to regular queue"
+                );
+
                 // Move task to regular queue
                 let task_wrapper = crate::TaskWrapper {
                     metadata: crate::TaskMetadata {
                         id: scheduled_task.id,
-                        name: scheduled_task.task_name,
+                        name: scheduled_task.task_name.clone(),
                         created_at: Utc::now(),
                         attempts: 0,
                         max_retries: scheduled_task.max_retries,
@@ -120,29 +185,76 @@ impl TaskScheduler {
                 };
 
                 let serialized_wrapper = rmp_serde::to_vec(&task_wrapper)?;
-                redis::AsyncCommands::lpush::<_, _, ()>(
+                
+                match redis::AsyncCommands::lpush::<_, _, ()>(
                     &mut *conn,
                     &scheduled_task.queue,
                     &serialized_wrapper,
-                )
-                .await?;
-
-                // Remove from scheduled tasks
-                redis::AsyncCommands::zrem::<_, _, ()>(
-                    &mut *conn,
-                    "scheduled_tasks",
-                    &serialized_task,
-                )
-                .await?;
-
+                ).await {
+                    Ok(_) => {
+                        // Remove from scheduled tasks
+                        match redis::AsyncCommands::zrem::<_, _, ()>(
+                            &mut *conn,
+                            "scheduled_tasks",
+                            &serialized_task,
+                        ).await {
+                            Ok(_) => {
+                                processed_count += 1;
+                                
+                                #[cfg(feature = "tracing")]
+                                tracing::info!(
+                                    task_id = %scheduled_task.id,
+                                    task_name = %scheduled_task.task_name,
+                                    queue = %scheduled_task.queue,
+                                    delay_from_scheduled_seconds = (now - scheduled_task.execute_at.timestamp()),
+                                    payload_size_bytes = serialized_wrapper.len(),
+                                    "Scheduled task moved to regular queue successfully"
+                                );
+                            }
+                            Err(e) => {
+                                failed_count += 1;
+                                #[cfg(feature = "tracing")]
+                                tracing::error!(
+                                    task_id = %scheduled_task.id,
+                                    task_name = %scheduled_task.task_name,
+                                    error = %e,
+                                    "Failed to remove task from scheduled tasks set"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        failed_count += 1;
+                        #[cfg(feature = "tracing")]
+                        tracing::error!(
+                            task_id = %scheduled_task.id,
+                            task_name = %scheduled_task.task_name,
+                            queue = %scheduled_task.queue,
+                            error = %e,
+                            "Failed to push scheduled task to regular queue"
+                        );
+                    }
+                }
+            } else {
+                failed_count += 1;
                 #[cfg(feature = "tracing")]
-                tracing::info!(
-                    "Moved scheduled task {} to queue {}",
-                    scheduled_task.id,
-                    scheduled_task.queue
+                tracing::error!(
+                    payload_size_bytes = serialized_task.len(),
+                    "Failed to deserialize scheduled task"
                 );
             }
         }
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            total_processed = processed_count,
+            failed_count = failed_count,
+            batch_size = batch_size,
+            duration_ms = process_start.elapsed().as_millis(),
+            queue_distribution = ?queue_distribution,
+            success_rate = if batch_size > 0 { processed_count as f64 / batch_size as f64 } else { 0.0 },
+            "Scheduled task processing batch completed"
+        );
 
         Ok(())
     }

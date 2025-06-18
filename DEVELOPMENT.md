@@ -7,6 +7,7 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
 
 - [Overview](#overview)
 - [Enhanced Auto-scaling Architecture](#enhanced-auto-scaling-architecture)
+- [Enterprise Observability Architecture](#enterprise-observability-architecture)
 - [Architecture](#architecture)
 - [Development Setup](#development-setup)
 - [Project Structure](#project-structure)
@@ -31,6 +32,7 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
 - **Retry logic** with exponential backoff and configurable attempts
 - **Task timeouts** and comprehensive failure handling
 - **Advanced metrics and monitoring** with SLA tracking and performance insights
+- **Enterprise-grade observability** with comprehensive structured logging and distributed tracing
 - **Actix Web integration** (optional) with built-in endpoints
 - **Automatic task registration** via procedural macros
 - **Comprehensive error handling** with eliminated `unwrap()` calls
@@ -40,6 +42,7 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
 - **Advanced backpressure management** with automatic task re-queuing and capacity control
 - **Active task tracking** with atomic counters for real-time monitoring
 - **Graceful shutdown** with active task completion waiting
+- **Production-ready logging** with multiple output formats and environment-based configuration
 
 ### Performance Highlights
 
@@ -96,6 +99,18 @@ multi-dimensional scaling triggers, and advanced backpressure management designe
     - Real-time diagnostics and alerting
     - Administrative endpoints for system management
     - 22 comprehensive tests covering all endpoints
+
+- **Enterprise-Grade Observability System**:
+    - Complete task lifecycle tracking with distributed spans
+    - Performance monitoring with execution timing and queue metrics
+    - Error chain analysis with deep context and source tracking
+    - Worker activity monitoring with real-time status
+    - Production-ready logging configuration (JSON/compact/pretty formats)
+    - Environment-based configuration support (LOG_LEVEL, LOG_FORMAT)
+    - Integration with observability platforms (ELK, Datadog, Grafana, Splunk)
+    - Helper macros and utilities for easy instrumentation
+    - Async span instrumentation using `tracing::Instrument`
+    - Zero-cost when tracing feature is disabled
 
 ## Enhanced Auto-scaling Architecture
 
@@ -227,6 +242,199 @@ let config = AutoScalerConfig {
 - New: `AutoScaler::with_config(broker, config)` required
 - Old: `ScalingTriggers::default()` calls
 - New: Explicit struct initialization required
+
+## Enterprise Observability Architecture
+
+### Comprehensive Tracing System
+
+The framework includes a production-grade observability system with enterprise-class structured logging and distributed tracing capabilities:
+
+#### **Core Observability Components**
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     Enterprise Observability Stack                   │
+├──────────────────────────────────────────────────────────────────────┤
+│  Tracing Layer        │  Performance Layer    │  Error Analysis Layer │
+│                       │                       │                       │
+│  • Task Lifecycle     │  • Execution Timing   │  • Error Chain        │
+│  • Distributed Spans  │  • Queue Metrics      │  • Source Context     │
+│  • Correlation IDs    │  • Throughput Track   │  • Failure Analysis   │
+│  • Worker Activity    │  • Resource Monitor   │  • Recovery Insights  │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+#### **Structured Logging Features**
+
+1. **Task Lifecycle Tracking**
+   - Complete task journey from enqueue to completion
+   - Detailed span creation with correlation IDs
+   - Automatic instrumentation of all major operations
+   - Worker activity monitoring with resource utilization
+
+2. **Performance Monitoring**
+   - Real-time execution timing and metrics
+   - Queue depth monitoring and trend analysis
+   - Throughput tracking (tasks per second)
+   - Worker utilization and efficiency metrics
+
+3. **Error Chain Analysis**
+   - Deep error context with full source tracking
+   - Error propagation analysis across system boundaries
+   - Recovery pattern identification
+   - Failure correlation and root cause analysis
+
+4. **Distributed Tracing**
+   - Async span instrumentation using `tracing::Instrument`
+   - Cross-component correlation with unique trace IDs
+   - Worker-to-worker task handoff tracking
+   - Scheduler and autoscaler integration
+
+#### **Logging Configuration Architecture**
+
+```rust
+#[derive(Debug, Clone)]
+pub enum LogLevel {
+    Trace,    // Detailed function-level tracing
+    Debug,    // Development debugging information
+    Info,     // Production operational information
+    Warn,     // Warning conditions and recoverable errors
+    Error,    // Error conditions requiring attention
+}
+
+#[derive(Debug, Clone)]
+pub enum LogFormat {
+    Json,     // Production-ready structured JSON
+    Compact,  // Development-friendly compact format
+    Pretty,   // Human-readable pretty-printed format
+}
+```
+
+#### **Production Integration Patterns**
+
+```toml
+# Production logging configuration
+[logging]
+level = "info"
+format = "json"
+enable_task_lifecycle = true
+enable_performance_monitoring = true
+enable_error_chain_analysis = true
+```
+
+```rust
+// Production setup with comprehensive tracing
+use rust_task_queue::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), TaskQueueError> {
+    // Configure enterprise-grade logging
+    configure_production_logging(LogLevel::Info, LogFormat::Json);
+    
+    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+        .auto_register_tasks()
+        .initial_workers(4)
+        .build()
+        .await?;
+    
+    // All operations automatically traced with structured logging
+    Ok(())
+}
+```
+
+#### **Observability Data Flow**
+
+```
+Task Operation → Tracing Layer → Structured Log → Observability Platform
+      │               │              │                     │
+      ▼               ▼              ▼                     ▼
+  Operation         Span        JSON/Compact         ELK/Datadog/
+  Context        Creation        Format             Grafana/Splunk
+      │               │              │                     │
+      ▼               ▼              ▼                     ▼
+  Performance    Correlation    Log Aggregation      Monitoring
+  Metrics           IDs          & Storage           & Alerting
+```
+
+#### **Key Tracing Utilities**
+
+```rust
+// TaskLifecycleEvent enum for standardized event tracking
+pub enum TaskLifecycleEvent {
+    Enqueued { queue: String, task_type: String },
+    Dequeued { worker_id: String },
+    ExecutionStarted { attempt: u32 },
+    ExecutionCompleted { duration_ms: u64 },
+    ExecutionFailed { error: String, will_retry: bool },
+    Completed { total_duration_ms: u64 },
+    Failed { final_error: String },
+}
+
+// PerformanceTracker for detailed metrics
+pub struct PerformanceTracker {
+    start_time: Instant,
+    operation: String,
+    context: HashMap<String, String>,
+}
+
+// Helper macros for easy instrumentation
+traced_operation!("operation_name", field1 = value1, field2 = value2);
+timed_operation!("operation_name", async_block);
+```
+
+#### **Integration with Observability Platforms**
+
+- **ELK Stack (Elasticsearch, Logstash, Kibana)**
+  - JSON structured logs for direct ingestion
+  - Automatic field mapping and indexing
+  - Real-time dashboard creation
+
+- **Datadog Application Performance Monitoring**
+  - Distributed trace correlation
+  - Performance metric integration
+  - Alert rule automation
+
+- **Grafana + Prometheus**
+  - Custom metric exporters
+  - Visual dashboard creation
+  - SLA monitoring and alerting
+
+- **Splunk Enterprise**
+  - Log aggregation and search
+  - Machine learning anomaly detection
+  - Custom visualization and reporting
+
+#### **Environment Configuration**
+
+```bash
+# Production environment variables
+export LOG_LEVEL=info
+export LOG_FORMAT=json
+
+# Development environment variables  
+export LOG_LEVEL=debug
+export LOG_FORMAT=pretty
+
+# Trace-level debugging
+export LOG_LEVEL=trace
+export LOG_FORMAT=compact
+```
+
+#### **CLI Integration**
+
+```bash
+# Production workers with JSON logging
+cargo run --bin task-worker worker \
+  --log-level info --log-format json
+
+# Development workers with pretty output
+cargo run --bin task-worker worker \
+  --log-level debug --log-format pretty
+
+# Trace-level debugging
+cargo run --bin task-worker worker \
+  --log-level trace --log-format compact
+```
 
 ## Architecture
 
@@ -590,9 +798,18 @@ export TASK_QUEUE_AUTOSCALER_MIN_WORKERS=2
 export TASK_QUEUE_AUTOSCALER_MAX_WORKERS=20
 export TASK_QUEUE_ADAPTIVE_THRESHOLDS=true
 
+# Observability Configuration (New)
+export LOG_LEVEL=info          # trace, debug, info, warn, error
+export LOG_FORMAT=json         # json, compact, pretty
+
 # Development/Testing
 export REDIS_TEST_URL="redis://127.0.0.1:6379/15"
-export RUST_LOG=rust_task_queue=debug
+export RUST_LOG=rust_task_queue=debug  # Legacy support (still works)
+
+# Production Logging Examples
+export LOG_LEVEL=info LOG_FORMAT=json                    # Production
+export LOG_LEVEL=debug LOG_FORMAT=pretty                 # Development
+export LOG_LEVEL=trace LOG_FORMAT=compact                # Debugging
 ```
 
 ## Project Structure
@@ -603,16 +820,17 @@ rust-task-queue/
 │   ├── lib.rs                 # Main library entry point & exports
 │   ├── config.rs              # Configuration management with validation
 │   ├── error.rs               # Error types & comprehensive handling
-│   ├── broker.rs              # Redis broker with connection helper
-│   ├── worker.rs              # Enhanced worker with intelligent task spawning & backpressure
+│   ├── broker.rs              # Redis broker with connection helper & comprehensive tracing
+│   ├── worker.rs              # Enhanced worker with intelligent task spawning & backpressure & lifecycle tracing
 │   ├── task.rs                # Task trait & registry with auto-register
-│   ├── scheduler.rs           # Task scheduling with persistence
+│   ├── scheduler.rs           # Task scheduling with persistence & batch processing tracing
 │   ├── autoscaler.rs          # Enhanced multi-dimensional auto-scaling
 │   ├── queue.rs               # Queue constants & configuration
 │   ├── actix.rs               # Actix Web integration with endpoints
-│   ├── cli.rs                 # CLI utilities with full feature support
+│   ├── cli.rs                 # CLI utilities with full feature support & logging configuration
 │   ├── metrics.rs             # Metrics collection and SLA monitoring
-│   ├── prelude.rs             # Common imports for convenience
+│   ├── tracing_utils.rs       # Enterprise-grade tracing utilities & helper functions (NEW)
+│   ├── prelude.rs             # Common imports for convenience with tracing exports
 │   └── bin/
 │       ├── task-worker.rs     # Main worker binary with CLI
 │       └── task-worker-env-only.rs # Environment-only worker
@@ -1307,14 +1525,20 @@ for queue_metric in metrics.queue_metrics {
 ### Debugging Tips
 
 ```bash
-# Enable debug logging
-RUST_LOG=rust_task_queue=debug cargo test
+# Modern structured logging (recommended)
+cargo run --bin task-worker worker --log-level debug --log-format pretty
+cargo run --bin task-worker worker --log-level trace --log-format compact
 
-# Enable trace-level logging for detailed output
+# Environment-based configuration
+LOG_LEVEL=debug LOG_FORMAT=pretty cargo test
+LOG_LEVEL=trace LOG_FORMAT=json cargo test | jq
+
+# Legacy RUST_LOG (still supported)
+RUST_LOG=rust_task_queue=debug cargo test
 RUST_LOG=rust_task_queue=trace cargo test
 
-# Run specific test with output
-cargo test test_name -- --nocapture
+# Run specific test with structured output
+LOG_LEVEL=debug cargo test test_name -- --nocapture
 
 # Debug Redis operations
 redis-cli monitor
@@ -1323,14 +1547,32 @@ redis-cli monitor
 redis-cli keys "*"
 redis-cli smembers active_workers
 
-# Debug worker activity with spawning details
-RUST_LOG=rust_task_queue::worker=debug cargo run --bin task-worker --features cli worker
+# Debug worker activity with comprehensive tracing
+LOG_LEVEL=debug LOG_FORMAT=pretty cargo run --bin task-worker --features cli worker
 
-# Monitor task spawning and backpressure
-RUST_LOG=rust_task_queue::worker=trace cargo test test_improved_async_task_spawning -- --nocapture
+# Monitor task lifecycle events
+LOG_LEVEL=trace LOG_FORMAT=json cargo test | jq 'select(.span.name == "task_execution")'
 
-# Track active task counts
-RUST_LOG=rust_task_queue=debug cargo test test_graceful_shutdown_with_active_tasks -- --nocapture
+# Track performance metrics
+LOG_LEVEL=debug LOG_FORMAT=json cargo test | jq 'select(.fields.event_type == "performance_metric")'
+
+# Analyze error chains
+LOG_LEVEL=debug LOG_FORMAT=json cargo test | jq 'select(.level == "ERROR") | .fields.error_chain'
+
+# Monitor queue operations
+LOG_LEVEL=trace LOG_FORMAT=compact cargo test | grep -E "(enqueue|dequeue|completion)"
+
+# Debug worker spawning and backpressure with structured logging
+LOG_LEVEL=trace LOG_FORMAT=pretty cargo test test_improved_async_task_spawning -- --nocapture
+
+# Track active task counts with detailed tracing
+LOG_LEVEL=debug LOG_FORMAT=compact cargo test test_graceful_shutdown_with_active_tasks -- --nocapture
+
+# Monitor autoscaler decisions
+LOG_LEVEL=debug LOG_FORMAT=json cargo test | jq 'select(.fields.operation == "scaling_decision")'
+
+# Production debugging with JSON output
+LOG_LEVEL=info LOG_FORMAT=json cargo run --bin task-worker worker | jq
 ```
 
 ## Troubleshooting
@@ -1458,6 +1700,12 @@ grep -r "\"default\"\|\"high_priority\"" examples/
 12. **Graceful shutdown completes within timeout**
 13. **Task spawning context is properly initialized**
 14. **Semaphore permits are correctly managed**
+15. **Logging configuration is appropriate for environment (LOG_LEVEL, LOG_FORMAT)**
+16. **Structured logging is properly formatted and accessible**
+17. **Tracing spans are being created and correlated correctly**
+18. **Performance metrics are being captured and analyzed**
+19. **Error chain analysis is providing sufficient debugging context**
+20. **Observability platform integration is functioning correctly**
 
 ### Getting Help
 

@@ -46,6 +46,7 @@ hex = "0.4"
 
 # Optional dependencies
 tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", optional = true, features = ["env-filter", "json", "fmt", "std", "tracing-log"] }
 actix-web = { version = "4.4", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 config = { version = "0.14", optional = true }
@@ -59,18 +60,13 @@ tracing-subscriber = "0.3"
 criterion = { version = "0.5", features = ["html_reports"] }
 actix-web = { version = "4.4", features = ["macros"] }
 
-[dependencies.tracing-subscriber]
-version = "0.3"
-optional = true
-features = ["env-filter"]
-
 [features]
 default = ["tracing", "auto-register", "config-support", "cli"]
 full = ["tracing", "actix-integration", "cli", "auto-register", "config-support"]
 auto-register = ["rust-task-queue-macros"]
-tracing = ["dep:tracing"]
+tracing = ["dep:tracing", "dep:tracing-subscriber"]
 actix-integration = ["dep:actix-web", "tracing"]
-cli = ["dep:clap", "tracing", "dep:tracing-subscriber"]
+cli = ["dep:clap", "tracing"]
 config-support = ["dep:config", "dep:toml", "dep:serde_yaml"]
 
 [package.metadata.docs.rs]

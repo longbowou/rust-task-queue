@@ -6,8 +6,8 @@
 // Core types and traits
 pub use crate::{
     AutoScaler, AutoScalerConfig, QueueManager, QueueMetrics, RedisBroker, ScalingAction, Task,
-    TaskId, TaskMetadata, TaskQueue, TaskQueueBuilder, TaskQueueError, TaskRegistry, TaskScheduler,
-    TaskWrapper, Worker,
+    TaskId, TaskMetadata, TaskPriority, TaskQueue, TaskQueueBuilder, TaskQueueError, TaskRegistry, 
+    TaskResult, TaskScheduler, TaskWrapper, Worker,
 };
 
 // Configuration types
@@ -44,3 +44,13 @@ pub use chrono::{DateTime, Duration, Utc};
 
 // UUID handling for task IDs
 pub use uuid::Uuid;
+
+#[cfg(feature = "tracing")]
+pub use crate::tracing_utils::{
+    trace_task_lifecycle_event, trace_task_error, trace_queue_operation, trace_worker_operation,
+    TaskLifecycleEvent, TaskPerformanceMetrics, QueuePerformanceMetrics, WorkerPerformanceMetrics,
+    PerformanceTracker,
+};
+
+#[cfg(feature = "config-support")]
+pub use crate::config::*;

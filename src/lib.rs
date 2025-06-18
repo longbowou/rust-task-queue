@@ -116,6 +116,9 @@ pub mod scheduler;
 pub mod task;
 pub mod worker;
 
+#[cfg(feature = "tracing")]
+pub mod tracing_utils;
+
 #[cfg(feature = "actix-integration")]
 #[cfg_attr(docsrs, doc(cfg(feature = "actix-integration")))]
 pub mod actix;

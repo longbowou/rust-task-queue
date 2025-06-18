@@ -62,8 +62,9 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 - **Retry logic** with exponential backoff and configurable attempts
 - **Task timeouts** and comprehensive failure handling
 - **Advanced metrics and monitoring** with SLA tracking and performance insights
+- **Production-grade observability** with comprehensive structured logging and tracing
 - **Actix Web integration** (optional) with built-in endpoints
-- **CLI tools** for standalone workers with process separation
+- **CLI tools** for standalone workers with process separation and logging configuration
 - **Automatic task registration** with procedural macros
 - **Production-ready** with robust error handling and safety improvements
 - **High performance** with MessagePack serialization and connection pooling
@@ -71,6 +72,7 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 - **Graceful shutdown** with active task tracking and cleanup
 - **Smart resource allocation** with semaphore-based concurrency control
 - **Comprehensive testing** with unit, integration, performance, and security tests
+- **Enterprise-grade tracing** with lifecycle tracking, performance monitoring, and error context
 
 ## Performance Benchmarks
 
@@ -99,6 +101,124 @@ The project maintains comprehensive test coverage across multiple dimensions:
 - **Benchmarks**: 5 performance benchmarks for optimization
 
 **Total**: 220+ tests ensuring reliability and performance
+
+## Enterprise-Grade Observability
+
+The framework includes comprehensive structured logging and tracing capabilities for production systems:
+
+### Tracing Features
+
+- **Complete Task Lifecycle Tracking**: From enqueue to completion with detailed spans
+- **Performance Monitoring**: Execution timing, queue metrics, and throughput analysis  
+- **Error Chain Analysis**: Deep context and source tracking for debugging
+- **Worker Activity Monitoring**: Real-time status and resource utilization
+- **Distributed Tracing**: Async instrumentation with span correlation
+- **Production Logging Configuration**: Multiple output formats (JSON/compact/pretty)
+
+### Logging Configuration
+
+```rust
+use rust_task_queue::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Configure structured logging for production
+    configure_production_logging(
+        rust_task_queue::LogLevel::Info,
+        rust_task_queue::LogFormat::Json
+    );
+
+    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+        .auto_register_tasks()
+        .initial_workers(4)
+        .build()
+        .await?;
+
+    Ok(())
+}
+```
+
+### Environment-Based Configuration
+
+```bash
+# Configure logging via environment variables
+export LOG_LEVEL=info        # trace, debug, info, warn, error
+export LOG_FORMAT=json       # json, compact, pretty
+
+# Start worker with production logging
+cargo run --bin task-worker worker --workers 4
+```
+
+### Structured Logging Output
+
+**JSON Format (Production):**
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "level": "INFO",
+  "target": "rust_task_queue::broker",
+  "span": {"name": "enqueue_task", "task_id": "abc123"},
+  "fields": {
+    "task_type": "ProcessOrderTask",
+    "queue": "high_priority",
+    "payload_size": 1024,
+    "priority": "high"
+  },
+  "message": "Task enqueued successfully"
+}
+```
+
+**Compact Format (Development):**
+```
+2024-01-15T10:30:00.123Z INFO enqueue_task{task_id=abc123}: rust_task_queue::broker: Task enqueued successfully task_type="ProcessOrderTask" queue="high_priority"
+```
+
+### Tracing Integration
+
+```rust
+use rust_task_queue::prelude::*;
+use tracing::{info, warn, error};
+
+#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]  
+struct MyTask {
+    data: String,
+}
+
+#[async_trait]
+impl Task for MyTask {
+    async fn execute(&self) -> TaskResult {
+        // Automatic tracing spans are created for task execution
+        info!("Processing task with data: {}", self.data);
+        
+        // Your business logic here
+        let result = process_data(&self.data).await?;
+        
+        Ok(serde_json::json!({"result": result}))
+    }
+
+    fn name(&self) -> &str { "my_task" }
+}
+```
+
+### Performance Monitoring
+
+The tracing system provides detailed performance insights:
+
+- **Task Execution Timing**: Individual task performance tracking
+- **Queue Depth Monitoring**: Real-time queue status and trends
+- **Worker Utilization**: Capacity analysis and efficiency metrics
+- **Error Rate Tracking**: System health and failure analysis
+- **Throughput Analysis**: Tasks per second and bottleneck identification
+
+### Production Integration
+
+Perfect for integration with observability platforms:
+
+- **ELK Stack**: Elasticsearch, Logstash, and Kibana
+- **Datadog**: Application Performance Monitoring
+- **Splunk**: Log aggregation and analysis
+- **Grafana**: Metrics visualization and alerting
+- **OpenTelemetry**: Distributed tracing standards
 
 ## Comprehensive Metrics API
 
@@ -164,9 +284,15 @@ rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "ac
 
 - `default`: `tracing` + `auto-register` + `config-support` + `cli` (recommended)
 - `full`: All features enabled for maximum functionality
-- `tracing`: Structured logging with performance insights
+- `tracing`: **Enterprise-grade structured logging and observability**
+  - Complete task lifecycle tracking with distributed spans
+  - Performance monitoring and execution timing
+  - Error chain analysis with deep context
+  - Worker activity and resource utilization monitoring
+  - Production-ready logging configuration (JSON/compact/pretty formats)
+  - Environment-based configuration support
 - `actix-integration`: Web framework integration with built-in endpoints
-- `cli`: Standalone worker binaries with configuration support
+- `cli`: Standalone worker binaries with logging configuration support
 - `auto-register`: Automatic task discovery via procedural macros
 - `config-support`: External TOML/YAML configuration files
 
@@ -636,6 +762,8 @@ cargo run --bin task-worker --features cli,auto-register worker \
 - `--queues, -q`: Comma-separated list of queue names to process
 - `--worker-prefix`: Custom prefix for worker names
 - `--config, -c`: Path to enhanced configuration file (recommended)
+- `--log-level`: Logging level (trace, debug, info, warn, error)
+- `--log-format`: Log output format (json, compact, pretty)
 - `--autoscaler-min-workers`: Minimum workers for auto-scaling
 - `--autoscaler-max-workers`: Maximum workers for auto-scaling
 - `--autoscaler-consecutive-signals`: Required consecutive signals for scaling
@@ -649,16 +777,31 @@ cargo run --bin task-worker --features cli,auto-register worker \
   --enable-autoscaler \
   --enable-scheduler
 
+# Workers with production logging (JSON format)
+cargo run --bin task-worker --features cli,auto-register worker \
+  --workers 4 \
+  --log-level info \
+  --log-format json
+
+# Development workers with detailed tracing
+cargo run --bin task-worker --features cli,auto-register worker \
+  --workers 2 \
+  --log-level debug \
+  --log-format pretty
+
 # Workers for specific queues only
 cargo run --bin task-worker --features cli,auto-register worker \
   --workers 4 \
-  --queues "high_priority,default"
+  --queues "high_priority,default" \
+  --log-level info
 
-# Workers with custom naming
+# Workers with custom naming and logging
 cargo run --bin task-worker --features cli,auto-register worker \
   --workers 2 \
   --worker-prefix "priority-worker" \
-  --queues "high_priority"
+  --queues "high_priority" \
+  --log-level debug \
+  --log-format compact
 ```
 
 ## Production Deployment with Enhanced Auto-scaling
@@ -718,6 +861,13 @@ collect_scaling_metrics = true
 collect_sla_metrics = true
 collect_adaptive_threshold_metrics = true
 
+[logging]
+level = "info"              # trace, debug, info, warn, error
+format = "json"             # json, compact, pretty
+enable_task_lifecycle = true
+enable_performance_monitoring = true
+enable_error_chain_analysis = true
+
 [alerts]
 max_queue_pressure_score = 2.0
 min_worker_utilization = 0.10
@@ -743,6 +893,8 @@ docker run -d \
 docker run -d \
   --name task-queue-workers \
   -v $(pwd)/production-task-queue.toml:/app/task-queue.toml \
+  -e LOG_LEVEL=info \
+  -e LOG_FORMAT=json \
   --restart unless-stopped \
   your-app:latest \
   cargo run --bin task-worker --features cli,auto-register worker \
@@ -763,14 +915,23 @@ docker run -d \
 ### Monitoring Enhanced Auto-scaling
 
 ```bash
-# Monitor auto-scaling decisions in real-time
-docker logs -f task-queue-workers | grep "Enhanced auto-scaling"
+# Monitor auto-scaling decisions in real-time with structured logging
+docker logs -f task-queue-workers | jq 'select(.fields.operation == "scaling_decision")'
 
 # View detailed scaling metrics
 curl http://localhost:3000/tasks/metrics | jq '.autoscaler'
 
 # Check SLA performance
 curl http://localhost:3000/tasks/health | jq '.sla_metrics'
+
+# Monitor task lifecycle events
+docker logs -f task-queue-workers | jq 'select(.span.name == "task_execution")'
+
+# Track performance metrics
+docker logs -f task-queue-workers | jq 'select(.fields.event_type == "performance_metric")'
+
+# View error chain analysis
+docker logs -f task-queue-workers | jq 'select(.level == "ERROR")' | jq '.fields.error_chain'
 ```
 
 ## Configuration and Safety
@@ -965,20 +1126,49 @@ curl http://localhost:3000/tasks/registered         # Registered tasks
 curl http://localhost:3000/tasks/registry/info      # Registry information
 ```
 
-### Logging
+### Logging and Observability
 
-Enable structured logging with tracing:
+Enable comprehensive structured logging and tracing:
 
 ```rust
-use tracing_subscriber;
+use rust_task_queue::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    // Production logging configuration
+    configure_production_logging(
+        LogLevel::Info,
+        LogFormat::Json
+    );
 
-    // Your application code here
+    // Alternative: Environment-based configuration
+    // LOG_LEVEL=info LOG_FORMAT=json
+    configure_logging_from_env();
+
+    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+        .auto_register_tasks()
+        .initial_workers(4)
+        .build()
+        .await?;
+
+    // All operations are automatically traced
+    let task = MyTask { data: "example".to_string() };
+    let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await?;
+    
     Ok(())
 }
+```
+
+**Development Setup:**
+```rust
+// For development with detailed tracing
+configure_production_logging(LogLevel::Debug, LogFormat::Pretty);
+```
+
+**Production Setup:**
+```rust
+// For production with JSON structured logs
+configure_production_logging(LogLevel::Info, LogFormat::Json);
 ```
 
 ### Worker Monitoring
@@ -1151,10 +1341,24 @@ cargo check --all-targets --all-features
 
 ### Debug Mode
 
-Enable debug logging:
+Enable debug logging with multiple options:
 
 ```bash
-RUST_LOG=debug cargo run --bin task-worker --features cli worker
+# Use built-in logging configuration
+cargo run --bin task-worker --features cli worker \
+  --log-level debug --log-format pretty
+
+# Environment-based configuration
+LOG_LEVEL=debug LOG_FORMAT=pretty \
+  cargo run --bin task-worker --features cli worker
+
+# Detailed tracing for specific components
+LOG_LEVEL=trace \
+  cargo run --bin task-worker --features cli worker
+
+# Production debugging with JSON format
+LOG_LEVEL=debug LOG_FORMAT=json \
+  cargo run --bin task-worker --features cli worker | jq
 ```
 
 ### Testing Issues

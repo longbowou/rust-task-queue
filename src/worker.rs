@@ -8,6 +8,9 @@ use serde::Serialize;
 use tokio::sync::{mpsc, Semaphore};
 use tokio::task::JoinHandle;
 
+#[cfg(feature = "tracing")]
+use tracing::Instrument;
+
 pub struct Worker {
     id: String,
     broker: Arc<RedisBroker>,
@@ -111,15 +114,23 @@ impl Worker {
                 queue_names::LOW_PRIORITY.to_string(),
             ];
 
+            #[cfg(feature = "tracing")]
+            tracing::info!(
+                worker_id = %execution_context.worker_id,
+                queues = ?queues,
+                semaphore_permits = execution_context.semaphore.as_ref().map(|s| s.available_permits()),
+                "Worker main loop started"
+            );
+
             loop {
                 tokio::select! {
                     // Check for shutdown signal
                     _ = shutdown_rx.recv() => {
                         #[cfg(feature = "tracing")]
                         tracing::info!(
-                            "Worker {} shutting down with {} active tasks",
-                            execution_context.worker_id,
-                            execution_context.active_tasks.load(Ordering::Relaxed)
+                            worker_id = %execution_context.worker_id,
+                            active_tasks = execution_context.active_tasks.load(Ordering::Relaxed),
+                            "Worker received shutdown signal"
                         );
 
                         // Wait for active tasks to complete before shutting down
@@ -127,42 +138,95 @@ impl Worker {
 
                         if let Err(_e) = execution_context.broker.unregister_worker(&execution_context.worker_id).await {
                             #[cfg(feature = "tracing")]
-                            tracing::error!("Failed to unregister worker {}: {}", execution_context.worker_id, _e);
+                            tracing::error!(
+                                worker_id = %execution_context.worker_id,
+                                error = %_e,
+                                "Failed to unregister worker during shutdown"
+                            );
+                        } else {
+                            #[cfg(feature = "tracing")]
+                            tracing::info!(
+                                worker_id = %execution_context.worker_id,
+                                "Worker unregistered successfully during shutdown"
+                            );
                         }
                         break;
                     }
 
                     // Process tasks with improved spawning logic
                     task_result = execution_context.broker.dequeue_task(&queues) => {
+                        let current_active_tasks = execution_context.active_tasks.load(Ordering::Relaxed);
+                        
                         match task_result {
                             Ok(Some(task_wrapper)) => {
+                                #[cfg(feature = "tracing")]
+                                tracing::debug!(
+                                    worker_id = %execution_context.worker_id,
+                                    task_id = %task_wrapper.metadata.id,
+                                    task_name = %task_wrapper.metadata.name,
+                                    queue_source = "unknown", // Could be enhanced to track which queue
+                                    active_tasks_before = current_active_tasks,
+                                    "Task received for processing"
+                                );
+                                
                                 match Self::handle_task_execution(execution_context.clone(), task_wrapper).await {
                                     SpawnResult::Spawned => {
-                                        // Task successfully spawned
                                         #[cfg(feature = "tracing")]
-                                        tracing::debug!("Task spawned, active tasks: {}", execution_context.active_tasks.load(Ordering::Relaxed));
+                                        tracing::debug!(
+                                            worker_id = %execution_context.worker_id,
+                                            active_tasks = execution_context.active_tasks.load(Ordering::Relaxed),
+                                            semaphore_permits = execution_context.semaphore.as_ref().map(|s| s.available_permits()),
+                                            "Task spawned successfully"
+                                        );
                                     }
-                                    SpawnResult::Rejected(_rejected_task) => {
-                                        // Task was rejected due to backpressure, will be re-queued
+                                    SpawnResult::Rejected(rejected_task) => {
                                         #[cfg(feature = "tracing")]
-                                        tracing::debug!("Task {} rejected due to backpressure", _rejected_task.metadata.id);
+                                        tracing::warn!(
+                                            worker_id = %execution_context.worker_id,
+                                            task_id = %rejected_task.metadata.id,
+                                            task_name = %rejected_task.metadata.name,
+                                            active_tasks = current_active_tasks,
+                                            semaphore_permits = execution_context.semaphore.as_ref().map(|s| s.available_permits()),
+                                            "Task rejected due to backpressure"
+                                        );
                                     }
                                     SpawnResult::Failed(_e) => {
                                         #[cfg(feature = "tracing")]
-                                        tracing::error!("Failed to handle task execution: {}", _e);
+                                        tracing::error!(
+                                            worker_id = %execution_context.worker_id,
+                                            error = %_e,
+                                            active_tasks = current_active_tasks,
+                                            "Failed to handle task execution"
+                                        );
                                     }
                                 }
                             }
                             Ok(None) => {
                                 // No tasks available, update heartbeat
+                                #[cfg(feature = "tracing")]
+                                tracing::trace!(
+                                    worker_id = %execution_context.worker_id,
+                                    active_tasks = current_active_tasks,
+                                    "No tasks available, updating heartbeat"
+                                );
+                                
                                 if let Err(_e) = execution_context.broker.update_worker_heartbeat(&execution_context.worker_id).await {
                                     #[cfg(feature = "tracing")]
-                                    tracing::error!("Failed to update heartbeat for worker {}: {}", execution_context.worker_id, _e);
+                                    tracing::error!(
+                                        worker_id = %execution_context.worker_id,
+                                        error = %_e,
+                                        "Failed to update worker heartbeat"
+                                    );
                                 }
                             }
                             Err(_e) => {
                                 #[cfg(feature = "tracing")]
-                                tracing::error!("Worker {} error dequeuing task: {}", execution_context.worker_id, _e);
+                                tracing::error!(
+                                    worker_id = %execution_context.worker_id,
+                                    error = %_e,
+                                    active_tasks = current_active_tasks,
+                                    "Error dequeuing task, backing off"
+                                );
 
                                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                             }
@@ -170,6 +234,12 @@ impl Worker {
                     }
                 }
             }
+            
+            #[cfg(feature = "tracing")]
+            tracing::info!(
+                worker_id = %execution_context.worker_id,
+                "Worker main loop ended gracefully"
+            );
         });
 
         self.shutdown_tx = Some(shutdown_tx);
@@ -351,70 +421,110 @@ impl Worker {
     async fn process_task(
         broker: &RedisBroker,
         task_registry: &crate::TaskRegistry,
-        _worker_id: &str,
+        worker_id: &str,
         mut task_wrapper: TaskWrapper,
     ) -> Result<(), TaskQueueError> {
         let task_id = task_wrapper.metadata.id;
-
-        #[cfg(feature = "tracing")]
-        tracing::debug!(
-            "Processing task {}: {}",
-            task_id,
-            task_wrapper.metadata.name
+        let task_name = &task_wrapper.metadata.name;
+        
+        // Create a span for the entire task lifecycle
+        let span = tracing::info_span!(
+            "process_task",
+            task_id = %task_id,
+            task_name = task_name,
+            worker_id = worker_id,
+            attempt = task_wrapper.metadata.attempts + 1,
+            max_retries = task_wrapper.metadata.max_retries
         );
+        
+        async move {
+            #[cfg(feature = "tracing")]
+            tracing::info!(
+                created_at = %task_wrapper.metadata.created_at,
+                timeout_seconds = task_wrapper.metadata.timeout_seconds,
+                payload_size_bytes = task_wrapper.payload.len(),
+                "Starting task processing"
+            );
 
-        task_wrapper.metadata.attempts += 1;
+            let execution_start = std::time::Instant::now();
+            task_wrapper.metadata.attempts += 1;
 
-        // Execute the task
-        match Self::execute_task_with_registry(task_registry, &task_wrapper).await {
-            Ok(_result) => {
-                #[cfg(feature = "tracing")]
-                tracing::debug!("Task {} completed successfully", task_id);
+            // Record attempt start
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                attempt = task_wrapper.metadata.attempts,
+                created_at = %task_wrapper.metadata.created_at,
+                "Task execution attempt started"
+            );
 
-                broker
-                    .mark_task_completed(task_id, queue_names::DEFAULT)
-                    .await?;
-            }
-            Err(error) => {
-                let error_msg = error.to_string();
-
-                #[cfg(feature = "tracing")]
-                tracing::error!("Task {} failed: {}", task_id, error_msg);
-
-                // Check if we should retry
-                if task_wrapper.metadata.attempts < task_wrapper.metadata.max_retries {
+            // Execute the task
+            match Self::execute_task_with_registry(task_registry, &task_wrapper).await {
+                Ok(result) => {
+                    let execution_duration = execution_start.elapsed();
+                    
                     #[cfg(feature = "tracing")]
                     tracing::info!(
-                        "Re-queuing task {} for retry (attempt {} of {})",
-                        task_id,
-                        task_wrapper.metadata.attempts,
-                        task_wrapper.metadata.max_retries
-                    );
-
-                    // Re-enqueue for retry
-                    broker
-                        .enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT)
-                        .await?;
-                } else {
-                    #[cfg(feature = "tracing")]
-                    tracing::error!(
-                        "Task {} failed permanently after {} attempts",
-                        task_id,
-                        task_wrapper.metadata.attempts
+                        duration_ms = execution_duration.as_millis(),
+                        result_size_bytes = result.len(),
+                        success = true,
+                        "Task completed successfully"
                     );
 
                     broker
-                        .mark_task_failed_with_reason(
-                            task_id,
-                            queue_names::DEFAULT,
-                            Some(error_msg),
-                        )
+                        .mark_task_completed(task_id, queue_names::DEFAULT)
                         .await?;
                 }
-            }
-        }
+                Err(error) => {
+                    let execution_duration = execution_start.elapsed();
+                    let error_msg = error.to_string();
+                    
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(
+                        duration_ms = execution_duration.as_millis(),
+                        error = %error,
+                        error_source = error.source().map(|e| e.to_string()).as_deref(),
+                        success = false,
+                        "Task execution failed"
+                    );
 
-        Ok(())
+                    // Check if we should retry
+                    if task_wrapper.metadata.attempts < task_wrapper.metadata.max_retries {
+                        let remaining_retries = task_wrapper.metadata.max_retries - task_wrapper.metadata.attempts;
+                        
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!(
+                            remaining_retries = remaining_retries,
+                            retry_delay_ms = 1000 * task_wrapper.metadata.attempts as u64, // Simple exponential backoff
+                            "Re-queuing task for retry"
+                        );
+
+                        // Re-enqueue for retry
+                        broker
+                            .enqueue_task_wrapper(task_wrapper, queue_names::DEFAULT)
+                            .await?;
+                    } else {
+                        #[cfg(feature = "tracing")]
+                        tracing::error!(
+                            final_error = %error_msg,
+                            total_attempts = task_wrapper.metadata.attempts,
+                            "Task failed permanently - maximum retries exceeded"
+                        );
+
+                        broker
+                            .mark_task_failed_with_reason(
+                                task_id,
+                                queue_names::DEFAULT,
+                                Some(error_msg),
+                            )
+                            .await?;
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        .instrument(span)
+        .await
     }
 
     async fn execute_task_with_registry(
@@ -422,6 +532,16 @@ impl Worker {
         task_wrapper: &TaskWrapper,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let task_name = &task_wrapper.metadata.name;
+        let task_id = task_wrapper.metadata.id;
+        let execution_start = std::time::Instant::now();
+
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            task_id = %task_id,
+            task_name = task_name,
+            payload_size_bytes = task_wrapper.payload.len(),
+            "Attempting task execution with registry"
+        );
 
         // Try to execute using the task registry
         match task_registry
@@ -430,18 +550,30 @@ impl Worker {
         {
             Ok(result) => {
                 #[cfg(feature = "tracing")]
-                tracing::debug!("Executing task {} with registered executor", task_name);
+                tracing::info!(
+                    task_id = %task_id,
+                    task_name = task_name,
+                    duration_ms = execution_start.elapsed().as_millis(),
+                    result_size_bytes = result.len(),
+                    execution_method = "registry",
+                    "Task executed successfully with registered executor"
+                );
 
                 Ok(result)
             }
             Err(error) => {
+                let execution_duration = execution_start.elapsed();
+                
                 // Check if this is a "task not found" error vs a task execution failure
                 let error_msg = error.to_string();
                 if error_msg.contains("Unknown task type") {
                     #[cfg(feature = "tracing")]
                     tracing::warn!(
-                        "No executor found for task type: {}, using fallback",
-                        task_name
+                        task_id = %task_id,
+                        task_name = task_name,
+                        duration_ms = execution_duration.as_millis(),
+                        error = %error,
+                        "No executor found for task type, using fallback"
                     );
 
                     // Fallback: serialize task metadata as response
@@ -450,22 +582,44 @@ impl Worker {
                         status: String,
                         message: String,
                         timestamp: String,
+                        task_id: String,
+                        task_name: String,
                     }
 
                     let response = FallbackResponse {
                         status: "completed".to_string(),
                         message: format!("Task {} completed with fallback executor", task_name),
                         timestamp: chrono::Utc::now().to_rfc3339(),
+                        task_id: task_id.to_string(),
+                        task_name: task_name.to_string(),
                     };
 
                     let serialized = serde_json::to_vec(&response)
                         .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
+                    #[cfg(feature = "tracing")]
+                    tracing::info!(
+                        task_id = %task_id,
+                        task_name = task_name,
+                        duration_ms = execution_duration.as_millis(),
+                        result_size_bytes = serialized.len(),
+                        execution_method = "fallback",
+                        "Task completed with fallback executor"
+                    );
+
                     Ok(serialized)
                 } else {
                     // This is an actual task execution failure - propagate it
                     #[cfg(feature = "tracing")]
-                    tracing::error!("Task {} failed during execution: {}", task_name, error_msg);
+                    tracing::error!(
+                        task_id = %task_id,
+                        task_name = task_name,
+                        duration_ms = execution_duration.as_millis(),
+                        error = %error,
+                        error_source = error.source().map(|e| e.to_string()).as_deref(),
+                        execution_method = "registry",
+                        "Task execution failed in registered executor"
+                    );
 
                     Err(error)
                 }

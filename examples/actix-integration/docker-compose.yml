@@ -17,13 +17,14 @@ services:
     working_dir: /app/examples/actix-integration
     volumes:
       - ../../:/app
+    environment:
+      - LOG_FORMAT=json
+      - LOG_LEVEL=info
     depends_on:
       - redis
 
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis:/data
     restart: unless-stopped

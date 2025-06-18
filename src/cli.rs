@@ -4,11 +4,15 @@
 //! task workers with minimal boilerplate code.
 
 use crate::config::{ConfigBuilder, TaskQueueConfig};
-use crate::prelude::*;
+use crate::task::TaskRegistry;
+use crate::TaskQueueBuilder;
 use std::env;
 
 #[cfg(feature = "cli")]
 use tracing_subscriber;
+
+#[cfg(feature = "tracing")]
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 /// Start a consumer task worker with the given configuration
 ///
@@ -32,12 +36,55 @@ use tracing_subscriber;
 pub async fn start_cli_worker(config: TaskQueueConfig) -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     {
-        use tracing_subscriber::{fmt, EnvFilter};
         let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
-        fmt()
-            .with_env_filter(EnvFilter::new(&log_level))
-            .with_target(true)
-            .init();
+        let log_format = env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
+        
+        let env_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| {
+                EnvFilter::new(format!(
+                    "rust_task_queue={},{}",
+                    log_level,
+                    if log_level == "debug" || log_level == "trace" {
+                        "redis=warn,deadpool=warn"
+                    } else {
+                        "warn"
+                    }
+                ))
+            });
+
+        let fmt_layer = match log_format.as_str() {
+            "json" => {
+                fmt::layer()
+                    .with_target(true)
+                    .with_thread_ids(true)
+                    .with_file(true)
+                    .with_line_number(true)
+                    .json()
+                    .boxed()
+            }
+            "compact" => {
+                fmt::layer()
+                    .with_target(false)
+                    .compact()
+                    .boxed()
+            }
+            _ => {
+                fmt::layer()
+                    .with_target(true)
+                    .with_thread_ids(true)
+                    .pretty()
+                    .boxed()
+            }
+        };
+
+        if let Err(e) = tracing_subscriber::registry()
+            .with(env_filter)
+            .with(fmt_layer)
+            .try_init()
+        {
+            eprintln!("Failed to initialize tracing: {}", e);
+            std::process::exit(1);
+        }
     }
 
     #[cfg(feature = "tracing")]
@@ -47,6 +94,11 @@ pub async fn start_cli_worker(config: TaskQueueConfig) -> Result<(), Box<dyn std
         tracing::info!("Workers: {}", config.workers.initial_count);
         tracing::info!("Auto-register: {}", config.auto_register.enabled);
         tracing::info!("Scheduler: {}", config.scheduler.enabled);
+        tracing::info!(
+            log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string()),
+            log_format = env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string()),
+            "Enhanced tracing initialized"
+        );
     }
 
     // Create task queue with configuration

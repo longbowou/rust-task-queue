@@ -53,6 +53,22 @@ impl RedisBroker {
         task: T,
         queue: &str,
     ) -> Result<TaskId, TaskQueueError> {
+        let task_name = task.name();
+        let priority = task.priority();
+        let max_retries = task.max_retries();
+        let timeout_seconds = task.timeout_seconds();
+        let enqueue_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            task_name = task_name,
+            queue = queue,
+            priority = ?priority,
+            max_retries = max_retries,
+            timeout_seconds = timeout_seconds,
+            "Enqueuing task"
+        );
+
         let task_id = TaskId::new_v4();
 
         // Create task metadata
@@ -67,6 +83,7 @@ impl RedisBroker {
 
         // Serialize the task
         let payload = rmp_serde::to_vec(&task)?;
+        let payload_len = payload.len(); // Capture length before move
 
         let task_wrapper = TaskWrapper {
             metadata: metadata.clone(),
@@ -74,6 +91,17 @@ impl RedisBroker {
         };
 
         self.enqueue_task_wrapper(task_wrapper, queue).await?;
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            task_id = %task_id,
+            task_name = task_name,
+            queue = queue,
+            priority = ?priority,
+            duration_ms = enqueue_start.elapsed().as_millis(),
+            payload_size_bytes = payload_len,
+            "Task enqueued successfully"
+        );
 
         Ok(task_id)
     }
@@ -160,6 +188,20 @@ impl RedisBroker {
         task_wrapper: TaskWrapper,
         queue: &str,
     ) -> Result<TaskId, TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        let task_id = task_wrapper.metadata.id;
+        let task_name = &task_wrapper.metadata.name;
+        
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            task_id = %task_id,
+            task_name = task_name,
+            queue = queue,
+            attempts = task_wrapper.metadata.attempts,
+            max_retries = task_wrapper.metadata.max_retries,
+            "Enqueuing task wrapper"
+        );
+
         // SECURITY: Validate inputs
         Self::validate_queue_name(queue)?;
 
@@ -169,12 +211,24 @@ impl RedisBroker {
 
         // Validate metadata
         if task_wrapper.metadata.name.is_empty() {
+            #[cfg(feature = "tracing")]
+            tracing::error!(
+                task_id = %task_id,
+                "Task name validation failed: empty name"
+            );
             return Err(TaskQueueError::TaskExecution(
                 "Task name cannot be empty".to_string(),
             ));
         }
 
         if task_wrapper.metadata.name.len() > 255 {
+            #[cfg(feature = "tracing")]
+            tracing::error!(
+                task_id = %task_id,
+                task_name = task_name,
+                name_length = task_wrapper.metadata.name.len(),
+                "Task name validation failed: name too long"
+            );
             return Err(TaskQueueError::TaskExecution(
                 "Task name too long (max 255 characters)".to_string(),
             ));
@@ -197,10 +251,14 @@ impl RedisBroker {
             .await?;
 
         #[cfg(feature = "tracing")]
-        tracing::debug!(
-            "Enqueued task {} to queue {} using pipeline",
-            task_wrapper.metadata.id,
-            queue
+        tracing::info!(
+            task_id = %task_wrapper.metadata.id,
+            task_name = task_name,
+            queue = queue,
+            duration_ms = operation_start.elapsed().as_millis(),
+            payload_size_bytes = serialized.len(),
+            metadata_ttl_seconds = 3600,
+            "Task wrapper enqueued successfully using pipeline"
         );
 
         Ok(task_wrapper.metadata.id)
@@ -212,14 +270,26 @@ impl RedisBroker {
         tasks: Vec<(T, &str)>,
     ) -> Result<Vec<TaskId>, TaskQueueError> {
         if tasks.is_empty() {
+            #[cfg(feature = "tracing")]
+            tracing::warn!("Batch enqueue called with empty task list");
             return Ok(Vec::new());
         }
+
+        let batch_start = std::time::Instant::now();
+        let batch_size = tasks.len();
+        
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            batch_size = batch_size,
+            "Starting batch enqueue operation"
+        );
 
         let mut conn = self.get_conn().await?;
         let mut pipeline = redis::pipe();
         pipeline.atomic();
 
         let mut task_ids = Vec::with_capacity(tasks.len());
+        let mut queue_distribution = std::collections::HashMap::new();
 
         for (task, queue) in tasks {
             // Validate queue name for each task
@@ -227,6 +297,9 @@ impl RedisBroker {
 
             let task_id = TaskId::new_v4();
             task_ids.push(task_id);
+
+            // Track queue distribution for logging
+            *queue_distribution.entry(queue.to_string()).or_insert(0) += 1;
 
             let metadata = TaskMetadata {
                 id: task_id,
@@ -238,6 +311,7 @@ impl RedisBroker {
             };
 
             let payload = rmp_serde::to_vec(&task)?;
+            let payload_len = payload.len();
             let task_wrapper = TaskWrapper {
                 metadata: metadata.clone(),
                 payload,
@@ -254,13 +328,28 @@ impl RedisBroker {
                 rmp_serde::to_vec(&metadata)?,
                 3600,
             );
+
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                task_id = %task_id,
+                task_name = task.name(),
+                queue = queue,
+                payload_size_bytes = payload_len,
+                "Task added to batch pipeline"
+            );
         }
 
         // Execute all operations atomically
         let _: Vec<()> = pipeline.query_async(&mut *conn).await?;
 
         #[cfg(feature = "tracing")]
-        tracing::debug!("Batch enqueued {} tasks using pipeline", task_ids.len());
+        tracing::info!(
+            batch_size = task_ids.len(),
+            duration_ms = batch_start.elapsed().as_millis(),
+            queue_distribution = ?queue_distribution,
+            total_task_ids = task_ids.len(),
+            "Batch enqueue completed successfully using pipeline"
+        );
 
         Ok(task_ids)
     }
@@ -269,23 +358,44 @@ impl RedisBroker {
         &self,
         queues: &[String],
     ) -> Result<Option<TaskWrapper>, TaskQueueError> {
+        let dequeue_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            queues = ?queues,
+            queue_count = queues.len(),
+            "Starting dequeue operation"
+        );
+
         let mut conn = self.get_conn().await?;
 
         // Use BRPOP for blocking right pop (FIFO with LPUSH)
         let result: Option<(String, Vec<u8>)> = conn.brpop(queues, 5f64).await?;
 
-        if let Some((_queue, serialized)) = result {
+        if let Some((queue, serialized)) = result {
             let task_wrapper: TaskWrapper = rmp_serde::from_slice(&serialized)?;
-
+            
             #[cfg(feature = "tracing")]
-            tracing::debug!(
-                "Dequeued task {} from queue {}",
-                task_wrapper.metadata.id,
-                _queue
+            tracing::info!(
+                task_id = %task_wrapper.metadata.id,
+                task_name = %task_wrapper.metadata.name,
+                queue = queue,
+                duration_ms = dequeue_start.elapsed().as_millis(),
+                payload_size_bytes = serialized.len(),
+                attempts = task_wrapper.metadata.attempts,
+                max_retries = task_wrapper.metadata.max_retries,
+                created_at = %task_wrapper.metadata.created_at,
+                "Task dequeued successfully"
             );
 
             Ok(Some(task_wrapper))
         } else {
+            #[cfg(feature = "tracing")]
+            tracing::trace!(
+                duration_ms = dequeue_start.elapsed().as_millis(),
+                queues = ?queues,
+                "Dequeue operation timed out - no tasks available"
+            );
             Ok(None)
         }
     }
@@ -297,6 +407,14 @@ impl RedisBroker {
     }
 
     pub async fn get_queue_metrics(&self, queue: &str) -> Result<QueueMetrics, TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            queue = queue,
+            "Retrieving queue metrics"
+        );
+
         let mut conn = self.get_conn().await?;
 
         let size: i64 = conn.llen(queue).await?;
@@ -306,12 +424,28 @@ impl RedisBroker {
         let processed: i64 = conn.get(&processed_key).await.unwrap_or(0);
         let failed: i64 = conn.get(&failed_key).await.unwrap_or(0);
 
-        Ok(QueueMetrics {
+        let metrics = QueueMetrics {
             queue_name: queue.to_string(),
             pending_tasks: size,
             processed_tasks: processed,
             failed_tasks: failed,
-        })
+        };
+
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            queue = queue,
+            pending_tasks = metrics.pending_tasks,
+            processed_tasks = metrics.processed_tasks,
+            failed_tasks = metrics.failed_tasks,
+            total_tasks = metrics.pending_tasks + metrics.processed_tasks + metrics.failed_tasks,
+            success_rate = if (metrics.processed_tasks + metrics.failed_tasks) > 0 {
+                metrics.processed_tasks as f64 / (metrics.processed_tasks + metrics.failed_tasks) as f64
+            } else { 0.0 },
+            duration_ms = operation_start.elapsed().as_millis(),
+            "Queue metrics retrieved"
+        );
+
+        Ok(metrics)
     }
 
     pub async fn mark_task_completed(
@@ -319,6 +453,15 @@ impl RedisBroker {
         task_id: TaskId,
         queue: &str,
     ) -> Result<(), TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            task_id = %task_id,
+            queue = queue,
+            "Marking task as completed"
+        );
+
         let mut conn = self.get_conn().await?;
         let processed_key = format!("queue:{}:processed", queue);
         conn.incr::<_, _, ()>(&processed_key, 1).await?;
@@ -326,6 +469,15 @@ impl RedisBroker {
         // Remove task metadata
         let metadata_key = format!("task:{}:metadata", task_id);
         conn.del::<_, ()>(&metadata_key).await?;
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            task_id = %task_id,
+            queue = queue,
+            duration_ms = operation_start.elapsed().as_millis(),
+            processed_key = processed_key,
+            "Task marked as completed successfully"
+        );
 
         Ok(())
     }
@@ -397,19 +549,48 @@ impl RedisBroker {
     }
 
     pub async fn register_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            worker_id = worker_id,
+            "Registering worker"
+        );
+
         let mut conn = self.get_conn().await?;
         conn.sadd::<_, _, ()>("active_workers", worker_id).await?;
 
         // Set heartbeat
         let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
-        conn.set::<_, _, ()>(&heartbeat_key, chrono::Utc::now().to_rfc3339())
+        let heartbeat_timestamp = chrono::Utc::now().to_rfc3339();
+        conn.set::<_, _, ()>(&heartbeat_key, &heartbeat_timestamp)
             .await?;
         conn.expire::<_, ()>(&heartbeat_key, 60).await?;
+
+        let active_workers = self.get_active_workers().await.unwrap_or(0);
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            worker_id = worker_id,
+            duration_ms = operation_start.elapsed().as_millis(),
+            heartbeat_key = heartbeat_key,
+            heartbeat_timestamp = heartbeat_timestamp,
+            total_active_workers = active_workers,
+            "Worker registered successfully"
+        );
 
         Ok(())
     }
 
     pub async fn unregister_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            worker_id = worker_id,
+            "Unregistering worker"
+        );
+
         let mut conn = self.get_conn().await?;
         conn.srem::<_, _, ()>("active_workers", worker_id).await?;
 
@@ -417,15 +598,38 @@ impl RedisBroker {
         let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
         conn.del::<_, ()>(&heartbeat_key).await?;
 
+        let active_workers = self.get_active_workers().await.unwrap_or(0);
+
+        #[cfg(feature = "tracing")]
+        tracing::info!(
+            worker_id = worker_id,
+            duration_ms = operation_start.elapsed().as_millis(),
+            heartbeat_key = heartbeat_key,
+            total_active_workers = active_workers,
+            "Worker unregistered successfully"
+        );
+
         Ok(())
     }
 
     pub async fn update_worker_heartbeat(&self, worker_id: &str) -> Result<(), TaskQueueError> {
+        let operation_start = std::time::Instant::now();
+        
         let mut conn = self.get_conn().await?;
         let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
-        conn.set::<_, _, ()>(&heartbeat_key, chrono::Utc::now().to_rfc3339())
+        let heartbeat_timestamp = chrono::Utc::now().to_rfc3339();
+        conn.set::<_, _, ()>(&heartbeat_key, &heartbeat_timestamp)
             .await?;
         conn.expire::<_, ()>(&heartbeat_key, 60).await?;
+        
+        #[cfg(feature = "tracing")]
+        tracing::trace!(
+            worker_id = worker_id,
+            duration_ms = operation_start.elapsed().as_millis(),
+            heartbeat_timestamp = heartbeat_timestamp,
+            "Worker heartbeat updated"
+        );
+        
         Ok(())
     }
 

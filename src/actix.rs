@@ -87,7 +87,7 @@ async fn get_autoscaler_metrics(
     task_queue: web::Data<Arc<TaskQueue>>,
 ) -> ActixResult<HttpResponse> {
     match tokio::try_join!(task_queue.autoscaler.collect_metrics(),) {
-        Ok((metrics)) => Ok(HttpResponse::Ok().json(json!({
+        Ok(metrics) => Ok(HttpResponse::Ok().json(json!({
             "metrics": metrics,
             "timestamp": Utc::now()
         }))),

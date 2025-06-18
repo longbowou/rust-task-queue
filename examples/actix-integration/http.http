@@ -76,15 +76,6 @@ GET http://localhost:8000/api/v1/rust-task-queue/registry
 ### Basic Task Operations (Original Tasks)
 ### ============================================================================
 
-### Simple email task
-POST http://localhost:8000/api/v1/tasks/email
-Content-Type: application/json
-
-{
-  "to": "user@example.com",
-  "subject": "Simple Email Test"
-}
-
 ### Email with all features
 POST http://localhost:8000/api/v1/tasks/email
 Content-Type: application/json
