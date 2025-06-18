@@ -55,12 +55,3 @@ Chaos engineering tests for scaling under failures
 Performance regression tests for scaling decision latency
 Cost optimization simulations
 Multi-queue priority scenarios
-
-# JSON logging for production
-export LOG_FORMAT=json
-export LOG_LEVEL=info
-
-# Debug mode with detailed tracing
-export LOG_FORMAT=pretty
-export LOG_LEVEL=debug
-export RUST_LOG="rust_task_queue=trace,redis=warn"
