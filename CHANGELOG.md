@@ -5,6 +5,73 @@ All notable changes to the Rust Task Queue project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-01-26
+
+### Changed
+
+#### Publishing and Compatibility Improvements
+
+- **Changed Rust edition** from 2024 to 2021 for broader compatibility
+- **Added minimum supported Rust version (MSRV)** of 1.70.0 
+- **Improved crate accessibility** by supporting older Rust versions
+- **Made auto-register functionality conditional** to support publishing without macros dependency
+
+#### Publishing Configuration
+
+- **Fixed workspace publishing issue** by making macros dependency optional
+- **Removed direct dependency** on unpublished `rust-task-queue-macros` crate
+- **Added conditional compilation** for all auto-register features
+- **Updated feature flags** to handle missing auto-register gracefully
+
+#### Developer Experience
+
+- **Added comprehensive publishing guide** (`PUBLISHING.md`) with step-by-step instructions
+- **Improved CLI handling** for environments without auto-register feature
+- **Enhanced conditional compilation** across all modules (CLI, Actix integration, core library)
+- **Fixed compiler warnings** and import issues for cleaner builds
+
+### Fixed
+
+#### Packaging and Publishing
+
+- **Resolved cargo publish error** caused by unpublished workspace dependency
+- **Fixed conditional feature compilation** in CLI and library code  
+- **Corrected import paths** and removed unused imports
+- **Enabled successful packaging** without macros crate dependency
+
+#### Code Quality
+
+- **Fixed clippy warnings** and unused variable warnings
+- **Improved error handling** for missing auto-register functionality
+- **Enhanced feature gate consistency** across all modules
+- **Cleaned up conditional compilation directives**
+
+### Technical Details
+
+#### Compatibility Matrix
+
+| Feature | With auto-register | Without auto-register |
+|---------|-------------------|----------------------|
+| Core task queue | ✅ | ✅ |
+| Manual registration | ✅ | ✅ |
+| Derive macros | ✅ | ❌ |
+| CLI workers | ✅ | ✅ |
+| Actix integration | ✅ | ✅ |
+
+#### Publishing Strategy
+
+- **Current release (0.1.1)**: Main crate without auto-register macros
+- **Future releases**: Will include published macros crate for full functionality
+- **Development**: Full workspace functionality maintained for contributors
+
+#### Migration Guide
+
+Users upgrading from 0.1.0 development versions should note:
+- Auto-register macros temporarily unavailable in published version
+- Manual task registration works identically
+- All core functionality preserved
+- CLI and Actix integration fully functional
+
 ## [0.1.0] - 2025-06-17 https://github.com/longbowou/rust-task-queue/releases/tag/0.1.0
 
 ### Initial Release
