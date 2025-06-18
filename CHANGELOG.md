@@ -5,17 +5,17 @@ All notable changes to the Rust Task Queue project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-## [0.1.0] - 2025-06-17
+## [0.1.0] - 2025-06-17 https://github.com/longbowou/rust-task-queue/releases/tag/0.1.0
 
 ### Initial Release
 
-This is the first major release of Rust Task Queue, a high-performance, Redis-backed task queue framework with enhanced auto-scaling capabilities for async Rust applications.
+This is the first major release of Rust Task Queue, a high-performance, Redis-backed task queue framework with enhanced
+auto-scaling capabilities for async Rust applications.
 
 ### Major Features Added
 
 #### Core Task Queue Framework
+
 - **Redis-backed broker** with optimized connection pooling and deadpool-redis integration
 - **High-performance task execution** with MessagePack serialization (~39ns serialization, ~31ns deserialization)
 - **Multiple queue priorities** with predefined queue constants and priority management
@@ -25,18 +25,20 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **Graceful shutdown** with active task tracking and proper cleanup
 
 #### Enhanced Multi-Dimensional Auto-Scaling
+
 - **5-metric analysis system** for intelligent scaling decisions:
-  - Queue Pressure Score with weighted queue depth
-  - Worker Utilization real-time monitoring
-  - Task Complexity Factor recognition
-  - Error Rate Monitoring for system health
-  - Memory Pressure per-worker analysis
+    - Queue Pressure Score with weighted queue depth
+    - Worker Utilization real-time monitoring
+    - Task Complexity Factor recognition
+    - Error Rate Monitoring for system health
+    - Memory Pressure per-worker analysis
 - **Adaptive threshold learning** with SLA-driven optimization
 - **Stability controls** with hysteresis and independent cooldown periods
 - **Consecutive signal requirements** to prevent scaling oscillations
 - **Production-ready scaling triggers** with configurable thresholds
 
 #### Actix Web Integration
+
 - **15+ comprehensive metrics endpoints** for monitoring and diagnostics
 - **Health check endpoints** with detailed component status
 - **Auto-configurable routes** with customizable prefixes
@@ -45,6 +47,7 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **SLA monitoring and alerts** through HTTP endpoints
 
 ####Enterprise-Grade Observability
+
 - **Comprehensive structured logging** with tracing integration
 - **Complete task lifecycle tracking** from enqueue to completion
 - **Performance monitoring** with execution timing and throughput analysis
@@ -55,6 +58,7 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **Environment-based configuration** for production deployments
 
 #### Production-Ready Features
+
 - **Robust error handling** with custom TaskQueueError types
 - **Type-safe task registration** with automatic discovery via macros
 - **Advanced async task spawning** with intelligent backpressure management
@@ -63,6 +67,7 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **Security enhancements** with input validation and injection protection
 
 #### Performance Optimizations
+
 - **Sub-40ns serialization/deserialization** using MessagePack
 - **Connection pooling** with Redis cluster support
 - **Concurrent task processing** with configurable worker limits
@@ -70,19 +75,21 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **Optimized queue operations** with batch processing capabilities
 
 #### Comprehensive Testing Infrastructure
+
 - **220+ total tests** across multiple test categories:
-  - 122 unit tests covering core functionality
-  - 9 integration tests for end-to-end workflows
-  - 22 Actix integration tests for web endpoints
-  - 6 performance tests for load handling
-  - 11 security tests for injection protection
-  - 9 error scenario tests for edge cases
-  - 5 comprehensive benchmarks
+    - 122 unit tests covering core functionality
+    - 9 integration tests for end-to-end workflows
+    - 22 Actix integration tests for web endpoints
+    - 6 performance tests for load handling
+    - 11 security tests for injection protection
+    - 9 error scenario tests for edge cases
+    - 5 comprehensive benchmarks
 - **Automated testing scripts** with Redis container management
 - **CI/CD integration** with strict linting and quality gates
 - **Performance regression testing** with detailed benchmarks
 
 #### Developer Experience
+
 - **CLI tools** for standalone workers with process separation
 - **Configuration management** with TOML/YAML support
 - **Automatic task registration** using procedural macros
@@ -93,6 +100,7 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 ### Development Infrastructure
 
 #### Build System & CI/CD
+
 - **Strict Clippy compliance** with zero warnings policy
 - **Automated testing pipeline** with Redis container orchestration
 - **Benchmark suite** with performance validation and reports
@@ -100,12 +108,14 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 - **Code quality gates** with formatting and linting checks
 
 #### Configuration Management
+
 - **External configuration files** (task-queue.toml/yaml)
 - **Environment-based overrides** for production deployments
 - **Feature-based compilation** with optional dependencies
 - **Default configurations** for quick setup and development
 
 #### Documentation & Examples
+
 - **Comprehensive README** with feature matrix and benchmarks
 - **Real-world examples** including Actix Web integration
 - **Performance benchmarks** with detailed timing analysis
@@ -114,16 +124,19 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 ### Package Features
 
 #### Default Features (`default`)
+
 - `tracing`: Enterprise-grade structured logging
 - `auto-register`: Automatic task discovery
 - `config-support`: External configuration files
 - `cli`: Standalone worker binaries
 
 #### Optional Features
+
 - `actix-integration`: Actix Web framework integration
 - `full`: All features enabled for maximum functionality
 
 #### Feature Combinations
+
 - **Web applications**: `tracing` + `auto-register` + `actix-integration`
 - **Standalone workers**: `tracing` + `auto-register` + `cli`
 - **Minimal deployment**: Core functionality only
@@ -134,6 +147,7 @@ This is the first major release of Rust Task Queue, a high-performance, Redis-ba
 This release includes the complete development history from project inception:
 
 #### June 17, 2025
+
 - `daf9e40` feat(tracing): implement comprehensive observability system with structured logging
 - `e5d5e32` feat(actix-integration): comprehensive example covering all framework features
 - `553faca` feat(actix,docs): add comprehensive metrics API with 15+ endpoints and full test coverage
@@ -150,6 +164,7 @@ This release includes the complete development history from project inception:
 - `274d589` feat: enhance test infrastructure and fix compilation issues
 
 #### June 16, 2025
+
 - `e26b5c8` feat: overhaul worker async task spawning with intelligent backpressure management
 - `fcb74a1` docs(readme): recommend single task-queue.toml config for Actix Web integration
 - `b0c2310` feat: implement high-priority code improvements and safety enhancements
@@ -158,11 +173,12 @@ This release includes the complete development history from project inception:
 - `140f7bb` feat: comprehensive codebase improvements and development infrastructure
 - `3d57517` refactor: main.rs
 - `3943486` feat: improve worker task result logging readability
-- `80a455c` rust-task-queue is a high-performance, Redis-backed task queue framework with auto-scaling capabilities for async Rust applications
+- `80a455c` rust-task-queue is a high-performance, Redis-backed task queue framework with auto-scaling capabilities for
+  async Rust applications
 
 ### Performance Benchmarks
 
-| Operation                   | Time      | Status      |
+| Operation                  | Time      | Status      |
 |----------------------------|-----------|-------------|
 | Task Serialization         | ~39.15 ns | Excellent   |
 | Task Deserialization       | ~31.51 ns | Excellent   |
@@ -185,6 +201,7 @@ This release enables the following production use cases:
 ### Dependencies
 
 #### Core Dependencies
+
 - **redis** 0.24 with tokio and connection-manager features
 - **deadpool-redis** 0.14 for advanced connection pooling
 - **tokio** 1.0 with full async runtime
@@ -194,6 +211,7 @@ This release enables the following production use cases:
 - **async-trait** 0.1 for async trait support
 
 #### Optional Dependencies
+
 - **tracing** 0.1 + **tracing-subscriber** 0.3 for structured logging
 - **actix-web** 4.4 for web framework integration
 - **clap** 4.0 for CLI interface
@@ -211,13 +229,10 @@ This is the initial release, so no migration is required. For new projects:
 ### Acknowledgments
 
 This release represents a comprehensive task queue solution built with:
+
 - **Performance** as a first-class concern (sub-40ns operations)
 - **Production readiness** with extensive testing and monitoring
 - **Developer experience** with automatic registration and clear APIs
 - **Flexibility** through feature gates and configuration options
 - **Reliability** with robust error handling and graceful shutdown
 
----
-
-[Unreleased]: https://github.com/rust-task-queue/rust-task-queue/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/rust-task-queue/rust-task-queue/releases/tag/v0.1.0 
