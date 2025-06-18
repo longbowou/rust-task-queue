@@ -156,7 +156,7 @@ impl Worker {
                     // Process tasks with improved spawning logic
                     task_result = execution_context.broker.dequeue_task(&queues) => {
                         let current_active_tasks = execution_context.active_tasks.load(Ordering::Relaxed);
-                        
+
                         match task_result {
                             Ok(Some(task_wrapper)) => {
                                 #[cfg(feature = "tracing")]
@@ -168,7 +168,7 @@ impl Worker {
                                     active_tasks_before = current_active_tasks,
                                     "Task received for processing"
                                 );
-                                
+
                                 match Self::handle_task_execution(execution_context.clone(), task_wrapper).await {
                                     SpawnResult::Spawned => {
                                         #[cfg(feature = "tracing")]
@@ -209,7 +209,7 @@ impl Worker {
                                     active_tasks = current_active_tasks,
                                     "No tasks available, updating heartbeat"
                                 );
-                                
+
                                 if let Err(_e) = execution_context.broker.update_worker_heartbeat(&execution_context.worker_id).await {
                                     #[cfg(feature = "tracing")]
                                     tracing::error!(
@@ -234,7 +234,7 @@ impl Worker {
                     }
                 }
             }
-            
+
             #[cfg(feature = "tracing")]
             tracing::info!(
                 worker_id = %execution_context.worker_id,
@@ -426,7 +426,7 @@ impl Worker {
     ) -> Result<(), TaskQueueError> {
         let task_id = task_wrapper.metadata.id;
         let task_name = &task_wrapper.metadata.name;
-        
+
         // Create a span for the entire task lifecycle
         let span = tracing::info_span!(
             "process_task",
@@ -436,7 +436,7 @@ impl Worker {
             attempt = task_wrapper.metadata.attempts + 1,
             max_retries = task_wrapper.metadata.max_retries
         );
-        
+
         async move {
             #[cfg(feature = "tracing")]
             tracing::info!(
@@ -461,7 +461,7 @@ impl Worker {
             match Self::execute_task_with_registry(task_registry, &task_wrapper).await {
                 Ok(result) => {
                     let execution_duration = execution_start.elapsed();
-                    
+
                     #[cfg(feature = "tracing")]
                     tracing::info!(
                         duration_ms = execution_duration.as_millis(),
@@ -477,7 +477,7 @@ impl Worker {
                 Err(error) => {
                     let execution_duration = execution_start.elapsed();
                     let error_msg = error.to_string();
-                    
+
                     #[cfg(feature = "tracing")]
                     tracing::error!(
                         duration_ms = execution_duration.as_millis(),
@@ -489,8 +489,9 @@ impl Worker {
 
                     // Check if we should retry
                     if task_wrapper.metadata.attempts < task_wrapper.metadata.max_retries {
-                        let remaining_retries = task_wrapper.metadata.max_retries - task_wrapper.metadata.attempts;
-                        
+                        let remaining_retries =
+                            task_wrapper.metadata.max_retries - task_wrapper.metadata.attempts;
+
                         #[cfg(feature = "tracing")]
                         tracing::warn!(
                             remaining_retries = remaining_retries,
@@ -563,7 +564,7 @@ impl Worker {
             }
             Err(error) => {
                 let execution_duration = execution_start.elapsed();
-                
+
                 // Check if this is a "task not found" error vs a task execution failure
                 let error_msg = error.to_string();
                 if error_msg.contains("Unknown task type") {

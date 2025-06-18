@@ -58,7 +58,7 @@ impl RedisBroker {
         let max_retries = task.max_retries();
         let timeout_seconds = task.timeout_seconds();
         let enqueue_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
         tracing::info!(
             task_name = task_name,
@@ -191,7 +191,7 @@ impl RedisBroker {
         let operation_start = std::time::Instant::now();
         let task_id = task_wrapper.metadata.id;
         let task_name = &task_wrapper.metadata.name;
-        
+
         #[cfg(feature = "tracing")]
         tracing::debug!(
             task_id = %task_id,
@@ -277,12 +277,9 @@ impl RedisBroker {
 
         let batch_start = std::time::Instant::now();
         let batch_size = tasks.len();
-        
+
         #[cfg(feature = "tracing")]
-        tracing::info!(
-            batch_size = batch_size,
-            "Starting batch enqueue operation"
-        );
+        tracing::info!(batch_size = batch_size, "Starting batch enqueue operation");
 
         let mut conn = self.get_conn().await?;
         let mut pipeline = redis::pipe();
@@ -359,7 +356,7 @@ impl RedisBroker {
         queues: &[String],
     ) -> Result<Option<TaskWrapper>, TaskQueueError> {
         let dequeue_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
         tracing::debug!(
             queues = ?queues,
@@ -374,7 +371,7 @@ impl RedisBroker {
 
         if let Some((queue, serialized)) = result {
             let task_wrapper: TaskWrapper = rmp_serde::from_slice(&serialized)?;
-            
+
             #[cfg(feature = "tracing")]
             tracing::info!(
                 task_id = %task_wrapper.metadata.id,
@@ -408,12 +405,9 @@ impl RedisBroker {
 
     pub async fn get_queue_metrics(&self, queue: &str) -> Result<QueueMetrics, TaskQueueError> {
         let operation_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
-        tracing::debug!(
-            queue = queue,
-            "Retrieving queue metrics"
-        );
+        tracing::debug!(queue = queue, "Retrieving queue metrics");
 
         let mut conn = self.get_conn().await?;
 
@@ -439,8 +433,11 @@ impl RedisBroker {
             failed_tasks = metrics.failed_tasks,
             total_tasks = metrics.pending_tasks + metrics.processed_tasks + metrics.failed_tasks,
             success_rate = if (metrics.processed_tasks + metrics.failed_tasks) > 0 {
-                metrics.processed_tasks as f64 / (metrics.processed_tasks + metrics.failed_tasks) as f64
-            } else { 0.0 },
+                metrics.processed_tasks as f64
+                    / (metrics.processed_tasks + metrics.failed_tasks) as f64
+            } else {
+                0.0
+            },
             duration_ms = operation_start.elapsed().as_millis(),
             "Queue metrics retrieved"
         );
@@ -454,7 +451,7 @@ impl RedisBroker {
         queue: &str,
     ) -> Result<(), TaskQueueError> {
         let operation_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
         tracing::debug!(
             task_id = %task_id,
@@ -550,12 +547,9 @@ impl RedisBroker {
 
     pub async fn register_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
         let operation_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
-        tracing::info!(
-            worker_id = worker_id,
-            "Registering worker"
-        );
+        tracing::info!(worker_id = worker_id, "Registering worker");
 
         let mut conn = self.get_conn().await?;
         conn.sadd::<_, _, ()>("active_workers", worker_id).await?;
@@ -584,12 +578,9 @@ impl RedisBroker {
 
     pub async fn unregister_worker(&self, worker_id: &str) -> Result<(), TaskQueueError> {
         let operation_start = std::time::Instant::now();
-        
+
         #[cfg(feature = "tracing")]
-        tracing::info!(
-            worker_id = worker_id,
-            "Unregistering worker"
-        );
+        tracing::info!(worker_id = worker_id, "Unregistering worker");
 
         let mut conn = self.get_conn().await?;
         conn.srem::<_, _, ()>("active_workers", worker_id).await?;
@@ -614,14 +605,14 @@ impl RedisBroker {
 
     pub async fn update_worker_heartbeat(&self, worker_id: &str) -> Result<(), TaskQueueError> {
         let operation_start = std::time::Instant::now();
-        
+
         let mut conn = self.get_conn().await?;
         let heartbeat_key = format!("worker:{}:heartbeat", worker_id);
         let heartbeat_timestamp = chrono::Utc::now().to_rfc3339();
         conn.set::<_, _, ()>(&heartbeat_key, &heartbeat_timestamp)
             .await?;
         conn.expire::<_, ()>(&heartbeat_key, 60).await?;
-        
+
         #[cfg(feature = "tracing")]
         tracing::trace!(
             worker_id = worker_id,
@@ -629,7 +620,7 @@ impl RedisBroker {
             heartbeat_timestamp = heartbeat_timestamp,
             "Worker heartbeat updated"
         );
-        
+
         Ok(())
     }
 

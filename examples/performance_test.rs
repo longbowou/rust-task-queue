@@ -91,16 +91,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_thread_ids(true)
                     .with_file(true)
                     .with_line_number(true)
-                    .pretty()
+                    .pretty(),
             )
             .init();
 
         tracing::info!("Enhanced Performance Test with Comprehensive Tracing");
-        tracing::info!("Features enabled: structured logging, lifecycle tracking, performance metrics");
+        tracing::info!(
+            "Features enabled: structured logging, lifecycle tracking, performance metrics"
+        );
     }
 
-    let redis_url = std::env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+    let redis_url =
+        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
 
     #[cfg(feature = "tracing")]
     tracing::info!(redis_url = %redis_url, "Connecting to Redis");
@@ -109,20 +111,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start workers with registry
     let registry = TaskRegistry::new();
-    registry.register_with_name::<PerformanceTask>("performance_task")
+    registry
+        .register_with_name::<PerformanceTask>("performance_task")
         .expect("Failed to register performance task");
 
-    task_queue.start_workers_with_registry(4, std::sync::Arc::new(registry)).await?;
+    task_queue
+        .start_workers_with_registry(4, std::sync::Arc::new(registry))
+        .await?;
 
     #[cfg(feature = "tracing")]
     tracing::info!("Workers started, beginning performance test with tracing");
 
     // Create and enqueue different types of tasks
-    let task_types = [
-        ("light", 20),
-        ("medium", 10),
-        ("heavy", 5),
-    ];
+    let task_types = [("light", 20), ("medium", 10), ("heavy", 5)];
 
     let mut task_id = 1;
 
@@ -156,8 +157,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     max_retries: task.max_retries(),
                     timeout_seconds: task.timeout_seconds(),
                 };
-                
-                let task_id = task_queue.enqueue(task.clone(), queue_names::DEFAULT).await?;
+
+                let task_id = task_queue
+                    .enqueue(task.clone(), queue_names::DEFAULT)
+                    .await?;
                 trace_task_lifecycle_event(task_id, task.name(), lifecycle_event);
             }
 
@@ -177,12 +180,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 1..=20 {
         sleep(Duration::from_secs(1)).await;
 
-        let metrics = task_queue.broker.get_queue_metrics(queue_names::DEFAULT).await?;
-        
+        let metrics = task_queue
+            .broker
+            .get_queue_metrics(queue_names::DEFAULT)
+            .await?;
+
         #[cfg(feature = "tracing")]
         {
             let completion_rate = if metrics.processed_tasks + metrics.failed_tasks > 0 {
-                metrics.processed_tasks as f64 / (metrics.processed_tasks + metrics.failed_tasks) as f64
+                metrics.processed_tasks as f64
+                    / (metrics.processed_tasks + metrics.failed_tasks) as f64
             } else {
                 0.0
             };

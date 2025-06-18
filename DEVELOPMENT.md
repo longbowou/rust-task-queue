@@ -215,22 +215,22 @@ let autoscaler = AutoScaler::with_config(broker.clone(), enhanced_config);
 
 // Configuration structure uses explicit field initialization
 let config = AutoScalerConfig {
-    min_workers: 2,
-    max_workers: 20,
-    scaling_triggers: ScalingTriggers {
-        queue_pressure_threshold: 1.5,
-        worker_utilization_threshold: 0.80,
-        task_complexity_threshold: 2.0,
-        error_rate_threshold: 0.05,
-        memory_pressure_threshold: 512.0,
-    },
-    target_sla: SLATargets {
-        max_p95_latency_ms: 5000.0,
-        min_success_rate: 0.95,
-        max_queue_wait_time_ms: 10000.0,
-        target_worker_utilization: 0.70,
-    },
-    // ... other fields
+min_workers: 2,
+max_workers: 20,
+scaling_triggers: ScalingTriggers {
+queue_pressure_threshold: 1.5,
+worker_utilization_threshold: 0.80,
+task_complexity_threshold: 2.0,
+error_rate_threshold: 0.05,
+memory_pressure_threshold: 512.0,
+},
+target_sla: SLATargets {
+max_p95_latency_ms: 5000.0,
+min_success_rate: 0.95,
+max_queue_wait_time_ms: 10000.0,
+target_worker_utilization: 0.70,
+},
+// ... other fields
 };
 ```
 
@@ -247,7 +247,8 @@ let config = AutoScalerConfig {
 
 ### Comprehensive Tracing System
 
-The framework includes a production-grade observability system with enterprise-class structured logging and distributed tracing capabilities:
+The framework includes a production-grade observability system with enterprise-class structured logging and distributed
+tracing capabilities:
 
 #### **Core Observability Components**
 
@@ -267,28 +268,28 @@ The framework includes a production-grade observability system with enterprise-c
 #### **Structured Logging Features**
 
 1. **Task Lifecycle Tracking**
-   - Complete task journey from enqueue to completion
-   - Detailed span creation with correlation IDs
-   - Automatic instrumentation of all major operations
-   - Worker activity monitoring with resource utilization
+    - Complete task journey from enqueue to completion
+    - Detailed span creation with correlation IDs
+    - Automatic instrumentation of all major operations
+    - Worker activity monitoring with resource utilization
 
 2. **Performance Monitoring**
-   - Real-time execution timing and metrics
-   - Queue depth monitoring and trend analysis
-   - Throughput tracking (tasks per second)
-   - Worker utilization and efficiency metrics
+    - Real-time execution timing and metrics
+    - Queue depth monitoring and trend analysis
+    - Throughput tracking (tasks per second)
+    - Worker utilization and efficiency metrics
 
 3. **Error Chain Analysis**
-   - Deep error context with full source tracking
-   - Error propagation analysis across system boundaries
-   - Recovery pattern identification
-   - Failure correlation and root cause analysis
+    - Deep error context with full source tracking
+    - Error propagation analysis across system boundaries
+    - Recovery pattern identification
+    - Failure correlation and root cause analysis
 
 4. **Distributed Tracing**
-   - Async span instrumentation using `tracing::Instrument`
-   - Cross-component correlation with unique trace IDs
-   - Worker-to-worker task handoff tracking
-   - Scheduler and autoscaler integration
+    - Async span instrumentation using `tracing::Instrument`
+    - Cross-component correlation with unique trace IDs
+    - Worker-to-worker task handoff tracking
+    - Scheduler and autoscaler integration
 
 #### **Logging Configuration Architecture**
 
@@ -330,13 +331,13 @@ use rust_task_queue::prelude::*;
 async fn main() -> Result<(), TaskQueueError> {
     // Configure enterprise-grade logging
     configure_production_logging(LogLevel::Info, LogFormat::Json);
-    
+
     let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
         .auto_register_tasks()
         .initial_workers(4)
         .build()
         .await?;
-    
+
     // All operations automatically traced with structured logging
     Ok(())
 }
@@ -385,24 +386,24 @@ timed_operation!("operation_name", async_block);
 #### **Integration with Observability Platforms**
 
 - **ELK Stack (Elasticsearch, Logstash, Kibana)**
-  - JSON structured logs for direct ingestion
-  - Automatic field mapping and indexing
-  - Real-time dashboard creation
+    - JSON structured logs for direct ingestion
+    - Automatic field mapping and indexing
+    - Real-time dashboard creation
 
 - **Datadog Application Performance Monitoring**
-  - Distributed trace correlation
-  - Performance metric integration
-  - Alert rule automation
+    - Distributed trace correlation
+    - Performance metric integration
+    - Alert rule automation
 
 - **Grafana + Prometheus**
-  - Custom metric exporters
-  - Visual dashboard creation
-  - SLA monitoring and alerting
+    - Custom metric exporters
+    - Visual dashboard creation
+    - SLA monitoring and alerting
 
 - **Splunk Enterprise**
-  - Log aggregation and search
-  - Machine learning anomaly detection
-  - Custom visualization and reporting
+    - Log aggregation and search
+    - Machine learning anomaly detection
+    - Custom visualization and reporting
 
 #### **Environment Configuration**
 
@@ -597,38 +598,38 @@ use rust_task_queue::{AutoScalerConfig, ScalingTriggers, SLATargets};
 
 // Enhanced auto-scaling configuration validation
 let autoscaler_config = AutoScalerConfig {
-    min_workers: 2,
-    max_workers: 50,
-    scaling_triggers: ScalingTriggers {
-        queue_pressure_threshold: 1.5,
-        worker_utilization_threshold: 0.80,
-        task_complexity_threshold: 2.0,
-        error_rate_threshold: 0.05,
-        memory_pressure_threshold: 512.0,
-    },
-    target_sla: SLATargets {
-        max_p95_latency_ms: 5000.0,
-        min_success_rate: 0.95,
-        max_queue_wait_time_ms: 10000.0,
-        target_worker_utilization: 0.70,
-    },
-    // ... other fields
+min_workers: 2,
+max_workers: 50,
+scaling_triggers: ScalingTriggers {
+queue_pressure_threshold: 1.5,
+worker_utilization_threshold: 0.80,
+task_complexity_threshold: 2.0,
+error_rate_threshold: 0.05,
+memory_pressure_threshold: 512.0,
+},
+target_sla: SLATargets {
+max_p95_latency_ms: 5000.0,
+min_success_rate: 0.95,
+max_queue_wait_time_ms: 10000.0,
+target_worker_utilization: 0.70,
+},
+// ... other fields
 };
 
 // Comprehensive validation is built-in
-autoscaler_config.validate()?; // Validates all thresholds, limits, and ranges
+autoscaler_config.validate() ?; // Validates all thresholds, limits, and ranges
 ```
 
 ### Enhanced Builder Pattern
 
 ```rust
 let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
-    .initial_workers(4)
-    .auto_register_tasks()
-    .with_scheduler()
-    .with_autoscaler_config(enhanced_autoscaler_config)  // Use enhanced configuration
-    .build()
-    .await?;
+.initial_workers(4)
+.auto_register_tasks()
+.with_scheduler()
+.with_autoscaler_config(enhanced_autoscaler_config)  // Use enhanced configuration
+.build()
+.await?;
 ```
 
 ### Queue Constants
@@ -709,19 +710,19 @@ Task Dequeued → Capacity Check → Decision Point
 ```rust
 // Basic worker with concurrency limits
 let worker = Worker::new("worker-1".to_string(), broker, scheduler)
-    .with_max_concurrent_tasks(10)
-    .with_task_registry(registry);
+.with_max_concurrent_tasks(10)
+.with_task_registry(registry);
 
 // Advanced backpressure configuration
 let backpressure_config = WorkerBackpressureConfig {
-    max_concurrent_tasks: 10,
-    queue_size_threshold: 100,
-    backpressure_delay_ms: 50,
+max_concurrent_tasks: 10,
+queue_size_threshold: 100,
+backpressure_delay_ms: 50,
 };
 
 let worker = Worker::new("worker-advanced".to_string(), broker, scheduler)
-    .with_backpressure_config(backpressure_config)
-    .with_task_registry(registry);
+.with_backpressure_config(backpressure_config)
+.with_task_registry(registry);
 ```
 
 ##### **Development Benefits:**
@@ -918,36 +919,36 @@ End-to-end workflow testing:
 Comprehensive web endpoints and metrics API testing:
 
 - **Health & Status Tests** (3 tests)
-  - `test_health_endpoint` - Component health checking
-  - `test_detailed_health_endpoint` - Detailed health status
-  - `test_status_endpoint` - System status information
+    - `test_health_endpoint` - Component health checking
+    - `test_detailed_health_endpoint` - Detailed health status
+    - `test_status_endpoint` - System status information
 
 - **Core Metrics Tests** (8 tests)
-  - `test_metrics_endpoint` - Combined metrics data
-  - `test_system_metrics_endpoint` - System performance metrics
-  - `test_performance_metrics_endpoint` - Task execution performance
-  - `test_autoscaler_metrics_endpoint` - AutoScaler status and recommendations
-  - `test_queue_metrics_endpoint` - Individual queue metrics
-  - `test_worker_metrics_endpoint` - Worker-specific metrics
-  - `test_memory_metrics_endpoint` - Memory usage tracking
-  - `test_metrics_summary_endpoint` - Quick metrics overview
+    - `test_metrics_endpoint` - Combined metrics data
+    - `test_system_metrics_endpoint` - System performance metrics
+    - `test_performance_metrics_endpoint` - Task execution performance
+    - `test_autoscaler_metrics_endpoint` - AutoScaler status and recommendations
+    - `test_queue_metrics_endpoint` - Individual queue metrics
+    - `test_worker_metrics_endpoint` - Worker-specific metrics
+    - `test_memory_metrics_endpoint` - Memory usage tracking
+    - `test_metrics_summary_endpoint` - Quick metrics overview
 
 - **Task Registry Tests** (2 tests)
-  - `test_registered_tasks_endpoint` - Auto-registered tasks
-  - `test_registry_info_endpoint` - Registry information
+    - `test_registered_tasks_endpoint` - Auto-registered tasks
+    - `test_registry_info_endpoint` - Registry information
 
 - **Administrative Tests** (4 tests)
-  - `test_alerts_endpoint` - System alerts
-  - `test_sla_endpoint` - SLA violations and performance
-  - `test_diagnostics_endpoint` - System diagnostics
-  - `test_uptime_endpoint` - Runtime information
+    - `test_alerts_endpoint` - System alerts
+    - `test_sla_endpoint` - SLA violations and performance
+    - `test_diagnostics_endpoint` - System diagnostics
+    - `test_uptime_endpoint` - Runtime information
 
 - **Quality Assurance Tests** (5 tests)
-  - `test_all_endpoints_return_valid_json` - JSON validation
-  - `test_endpoints_with_real_data` - Real task processing
-  - `test_error_handling` - Error response validation
-  - `test_endpoint_performance` - Response time benchmarks
-  - `test_concurrent_endpoint_access` - Concurrent request handling
+    - `test_all_endpoints_return_valid_json` - JSON validation
+    - `test_endpoints_with_real_data` - Real task processing
+    - `test_error_handling` - Error response validation
+    - `test_endpoint_performance` - Response time benchmarks
+    - `test_concurrent_endpoint_access` - Concurrent request handling
 
 #### **Error Scenario Tests (9 tests)**
 
@@ -1093,13 +1094,13 @@ impl Task for TestTask {
         if self.should_fail {
             return Err("Intentional failure".into());
         }
-        
+
         let response = serde_json::json!({
             "status": "completed",
             "data": format!("Processed: {}", self.data),
             "queue": "test_queue"
         });
-        
+
         Ok(response)
     }
 
@@ -1113,7 +1114,7 @@ impl Task for TestTask {
 async fn test_with_queue_constants() {
     let task_queue = setup_test_queue().await;
     let task = TestTask { data: "test".to_string(), should_fail: false };
-    
+
     let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await.unwrap();
     assert!(!task_id.to_string().is_empty());
 }
@@ -1249,20 +1250,20 @@ pub mod queue_names {
 impl TaskQueue {
     // Creation with validation
     pub async fn new(redis_url: &str) -> Result<Self, TaskQueueError>;
-    
+
     // Worker management with safety
     pub async fn start_workers(&self, count: usize) -> Result<(), TaskQueueError>;
     pub async fn stop_workers(&self);
     pub async fn worker_count(&self) -> usize;
-    
+
     // Task operations with queue constants
     pub async fn enqueue<T: Task>(&self, task: T, queue: &str) -> Result<TaskId, TaskQueueError>;
     pub async fn schedule<T: Task>(&self, task: T, queue: &str, delay: Duration) -> Result<TaskId, TaskQueueError>;
-    
+
     // Monitoring with comprehensive metrics
     pub async fn health_check(&self) -> Result<HealthStatus, TaskQueueError>;
     pub async fn get_metrics(&self) -> Result<TaskQueueMetrics, TaskQueueError>;
-    
+
     // Scheduler with persistence
     pub async fn start_scheduler(&self) -> Result<(), TaskQueueError>;
     pub async fn stop_scheduler(&self);
@@ -1296,13 +1297,13 @@ impl Task for EmailTask {
     async fn execute(&self) -> TaskResult {
         // Send email logic here
         println!("Sending email to: {}", self.to);
-        
+
         let response = serde_json::json!({
             "status": "sent",
             "timestamp": chrono::Utc::now(),
             "recipient": self.to
         });
-        
+
         Ok(response)
     }
 
@@ -1318,17 +1319,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .initial_workers(2)
         .build()
         .await?;
-    
+
     // Enqueue task using queue constants
     let email = EmailTask {
         to: "user@example.com".to_string(),
         subject: "Welcome!".to_string(),
         body: "Welcome to our service!".to_string(),
     };
-    
+
     let task_id = task_queue.enqueue(email, queue_names::DEFAULT).await?;
     println!("Enqueued email task: {}", task_id);
-    
+
     Ok(())
 }
 ```
@@ -1351,7 +1352,7 @@ impl Task for ProcessDataTask {
         if self.data.is_empty() {
             return Err("Empty data provided".into());
         }
-        
+
         let result = format!("Processed: {}", self.data);
         Ok(serde_json::json!({"result": result, "status": "success"}))
     }
@@ -1369,15 +1370,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .initial_workers(4)
         .build()
         .await?;
-    
+
     let task = ProcessDataTask {
         data: "Hello, World!".to_string(),
     };
-    
+
     // Use queue constants for type safety
     let task_id = task_queue.enqueue(task, queue_names::HIGH_PRIORITY).await?;
     println!("Task enqueued: {}", task_id);
-    
+
     Ok(())
 }
 ```
@@ -1390,7 +1391,7 @@ let health = task_queue.health_check().await?;
 println!("System status: {}", health.status);
 
 for (component, status) in health.components {
-    println!("  {}: {} - {:?}", component, status.status, status.message);
+println!("  {}: {} - {:?}", component, status.status, status.message);
 }
 
 // Detailed metrics
@@ -1400,12 +1401,12 @@ println!("Tasks per worker: {:.2}", metrics.tasks_per_worker);
 println!("Total pending: {}", metrics.total_pending_tasks);
 
 for queue_metric in metrics.queue_metrics {
-    println!("Queue '{}': {} pending, {} processed, {} failed", 
-        queue_metric.queue_name,
-        queue_metric.pending_tasks,
-        queue_metric.processed_tasks,
-        queue_metric.failed_tasks
-    );
+println!("Queue '{}': {} pending, {} processed, {} failed",
+         queue_metric.queue_name,
+         queue_metric.pending_tasks,
+         queue_metric.processed_tasks,
+         queue_metric.failed_tasks
+);
 }
 ```
 

@@ -37,19 +37,19 @@ impl Task for EmailTask {
             "[COMMUNICATION] Sending email to: {} - {}",
             self.to, self.subject
         );
-        
+
         if let Some(template) = &self.template {
             println!("  Using template: {}", template);
         }
-        
+
         if let Some(body) = &self.body {
             println!("  Body: {}", body);
         }
-        
+
         if let Some(attachments) = &self.attachments {
             println!("  Attachments: {} files", attachments.len());
         }
-        
+
         // Simulate different processing times based on priority
         let delay = match self.priority.unwrap_or(2) {
             1 => 50,  // High priority - fast
@@ -57,7 +57,7 @@ impl Task for EmailTask {
             3 => 200, // Low priority
             _ => 100,
         };
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
 
         #[derive(Serialize)]
@@ -83,11 +83,11 @@ impl Task for EmailTask {
     fn name(&self) -> &str {
         "communication_email_task"
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
         120 // 2 minutes for email processing
     }
-    
+
     fn max_retries(&self) -> u32 {
         match self.priority.unwrap_or(2) {
             1 => 5, // High priority gets more retries
@@ -133,15 +133,15 @@ impl Task for SlackNotificationTask {
             "[COMMUNICATION] Sending Slack message to #{} from {}: {}",
             self.channel, sender, self.message
         );
-        
+
         if let Some(attachments) = &self.attachments {
             println!("  Rich attachments: {} items", attachments.len());
         }
-        
+
         if let Some(thread_ts) = &self.thread_ts {
             println!("  Threading reply to: {}", thread_ts);
         }
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
 
         #[derive(Serialize)]
@@ -161,7 +161,10 @@ impl Task for SlackNotificationTask {
             message: self.message.clone(),
             sender: sender.to_string(),
             timestamp: timestamp.clone(),
-            permalink: format!("https://example.slack.com/archives/{}/p{}", self.channel, timestamp),
+            permalink: format!(
+                "https://example.slack.com/archives/{}/p{}",
+                self.channel, timestamp
+            ),
         };
 
         Ok(rmp_serde::to_vec(&response)?)
@@ -174,7 +177,7 @@ impl Task for SlackNotificationTask {
     fn max_retries(&self) -> u32 {
         3
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
         30 // Quick timeout for chat messages
     }
@@ -200,11 +203,11 @@ impl Task for SmsTask {
             "[COMMUNICATION] Sending SMS to {} (priority: {}): {}",
             self.phone_number, self.priority, self.message
         );
-        
+
         if let Some(sender_id) = &self.sender_id {
             println!("  From: {}", sender_id);
         }
-        
+
         if let Some(scheduled_at) = &self.scheduled_at {
             println!("  Scheduled for: {}", scheduled_at);
         }
@@ -251,7 +254,7 @@ impl Task for SmsTask {
             _ => 3,
         }
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
         match self.priority {
             1..=3 => 15, // Quick timeout for high priority
@@ -280,15 +283,15 @@ impl Task for WebhookTask {
             "[COMMUNICATION] Sending {} webhook to: {}",
             self.method, self.url
         );
-        
+
         if let Some(headers) = &self.headers {
             println!("  Headers: {} custom headers", headers.len());
         }
-        
+
         if let Some(payload) = &self.payload {
             println!("  Payload: {} bytes", payload.len());
         }
-        
+
         // Simulate HTTP request time
         let timeout = self.timeout_seconds.unwrap_or(30);
         let delay = std::cmp::min(timeout * 10, 500); // Simulate up to 500ms
@@ -329,7 +332,7 @@ impl Task for WebhookTask {
     fn max_retries(&self) -> u32 {
         5 // Webhooks need good retry logic
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
         self.timeout_seconds.unwrap_or(30)
     }
@@ -359,22 +362,25 @@ impl Task for MultiChannelNotificationTask {
             "[COMMUNICATION] Multi-channel notification for user {}: {}",
             self.user_id, self.message
         );
-        
+
         let mut results = Vec::new();
         let is_urgent = self.urgent.unwrap_or(false);
-        
+
         println!("  Channels: {} configured", self.channels.len());
         if is_urgent {
             println!("  URGENT notification - parallel delivery");
         }
-        
+
         // Simulate sending to multiple channels
         for (i, channel) in self.channels.iter().enumerate() {
-            println!("    [{}/{}] {} -> {}", 
-                i + 1, self.channels.len(), 
-                channel.channel_type, channel.address
+            println!(
+                "    [{}/{}] {} -> {}",
+                i + 1,
+                self.channels.len(),
+                channel.channel_type,
+                channel.address
             );
-            
+
             // Simulate different delivery times per channel
             let delay = match channel.channel_type.as_str() {
                 "push" => 50,
@@ -384,14 +390,14 @@ impl Task for MultiChannelNotificationTask {
                 "email" => 300,
                 _ => 200,
             };
-            
+
             if !is_urgent {
                 tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
             }
-            
+
             results.push(format!("{}:sent", channel.channel_type));
         }
-        
+
         if is_urgent {
             // For urgent notifications, simulate parallel processing
             tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
@@ -415,7 +421,11 @@ impl Task for MultiChannelNotificationTask {
             channels_succeeded: results.len(),
             results,
             is_urgent,
-            delivery_time_ms: if is_urgent { 200 } else { 300 * self.channels.len() as u64 },
+            delivery_time_ms: if is_urgent {
+                200
+            } else {
+                300 * self.channels.len() as u64
+            },
         };
 
         Ok(rmp_serde::to_vec(&response)?)
@@ -426,11 +436,19 @@ impl Task for MultiChannelNotificationTask {
     }
 
     fn max_retries(&self) -> u32 {
-        if self.urgent.unwrap_or(false) { 5 } else { 3 }
+        if self.urgent.unwrap_or(false) {
+            5
+        } else {
+            3
+        }
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
-        if self.urgent.unwrap_or(false) { 60 } else { 300 }
+        if self.urgent.unwrap_or(false) {
+            60
+        } else {
+            300
+        }
     }
 }
 
@@ -475,19 +493,19 @@ impl Task for DiscordNotificationTask {
             "[COMMUNICATION] Sending Discord message to channel: {}",
             self.channel_id
         );
-        
+
         if let Some(content) = &self.content {
             println!("  Content: {}", content);
         }
-        
+
         if let Some(embeds) = &self.embeds {
             println!("  Rich embeds: {} items", embeds.len());
         }
-        
+
         if self.tts.unwrap_or(false) {
             println!("  Text-to-speech enabled");
         }
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(175)).await;
 
         #[derive(Serialize)]
@@ -515,7 +533,7 @@ impl Task for DiscordNotificationTask {
     fn max_retries(&self) -> u32 {
         3
     }
-    
+
     fn timeout_seconds(&self) -> u64 {
         30
     }

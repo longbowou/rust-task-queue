@@ -1,5 +1,5 @@
 //! Comprehensive tracing utilities for the Rust Task Queue system
-//! 
+//!
 //! This module provides structured tracing utilities for observability, debugging,
 //! and production monitoring of task queue operations.
 
@@ -12,62 +12,62 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskLifecycleEvent {
     /// Task has been enqueued
-    Enqueued { 
-        queue: String, 
+    Enqueued {
+        queue: String,
         priority: TaskPriority,
         payload_size_bytes: usize,
         max_retries: u32,
         timeout_seconds: u64,
     },
     /// Task has been dequeued by a worker
-    Dequeued { 
-        worker_id: String, 
+    Dequeued {
+        worker_id: String,
         queue: String,
         wait_time_ms: u64,
         payload_size_bytes: usize,
     },
     /// Task execution has started
-    ExecutionStarted { 
-        worker_id: String, 
+    ExecutionStarted {
+        worker_id: String,
         attempt: u32,
         max_retries: u32,
     },
     /// Task execution completed successfully
-    ExecutionCompleted { 
-        worker_id: String, 
-        duration_ms: u64, 
+    ExecutionCompleted {
+        worker_id: String,
+        duration_ms: u64,
         result_size_bytes: usize,
         attempt: u32,
     },
     /// Task execution failed
-    ExecutionFailed { 
-        worker_id: String, 
-        duration_ms: u64, 
+    ExecutionFailed {
+        worker_id: String,
+        duration_ms: u64,
         error: String,
         error_source: Option<String>,
         attempt: u32,
     },
     /// Task is being retried
-    Retrying { 
-        attempt: u32, 
+    Retrying {
+        attempt: u32,
         max_retries: u32,
         delay_ms: u64,
         reason: String,
     },
     /// Task has permanently failed
-    PermanentlyFailed { 
-        total_attempts: u32, 
+    PermanentlyFailed {
+        total_attempts: u32,
         final_error: String,
         total_duration_ms: u64,
     },
     /// Task has been scheduled for delayed execution
-    Scheduled { 
-        execute_at: chrono::DateTime<chrono::Utc>, 
+    Scheduled {
+        execute_at: chrono::DateTime<chrono::Utc>,
         delay_ms: i64,
         queue: String,
     },
     /// Scheduled task moved to regular queue
-    MovedToRegularQueue { 
+    MovedToRegularQueue {
         from_scheduled: bool,
         delay_from_scheduled_ms: i64,
         queue: String,
@@ -117,13 +117,15 @@ pub struct WorkerPerformanceMetrics {
 }
 
 /// Trace a task lifecycle event with structured logging
-pub fn trace_task_lifecycle_event(
-    task_id: TaskId,
-    task_name: &str,
-    event: TaskLifecycleEvent,
-) {
+pub fn trace_task_lifecycle_event(task_id: TaskId, task_name: &str, event: TaskLifecycleEvent) {
     match event {
-        TaskLifecycleEvent::Enqueued { queue, priority, payload_size_bytes, max_retries, timeout_seconds } => {
+        TaskLifecycleEvent::Enqueued {
+            queue,
+            priority,
+            payload_size_bytes,
+            max_retries,
+            timeout_seconds,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -136,7 +138,12 @@ pub fn trace_task_lifecycle_event(
                 "Task enqueued"
             );
         }
-        TaskLifecycleEvent::Dequeued { worker_id, queue, wait_time_ms, payload_size_bytes } => {
+        TaskLifecycleEvent::Dequeued {
+            worker_id,
+            queue,
+            wait_time_ms,
+            payload_size_bytes,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -148,7 +155,11 @@ pub fn trace_task_lifecycle_event(
                 "Task dequeued"
             );
         }
-        TaskLifecycleEvent::ExecutionStarted { worker_id, attempt, max_retries } => {
+        TaskLifecycleEvent::ExecutionStarted {
+            worker_id,
+            attempt,
+            max_retries,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -159,7 +170,12 @@ pub fn trace_task_lifecycle_event(
                 "Task execution started"
             );
         }
-        TaskLifecycleEvent::ExecutionCompleted { worker_id, duration_ms, result_size_bytes, attempt } => {
+        TaskLifecycleEvent::ExecutionCompleted {
+            worker_id,
+            duration_ms,
+            result_size_bytes,
+            attempt,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -172,7 +188,13 @@ pub fn trace_task_lifecycle_event(
                 "Task execution completed successfully"
             );
         }
-        TaskLifecycleEvent::ExecutionFailed { worker_id, duration_ms, error, error_source, attempt } => {
+        TaskLifecycleEvent::ExecutionFailed {
+            worker_id,
+            duration_ms,
+            error,
+            error_source,
+            attempt,
+        } => {
             tracing::error!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -186,7 +208,12 @@ pub fn trace_task_lifecycle_event(
                 "Task execution failed"
             );
         }
-        TaskLifecycleEvent::Retrying { attempt, max_retries, delay_ms, reason } => {
+        TaskLifecycleEvent::Retrying {
+            attempt,
+            max_retries,
+            delay_ms,
+            reason,
+        } => {
             tracing::warn!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -198,7 +225,11 @@ pub fn trace_task_lifecycle_event(
                 "Task being retried"
             );
         }
-        TaskLifecycleEvent::PermanentlyFailed { total_attempts, final_error, total_duration_ms } => {
+        TaskLifecycleEvent::PermanentlyFailed {
+            total_attempts,
+            final_error,
+            total_duration_ms,
+        } => {
             tracing::error!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -209,7 +240,11 @@ pub fn trace_task_lifecycle_event(
                 "Task permanently failed"
             );
         }
-        TaskLifecycleEvent::Scheduled { execute_at, delay_ms, queue } => {
+        TaskLifecycleEvent::Scheduled {
+            execute_at,
+            delay_ms,
+            queue,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -220,7 +255,11 @@ pub fn trace_task_lifecycle_event(
                 "Task scheduled for delayed execution"
             );
         }
-        TaskLifecycleEvent::MovedToRegularQueue { from_scheduled, delay_from_scheduled_ms, queue } => {
+        TaskLifecycleEvent::MovedToRegularQueue {
+            from_scheduled,
+            delay_from_scheduled_ms,
+            queue,
+        } => {
             tracing::info!(
                 task_id = %task_id,
                 task_name = task_name,
@@ -253,7 +292,7 @@ pub fn trace_task_error(
         attempt = attempt,
         "Task error occurred"
     );
-    
+
     // Log error chain for debugging
     let mut source = error.source();
     let mut depth = 1;
@@ -284,20 +323,20 @@ impl PerformanceTracker {
             context: HashMap::new(),
         }
     }
-    
+
     pub fn with_context(mut self, key: &str, value: &str) -> Self {
         self.context.insert(key.to_string(), value.to_string());
         self
     }
-    
+
     pub fn add_context(&mut self, key: &str, value: &str) {
         self.context.insert(key.to_string(), value.to_string());
     }
-    
+
     pub fn elapsed(&self) -> Duration {
         self.start_time.elapsed()
     }
-    
+
     pub fn trace_completion(self) {
         let duration = self.elapsed();
         tracing::debug!(
@@ -307,9 +346,9 @@ impl PerformanceTracker {
             "Operation completed"
         );
     }
-    
-    pub fn trace_completion_with_result<T, E>(self, result: &Result<T, E>) 
-    where 
+
+    pub fn trace_completion_with_result<T, E>(self, result: &Result<T, E>)
+    where
         E: std::fmt::Display,
     {
         let duration = self.elapsed();
@@ -424,11 +463,14 @@ mod tests {
 
     #[test]
     fn test_performance_tracker() {
-        let tracker = PerformanceTracker::new("test_operation")
-            .with_context("test_key", "test_value");
-        
+        let tracker =
+            PerformanceTracker::new("test_operation").with_context("test_key", "test_value");
+
         assert_eq!(tracker.operation_name, "test_operation");
-        assert_eq!(tracker.context.get("test_key"), Some(&"test_value".to_string()));
+        assert_eq!(
+            tracker.context.get("test_key"),
+            Some(&"test_value".to_string())
+        );
         assert!(tracker.elapsed().as_nanos() > 0);
     }
 
@@ -441,12 +483,19 @@ mod tests {
             max_retries: 3,
             timeout_seconds: 300,
         };
-        
+
         let serialized = serde_json::to_string(&event).expect("Failed to serialize");
-        let deserialized: TaskLifecycleEvent = serde_json::from_str(&serialized).expect("Failed to deserialize");
-        
+        let deserialized: TaskLifecycleEvent =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
         match deserialized {
-            TaskLifecycleEvent::Enqueued { queue, priority, payload_size_bytes, max_retries, timeout_seconds } => {
+            TaskLifecycleEvent::Enqueued {
+                queue,
+                priority,
+                payload_size_bytes,
+                max_retries,
+                timeout_seconds,
+            } => {
                 assert_eq!(queue, "test_queue");
                 assert_eq!(priority, TaskPriority::High);
                 assert_eq!(payload_size_bytes, 1024);
@@ -456,4 +505,4 @@ mod tests {
             _ => panic!("Unexpected event type"),
         }
     }
-} 
+}

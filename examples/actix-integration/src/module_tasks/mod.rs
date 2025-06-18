@@ -2,7 +2,7 @@
 //!
 //! This module demonstrates how to organize tasks in separate files
 //! while still enabling auto-registration functionality.
-//! 
+//!
 //! Features comprehensive task types including:
 //! - Communication: Email, Slack, SMS, Discord, Webhooks, Multi-channel notifications
 //! - Processing: Data processing, ML training, File processing, Image processing
@@ -14,19 +14,39 @@ pub mod processing;
 
 // Re-export all communication tasks
 pub use communication::{
-    EmailTask, SlackNotificationTask, SmsTask, WebhookTask,
-    MultiChannelNotificationTask, DiscordNotificationTask,
+    DiscordEmbed,
+    DiscordEmbedField,
+    DiscordEmbedFooter,
+    DiscordNotificationTask,
     // Supporting types
-    EmailAttachment, SlackAttachment, SlackField, NotificationChannel,
-    DiscordEmbed, DiscordEmbedField, DiscordEmbedFooter
+    EmailAttachment,
+    EmailTask,
+    MultiChannelNotificationTask,
+    NotificationChannel,
+    SlackAttachment,
+    SlackField,
+    SlackNotificationTask,
+    SmsTask,
+    WebhookTask,
 };
 
 // Re-export all processing tasks
 pub use processing::{
-    DataProcessingTask, AnalyticsTask, MLTrainingTask, FileProcessingTask,
-    ImageProcessingTask, ReportGenerationTask, BackupTask,
-    DatabaseMaintenanceTask, CacheWarmupTask, BatchProcessingTask,
+    AnalyticsTask,
+    BackupTask,
+    BatchItem,
+    BatchProcessingTask,
+    CacheWarmupTask,
     // Supporting types
-    DataFilter, DataTransformation, FileValidationRule, ImageOperation,
-    DateRange, BatchItem
+    DataFilter,
+    DataProcessingTask,
+    DataTransformation,
+    DatabaseMaintenanceTask,
+    DateRange,
+    FileProcessingTask,
+    FileValidationRule,
+    ImageOperation,
+    ImageProcessingTask,
+    MLTrainingTask,
+    ReportGenerationTask,
 };

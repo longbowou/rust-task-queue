@@ -376,7 +376,7 @@ async fn get_comprehensive_status(
         } else {
             "healthy"
         }
-        .to_string(),
+            .to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime_seconds: system_metrics.uptime_seconds,
         workers: WorkerStatus {
@@ -593,9 +593,9 @@ async fn main() -> std::io::Result<()> {
             // Auto-configured comprehensive routes
             .configure(configure_task_queue_routes_auto)
     })
-    .bind("0.0.0.0:8000")?
-    .run()
-    .await
+        .bind("0.0.0.0:8000")?
+        .run()
+        .await
 }
 
 // ============================================================================

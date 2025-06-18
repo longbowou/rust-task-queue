@@ -38,43 +38,33 @@ pub async fn start_cli_worker(config: TaskQueueConfig) -> Result<(), Box<dyn std
     {
         let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
         let log_format = env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
-        
-        let env_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| {
-                EnvFilter::new(format!(
-                    "rust_task_queue={},{}",
-                    log_level,
-                    if log_level == "debug" || log_level == "trace" {
-                        "redis=warn,deadpool=warn"
-                    } else {
-                        "warn"
-                    }
-                ))
-            });
+
+        let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            EnvFilter::new(format!(
+                "rust_task_queue={},{}",
+                log_level,
+                if log_level == "debug" || log_level == "trace" {
+                    "redis=warn,deadpool=warn"
+                } else {
+                    "warn"
+                }
+            ))
+        });
 
         let fmt_layer = match log_format.as_str() {
-            "json" => {
-                fmt::layer()
-                    .with_target(true)
-                    .with_thread_ids(true)
-                    .with_file(true)
-                    .with_line_number(true)
-                    .json()
-                    .boxed()
-            }
-            "compact" => {
-                fmt::layer()
-                    .with_target(false)
-                    .compact()
-                    .boxed()
-            }
-            _ => {
-                fmt::layer()
-                    .with_target(true)
-                    .with_thread_ids(true)
-                    .pretty()
-                    .boxed()
-            }
+            "json" => fmt::layer()
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_file(true)
+                .with_line_number(true)
+                .json()
+                .boxed(),
+            "compact" => fmt::layer().with_target(false).compact().boxed(),
+            _ => fmt::layer()
+                .with_target(true)
+                .with_thread_ids(true)
+                .pretty()
+                .boxed(),
         };
 
         if let Err(e) = tracing_subscriber::registry()

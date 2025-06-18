@@ -43,7 +43,8 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 
 ## Recent Improvements
 
-- **Comprehensive test suite**: 220+ total tests (122 unit + 9 integration + 22 actix + 6 performance + 11 security + 9 error scenario + 5 benchmarks)
+- **Comprehensive test suite**: 220+ total tests (122 unit + 9 integration + 22 actix + 6 performance + 11 security + 9
+  error scenario + 5 benchmarks)
 - **New Actix Web metrics API**: 15+ comprehensive endpoints for monitoring and diagnostics
 - **Performance optimizations**: Sub-40ns serialization/deserialization
 - **Clippy compliance**: Zero warnings with strict linting rules
@@ -109,7 +110,7 @@ The framework includes comprehensive structured logging and tracing capabilities
 ### Tracing Features
 
 - **Complete Task Lifecycle Tracking**: From enqueue to completion with detailed spans
-- **Performance Monitoring**: Execution timing, queue metrics, and throughput analysis  
+- **Performance Monitoring**: Execution timing, queue metrics, and throughput analysis
 - **Error Chain Analysis**: Deep context and source tracking for debugging
 - **Worker Activity Monitoring**: Real-time status and resource utilization
 - **Distributed Tracing**: Async instrumentation with span correlation
@@ -152,12 +153,16 @@ cargo run --bin task-worker worker --workers 4
 ### Structured Logging Output
 
 **JSON Format (Production):**
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:00.123Z",
   "level": "INFO",
   "target": "rust_task_queue::broker",
-  "span": {"name": "enqueue_task", "task_id": "abc123"},
+  "span": {
+    "name": "enqueue_task",
+    "task_id": "abc123"
+  },
   "fields": {
     "task_type": "ProcessOrderTask",
     "queue": "high_priority",
@@ -169,6 +174,7 @@ cargo run --bin task-worker worker --workers 4
 ```
 
 **Compact Format (Development):**
+
 ```
 2024-01-15T10:30:00.123Z INFO enqueue_task{task_id=abc123}: rust_task_queue::broker: Task enqueued successfully task_type="ProcessOrderTask" queue="high_priority"
 ```
@@ -179,7 +185,7 @@ cargo run --bin task-worker worker --workers 4
 use rust_task_queue::prelude::*;
 use tracing::{info, warn, error};
 
-#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]  
+#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
 struct MyTask {
     data: String,
 }
@@ -189,10 +195,10 @@ impl Task for MyTask {
     async fn execute(&self) -> TaskResult {
         // Automatic tracing spans are created for task execution
         info!("Processing task with data: {}", self.data);
-        
+
         // Your business logic here
         let result = process_data(&self.data).await?;
-        
+
         Ok(serde_json::json!({"result": result}))
     }
 
@@ -225,10 +231,12 @@ Perfect for integration with observability platforms:
 The framework includes a production-ready metrics API with 15+ endpoints for monitoring and diagnostics:
 
 ### Health & Status Endpoints
+
 - **`/tasks/health`** - Detailed health check with component status (Redis, workers, scheduler)
 - **`/tasks/status`** - System status with health metrics and worker information
 
 ### Core Metrics Endpoints
+
 - **`/tasks/metrics`** - Comprehensive metrics combining all available data
 - **`/tasks/metrics/system`** - Enhanced system metrics with memory and performance data
 - **`/tasks/metrics/performance`** - Performance report with task execution metrics and SLA data
@@ -239,10 +247,12 @@ The framework includes a production-ready metrics API with 15+ endpoints for mon
 - **`/tasks/metrics/summary`** - Quick metrics summary for debugging
 
 ### Task Registry Endpoints
+
 - **`/tasks/registered`** - Auto-registered tasks information
 - **`/tasks/registry/info`** - Detailed task registry information and features
 
 ### Administrative Endpoints
+
 - **`/tasks/alerts`** - Active alerts from the metrics system
 - **`/tasks/sla`** - SLA status and violations with performance percentages
 - **`/tasks/diagnostics`** - Comprehensive diagnostics with queue health analysis
@@ -285,12 +295,12 @@ rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "ac
 - `default`: `tracing` + `auto-register` + `config-support` + `cli` (recommended)
 - `full`: All features enabled for maximum functionality
 - `tracing`: **Enterprise-grade structured logging and observability**
-  - Complete task lifecycle tracking with distributed spans
-  - Performance monitoring and execution timing
-  - Error chain analysis with deep context
-  - Worker activity and resource utilization monitoring
-  - Production-ready logging configuration (JSON/compact/pretty formats)
-  - Environment-based configuration support
+    - Complete task lifecycle tracking with distributed spans
+    - Performance monitoring and execution timing
+    - Error chain analysis with deep context
+    - Worker activity and resource utilization monitoring
+    - Production-ready logging configuration (JSON/compact/pretty formats)
+    - Environment-based configuration support
 - `actix-integration`: Web framework integration with built-in endpoints
 - `cli`: Standalone worker binaries with logging configuration support
 - `auto-register`: Automatic task discovery via procedural macros
@@ -1154,18 +1164,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // All operations are automatically traced
     let task = MyTask { data: "example".to_string() };
     let task_id = task_queue.enqueue(task, queue_names::DEFAULT).await?;
-    
+
     Ok(())
 }
 ```
 
 **Development Setup:**
+
 ```rust
 // For development with detailed tracing
 configure_production_logging(LogLevel::Debug, LogFormat::Pretty);
 ```
 
 **Production Setup:**
+
 ```rust
 // For production with JSON structured logs
 configure_production_logging(LogLevel::Info, LogFormat::Json);

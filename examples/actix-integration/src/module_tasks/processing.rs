@@ -47,15 +47,15 @@ impl Task for DataProcessingTask {
             "[PROCESSING] Processing data: {} with operation: {} (batch: {})",
             self.data_id, self.operation, batch_size
         );
-        
+
         if let Some(input_format) = &self.input_format {
             println!("  Input format: {}", input_format);
         }
-        
+
         if let Some(filters) = &self.filters {
             println!("  Filters: {} conditions", filters.len());
         }
-        
+
         if let Some(transformations) = &self.transformations {
             println!("  Transformations: {} operations", transformations.len());
         }
@@ -65,7 +65,7 @@ impl Task for DataProcessingTask {
         let filter_time = self.filters.as_ref().map_or(0, |f| f.len() * 10);
         let transform_time = self.transformations.as_ref().map_or(0, |t| t.len() * 15);
         let processing_time = base_time + filter_time + transform_time;
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time as u64)).await;
 
         #[derive(Serialize)]
@@ -134,11 +134,11 @@ impl Task for AnalyticsTask {
         if let Some(session_id) = &self.session_id {
             println!("  Session: {}", session_id);
         }
-        
+
         if let Some(source) = &self.source {
             println!("  Source: {}", source);
         }
-        
+
         if let Some(campaign_id) = &self.campaign_id {
             println!("  Campaign: {}", campaign_id);
         }
@@ -201,24 +201,28 @@ impl Task for MLTrainingTask {
             self.model_type, self.model_name, self.epochs, self.learning_rate
         );
         println!("  Dataset: {}", self.dataset_path);
-        
+
         if let Some(batch_size) = self.batch_size {
             println!("  Batch size: {}", batch_size);
         }
-        
+
         if let Some(gpu_enabled) = self.gpu_enabled {
             println!("  GPU enabled: {}", gpu_enabled);
         }
-        
+
         if let Some(hyperparams) = &self.hyperparameters {
             println!("  Hyperparameters: {} configured", hyperparams.len());
         }
 
         // Simulate training time based on epochs and complexity
         let base_training_time = self.epochs * 50; // Base time per epoch
-        let gpu_factor = if self.gpu_enabled.unwrap_or(false) { 0.3 } else { 1.0 };
+        let gpu_factor = if self.gpu_enabled.unwrap_or(false) {
+            0.3
+        } else {
+            1.0
+        };
         let training_time = ((base_training_time as f64 * gpu_factor) as u32).min(5000);
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(training_time as u64)).await;
 
         #[derive(Serialize)]
@@ -294,16 +298,16 @@ impl Task for FileProcessingTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         println!(
             "[PROCESSING] Processing file: {} ({} -> {})",
-            self.file_path, 
-            self.input_format, 
+            self.file_path,
+            self.input_format,
             self.output_format.as_deref().unwrap_or("same")
         );
         println!("  Operation: {}", self.operation);
-        
+
         if let Some(compression_level) = self.compression_level {
             println!("  Compression level: {}", compression_level);
         }
-        
+
         if let Some(validation_rules) = &self.validation_rules {
             println!("  Validation rules: {} checks", validation_rules.len());
         }
@@ -317,7 +321,7 @@ impl Task for FileProcessingTask {
             "analyze" => 1000,
             _ => 400,
         };
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time)).await;
 
         #[derive(Serialize)]
@@ -387,7 +391,7 @@ pub struct ImageProcessingTask {
     pub image_path: String,
     pub operations: Vec<ImageOperation>,
     pub output_format: Option<String>, // "jpg", "png", "webp", "avif"
-    pub quality: Option<u8>, // 1-100 for lossy formats
+    pub quality: Option<u8>,           // 1-100 for lossy formats
     pub progressive: Option<bool>,
 }
 
@@ -402,11 +406,11 @@ impl Task for ImageProcessingTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         println!("[PROCESSING] Processing image: {}", self.image_path);
         println!("  Operations: {} to perform", self.operations.len());
-        
+
         if let Some(output_format) = &self.output_format {
             println!("  Output format: {}", output_format);
         }
-        
+
         if let Some(quality) = self.quality {
             println!("  Quality: {}%", quality);
         }
@@ -477,13 +481,16 @@ pub struct DateRange {
 #[async_trait]
 impl Task for ReportGenerationTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        println!("[PROCESSING] Generating {} report: {}", self.report_type, self.report_name);
+        println!(
+            "[PROCESSING] Generating {} report: {}",
+            self.report_type, self.report_name
+        );
         println!("  Data sources: {} tables/queries", self.data_sources.len());
-        
+
         if let Some(template) = &self.template {
             println!("  Template: {}", template);
         }
-        
+
         if let Some(date_range) = &self.date_range {
             println!("  Date range: {} to {}", date_range.start, date_range.end);
         }
@@ -492,7 +499,7 @@ impl Task for ReportGenerationTask {
         let base_time = 1000; // Base 1 second
         let data_factor = self.data_sources.len() * 200; // 200ms per data source
         let processing_time = base_time + data_factor;
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time as u64)).await;
 
         #[derive(Serialize)]
@@ -514,8 +521,16 @@ impl Task for ReportGenerationTask {
             report_type: self.report_type.clone(),
             file_path: format!("reports/{}.{}", self.report_name, self.report_type),
             file_size_bytes: 1024 * 1024, // Mock 1MB report
-            pages: if self.report_type == "pdf" { Some(25) } else { None },
-            rows: if self.report_type == "csv" { Some(10000) } else { None },
+            pages: if self.report_type == "pdf" {
+                Some(25)
+            } else {
+                None
+            },
+            rows: if self.report_type == "csv" {
+                Some(10000)
+            } else {
+                None
+            },
             generation_time_ms: processing_time,
             recipients_notified: self.recipients.as_ref().map_or(0, |r| r.len()),
         };
@@ -551,14 +566,17 @@ pub struct BackupTask {
 #[async_trait]
 impl Task for BackupTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        println!("[PROCESSING] Starting {} backup: {}", self.backup_type, self.backup_name);
+        println!(
+            "[PROCESSING] Starting {} backup: {}",
+            self.backup_type, self.backup_name
+        );
         println!("  Sources: {} paths", self.source_paths.len());
         println!("  Destination: {}", self.destination);
-        
+
         if self.compression.unwrap_or(false) {
             println!("  Compression: enabled");
         }
-        
+
         if self.encryption.unwrap_or(false) {
             println!("  Encryption: enabled");
         }
@@ -570,10 +588,18 @@ impl Task for BackupTask {
             "differential" => 1500,
             _ => 1000,
         };
-        
-        let compression_factor = if self.compression.unwrap_or(false) { 1.5 } else { 1.0 };
-        let encryption_factor = if self.encryption.unwrap_or(false) { 1.2 } else { 1.0 };
-        
+
+        let compression_factor = if self.compression.unwrap_or(false) {
+            1.5
+        } else {
+            1.0
+        };
+        let encryption_factor = if self.encryption.unwrap_or(false) {
+            1.2
+        } else {
+            1.0
+        };
+
         let processing_time = (base_time as f64 * compression_factor * encryption_factor) as u64;
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time)).await;
 
@@ -619,8 +645,8 @@ impl Task for BackupTask {
     fn timeout_seconds(&self) -> u64 {
         // Dynamic timeout based on backup type
         match self.backup_type.as_str() {
-            "full" => 3600,      // 1 hour for full backup
-            "incremental" => 900, // 15 minutes for incremental
+            "full" => 3600,         // 1 hour for full backup
+            "incremental" => 900,   // 15 minutes for incremental
             "differential" => 1800, // 30 minutes for differential
             _ => 1200,
         }
@@ -644,31 +670,36 @@ pub struct DatabaseMaintenanceTask {
 #[async_trait]
 impl Task for DatabaseMaintenanceTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        println!("[PROCESSING] Database maintenance for: {}", self.database_name);
+        println!(
+            "[PROCESSING] Database maintenance for: {}",
+            self.database_name
+        );
         println!("  Operations: {:?}", self.operations);
-        
+
         if let Some(tables) = &self.tables {
             println!("  Tables: {} specified", tables.len());
         } else {
             println!("  Tables: all tables");
         }
-        
+
         if let Some(window) = &self.maintenance_window {
             println!("  Scheduled for: {}", window);
         }
 
         // Simulate maintenance time based on operations
-        let operation_time: u64 = self.operations.iter().map(|op| {
-            match op.as_str() {
+        let operation_time: u64 = self
+            .operations
+            .iter()
+            .map(|op| match op.as_str() {
                 "vacuum" => 2000,
                 "reindex" => 1500,
                 "analyze" => 800,
                 "optimize" => 3000,
                 "cleanup" => 1000,
                 _ => 1200,
-            }
-        }).sum();
-        
+            })
+            .sum();
+
         tokio::time::sleep(tokio::time::Duration::from_millis(operation_time)).await;
 
         #[derive(Serialize)]
@@ -688,7 +719,7 @@ impl Task for DatabaseMaintenanceTask {
             operations_completed: self.operations.clone(),
             tables_affected: self.tables.as_ref().map_or(50, |t| t.len() as u32), // Mock table count
             space_reclaimed_bytes: 1024 * 1024 * 128, // Mock 128MB reclaimed
-            performance_improvement: 15.5, // Mock 15.5% improvement
+            performance_improvement: 15.5,            // Mock 15.5% improvement
             maintenance_time_ms: operation_time,
         };
 
@@ -712,7 +743,7 @@ impl Task for DatabaseMaintenanceTask {
 #[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
 pub struct CacheWarmupTask {
     pub cache_name: String,
-    pub cache_type: String, // "redis", "memcached", "application", "cdn"
+    pub cache_type: String,      // "redis", "memcached", "application", "cdn"
     pub warmup_strategy: String, // "popular_items", "recent_items", "predictive", "full"
     pub data_sources: Vec<String>,
     pub max_items: Option<u32>,
@@ -722,10 +753,13 @@ pub struct CacheWarmupTask {
 #[async_trait]
 impl Task for CacheWarmupTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        println!("[PROCESSING] Cache warmup for {} ({})", self.cache_name, self.cache_type);
+        println!(
+            "[PROCESSING] Cache warmup for {} ({})",
+            self.cache_name, self.cache_type
+        );
         println!("  Strategy: {}", self.warmup_strategy);
         println!("  Data sources: {} configured", self.data_sources.len());
-        
+
         if let Some(max_items) = self.max_items {
             println!("  Max items: {}", max_items);
         }
@@ -739,7 +773,7 @@ impl Task for CacheWarmupTask {
             "full" => 2.0,
             _ => 1.0,
         };
-        
+
         let processing_time = (items_to_cache as f64 * strategy_factor * 0.5) as u64; // 0.5ms per item
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time)).await;
 
@@ -805,9 +839,13 @@ pub struct BatchItem {
 #[async_trait]
 impl Task for BatchProcessingTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        println!("[PROCESSING] Batch processing: {} ({} items)", self.batch_id, self.items.len());
+        println!(
+            "[PROCESSING] Batch processing: {} ({} items)",
+            self.batch_id,
+            self.items.len()
+        );
         println!("  Operation: {}", self.operation);
-        
+
         if let Some(workers) = self.parallel_workers {
             println!("  Parallel workers: {}", workers);
         }
@@ -815,7 +853,7 @@ impl Task for BatchProcessingTask {
         let workers = self.parallel_workers.unwrap_or(1);
         let items_per_worker = (self.items.len() as f64 / workers as f64).ceil() as usize;
         let processing_time = items_per_worker * 10; // 10ms per item
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time as u64)).await;
 
         #[derive(Serialize)]

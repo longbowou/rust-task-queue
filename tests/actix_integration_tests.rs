@@ -1,9 +1,9 @@
 #![cfg(feature = "actix-integration")]
 
 use actix_web::{test, web, App};
+use rust_task_queue::actix::configure_task_queue_routes;
 use rust_task_queue::prelude::*;
 use rust_task_queue::queue::queue_names;
-use rust_task_queue::actix::configure_task_queue_routes;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -112,7 +112,7 @@ async fn setup_test_task_queue() -> (Arc<TaskQueue>, String) {
         data: "Test data for metrics".to_string(),
         should_fail: false,
     };
-    
+
     // Enqueue a successful task
     let _ = task_queue
         .enqueue(test_task, queue_names::DEFAULT)
@@ -206,7 +206,10 @@ async fn test_system_status_endpoint() {
 #[tokio::test]
 async fn test_comprehensive_metrics_endpoint() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_comprehensive_metrics_endpoint with ID: {}", test_id);
+    println!(
+        "Running test_comprehensive_metrics_endpoint with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -223,14 +226,17 @@ async fn test_comprehensive_metrics_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "timestamp",
-        "task_queue_metrics",
-        "system_metrics", 
-        "autoscaler_metrics",
-        "scaling_report",
-        "worker_count"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "timestamp",
+            "task_queue_metrics",
+            "system_metrics",
+            "autoscaler_metrics",
+            "scaling_report",
+            "worker_count",
+        ],
+    );
 
     // Validate nested structures
     assert!(body["task_queue_metrics"]["queue_metrics"].is_array());
@@ -264,14 +270,17 @@ async fn test_system_metrics_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "timestamp",
-        "uptime_seconds",
-        "memory",
-        "performance",
-        "tasks",
-        "workers"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "timestamp",
+            "uptime_seconds",
+            "memory",
+            "performance",
+            "tasks",
+            "workers",
+        ],
+    );
 
     // Validate memory metrics
     let memory = &body["memory"];
@@ -292,7 +301,10 @@ async fn test_system_metrics_endpoint() {
 #[tokio::test]
 async fn test_performance_metrics_endpoint() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_performance_metrics_endpoint with ID: {}", test_id);
+    println!(
+        "Running test_performance_metrics_endpoint with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -311,12 +323,15 @@ async fn test_performance_metrics_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "uptime_seconds",
-        "task_performance",
-        "active_alerts",
-        "sla_violations"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "uptime_seconds",
+            "task_performance",
+            "active_alerts",
+            "sla_violations",
+        ],
+    );
 
     assert!(body["task_performance"].is_object());
     assert!(body["active_alerts"].is_array());
@@ -329,7 +344,10 @@ async fn test_performance_metrics_endpoint() {
 #[tokio::test]
 async fn test_autoscaler_metrics_endpoint() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_autoscaler_metrics_endpoint with ID: {}", test_id);
+    println!(
+        "Running test_autoscaler_metrics_endpoint with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -425,12 +443,15 @@ async fn test_worker_metrics_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "active_workers",
-        "worker_metrics",
-        "is_shutting_down",
-        "timestamp"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "active_workers",
+            "worker_metrics",
+            "is_shutting_down",
+            "timestamp",
+        ],
+    );
 
     assert!(body["active_workers"].is_number());
     assert!(body["worker_metrics"].is_object());
@@ -522,9 +543,7 @@ async fn test_registry_endpoint() {
     )
     .await;
 
-    let req = test::TestRequest::get()
-        .uri("/tasks/registry")
-        .to_request();
+    let req = test::TestRequest::get().uri("/tasks/registry").to_request();
     let resp = test::call_service(&app, req).await;
 
     assert!(resp.status().is_success());
@@ -589,14 +608,17 @@ async fn test_sla_status_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "sla_violations",
-        "violation_count",
-        "performance_metrics",
-        "success_rate_percentage",
-        "error_rate_percentage",
-        "timestamp"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "sla_violations",
+            "violation_count",
+            "performance_metrics",
+            "success_rate_percentage",
+            "error_rate_percentage",
+            "timestamp",
+        ],
+    );
 
     assert!(body["sla_violations"].is_array());
     assert!(body["violation_count"].is_number());
@@ -630,14 +652,17 @@ async fn test_diagnostics_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "system_health",
-        "performance_report",
-        "worker_diagnostics",
-        "queue_diagnostics",
-        "uptime_seconds",
-        "timestamp"
-    ]);
+    validate_json_response(
+        &body,
+        &[
+            "system_health",
+            "performance_report",
+            "worker_diagnostics",
+            "queue_diagnostics",
+            "uptime_seconds",
+            "timestamp",
+        ],
+    );
 
     assert!(body["system_health"].is_object());
     assert!(body["performance_report"].is_object());
@@ -675,12 +700,10 @@ async fn test_uptime_info_endpoint() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    validate_json_response(&body, &[
-        "uptime",
-        "runtime_info",
-        "performance_summary",
-        "timestamp"
-    ]);
+    validate_json_response(
+        &body,
+        &["uptime", "runtime_info", "performance_summary", "timestamp"],
+    );
 
     // Validate uptime structure
     let uptime = &body["uptime"];
@@ -696,7 +719,12 @@ async fn test_uptime_info_endpoint() {
 
     // Verify formatted uptime contains expected elements
     let formatted = uptime["formatted"].as_str().unwrap();
-    assert!(formatted.contains("d") && formatted.contains("h") && formatted.contains("m") && formatted.contains("s"));
+    assert!(
+        formatted.contains("d")
+            && formatted.contains("h")
+            && formatted.contains("m")
+            && formatted.contains("s")
+    );
 
     cleanup_task_queue(&task_queue, &redis_url).await;
     println!("Completed test_uptime_info_endpoint");
@@ -705,7 +733,10 @@ async fn test_uptime_info_endpoint() {
 #[tokio::test]
 async fn test_error_handling_for_invalid_endpoints() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_error_handling_for_invalid_endpoints with ID: {}", test_id);
+    println!(
+        "Running test_error_handling_for_invalid_endpoints with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -735,7 +766,10 @@ async fn test_error_handling_for_invalid_endpoints() {
 #[tokio::test]
 async fn test_concurrent_endpoint_requests() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_concurrent_endpoint_requests with ID: {}", test_id);
+    println!(
+        "Running test_concurrent_endpoint_requests with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -743,7 +777,7 @@ async fn test_concurrent_endpoint_requests() {
     // (since actix test app can't be cloned, we test them one by one rapidly)
     let endpoints = vec![
         "/tasks/health",
-        "/tasks/status", 
+        "/tasks/status",
         "/tasks/metrics/system",
         "/tasks/metrics/queues",
         "/tasks/metrics/workers",
@@ -762,8 +796,8 @@ async fn test_concurrent_endpoint_requests() {
         let req = test::TestRequest::get().uri(endpoint).to_request();
         let resp = test::call_service(&app, req).await;
         assert!(
-            resp.status().is_success(), 
-            "Endpoint {} failed during concurrent test", 
+            resp.status().is_success(),
+            "Endpoint {} failed during concurrent test",
             endpoint
         );
     }
@@ -775,7 +809,10 @@ async fn test_concurrent_endpoint_requests() {
 #[tokio::test]
 async fn test_comprehensive_metrics_with_real_data() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_comprehensive_metrics_with_real_data with ID: {}", test_id);
+    println!(
+        "Running test_comprehensive_metrics_with_real_data with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -785,14 +822,17 @@ async fn test_comprehensive_metrics_with_real_data() {
             data: format!("Real test data {}", i),
             should_fail: i % 4 == 0, // Some tasks fail for error rate testing
         };
-        
+
         let queue = match i % 3 {
             0 => queue_names::HIGH_PRIORITY,
             1 => queue_names::DEFAULT,
             _ => queue_names::LOW_PRIORITY,
         };
-        
-        let _ = task_queue.enqueue(task, queue).await.expect("Failed to enqueue task");
+
+        let _ = task_queue
+            .enqueue(task, queue)
+            .await
+            .expect("Failed to enqueue task");
     }
 
     // Wait for tasks to process
@@ -811,25 +851,36 @@ async fn test_comprehensive_metrics_with_real_data() {
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
-    
+
     // Verify we have realistic task counts
     let task_queue_metrics = &body["task_queue_metrics"];
-    assert!(task_queue_metrics["total_processed_tasks"].as_i64().unwrap() > 0);
-    
+    assert!(
+        task_queue_metrics["total_processed_tasks"]
+            .as_i64()
+            .unwrap()
+            > 0
+    );
+
     // Test queue-specific metrics
-    let req = test::TestRequest::get().uri("/tasks/metrics/queues").to_request();
+    let req = test::TestRequest::get()
+        .uri("/tasks/metrics/queues")
+        .to_request();
     let resp = test::call_service(&app, req).await;
     assert!(resp.status().is_success());
 
     let body: Value = test::read_body_json(resp).await;
     let queue_metrics = body["queue_metrics"].as_array().unwrap();
-    
+
     // Verify we have tasks in different queues
     let mut total_processed = 0;
     for queue in queue_metrics {
         total_processed += queue["processed_tasks"].as_i64().unwrap_or(0);
     }
-    assert!(total_processed > 0, "Expected processed tasks but got {}", total_processed);
+    assert!(
+        total_processed > 0,
+        "Expected processed tasks but got {}",
+        total_processed
+    );
 
     cleanup_task_queue(&task_queue, &redis_url).await;
     println!("Completed test_comprehensive_metrics_with_real_data");
@@ -838,7 +889,10 @@ async fn test_comprehensive_metrics_with_real_data() {
 #[tokio::test]
 async fn test_json_response_consistency() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_json_response_consistency with ID: {}", test_id);
+    println!(
+        "Running test_json_response_consistency with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -870,16 +924,16 @@ async fn test_json_response_consistency() {
     for endpoint in endpoints_with_timestamp {
         let req = test::TestRequest::get().uri(endpoint).to_request();
         let resp = test::call_service(&app, req).await;
-        
+
         assert!(
-            resp.status().is_success(), 
-            "Endpoint {} returned non-success status: {}", 
-            endpoint, 
+            resp.status().is_success(),
+            "Endpoint {} returned non-success status: {}",
+            endpoint,
             resp.status()
         );
 
         let body: Value = test::read_body_json(resp).await;
-        
+
         // Every endpoint should have a timestamp
         assert!(
             body.get("timestamp").is_some(),
@@ -905,7 +959,10 @@ async fn test_json_response_consistency() {
 #[tokio::test]
 async fn test_endpoint_performance_and_response_times() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_endpoint_performance_and_response_times with ID: {}", test_id);
+    println!(
+        "Running test_endpoint_performance_and_response_times with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -918,23 +975,33 @@ async fn test_endpoint_performance_and_response_times() {
 
     // Test that all endpoints respond within reasonable time
     let start_time = std::time::Instant::now();
-    
+
     let req = test::TestRequest::get().uri("/tasks/metrics").to_request();
     let resp = test::call_service(&app, req).await;
-    
+
     let elapsed = start_time.elapsed();
     assert!(resp.status().is_success());
-    assert!(elapsed.as_millis() < 5000, "Comprehensive metrics endpoint took too long: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 5000,
+        "Comprehensive metrics endpoint took too long: {:?}",
+        elapsed
+    );
 
     // Test system metrics performance
     let start_time = std::time::Instant::now();
-    
-    let req = test::TestRequest::get().uri("/tasks/metrics/system").to_request();
+
+    let req = test::TestRequest::get()
+        .uri("/tasks/metrics/system")
+        .to_request();
     let resp = test::call_service(&app, req).await;
-    
+
     let elapsed = start_time.elapsed();
     assert!(resp.status().is_success());
-    assert!(elapsed.as_millis() < 1000, "System metrics endpoint took too long: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() < 1000,
+        "System metrics endpoint took too long: {:?}",
+        elapsed
+    );
 
     cleanup_task_queue(&task_queue, &redis_url).await;
     println!("Completed test_endpoint_performance_and_response_times");
@@ -952,16 +1019,20 @@ async fn test_metrics_data_accuracy() {
         data: "Success task for accuracy test".to_string(),
         should_fail: false,
     };
-    
+
     let failure_task = ActixTestTask {
         data: "Failure task for accuracy test".to_string(),
         should_fail: true,
     };
 
     // Enqueue tasks to different queues
-    let _ = task_queue.enqueue(success_task.clone(), queue_names::HIGH_PRIORITY).await;
+    let _ = task_queue
+        .enqueue(success_task.clone(), queue_names::HIGH_PRIORITY)
+        .await;
     let _ = task_queue.enqueue(failure_task, queue_names::DEFAULT).await;
-    let _ = task_queue.enqueue(success_task, queue_names::LOW_PRIORITY).await;
+    let _ = task_queue
+        .enqueue(success_task, queue_names::LOW_PRIORITY)
+        .await;
 
     // Wait for processing
     sleep(Duration::from_millis(1500)).await;
@@ -974,28 +1045,40 @@ async fn test_metrics_data_accuracy() {
     .await;
 
     // Test queue metrics accuracy
-    let req = test::TestRequest::get().uri("/tasks/metrics/queues").to_request();
+    let req = test::TestRequest::get()
+        .uri("/tasks/metrics/queues")
+        .to_request();
     let resp = test::call_service(&app, req).await;
     let body: Value = test::read_body_json(resp).await;
-    
+
     let queue_metrics = body["queue_metrics"].as_array().unwrap();
     let mut total_processed = 0;
     let mut total_failed = 0;
-    
+
     for queue in queue_metrics {
         total_processed += queue["processed_tasks"].as_i64().unwrap_or(0);
         total_failed += queue["failed_tasks"].as_i64().unwrap_or(0);
     }
 
     // We should have some processed tasks and at least one failure
-    assert!(total_processed > 0, "Expected processed tasks but got {}", total_processed);
-    assert!(total_failed > 0, "Expected failed tasks but got {}", total_failed);
+    assert!(
+        total_processed > 0,
+        "Expected processed tasks but got {}",
+        total_processed
+    );
+    assert!(
+        total_failed > 0,
+        "Expected failed tasks but got {}",
+        total_failed
+    );
 
     // Test system metrics accuracy
-    let req = test::TestRequest::get().uri("/tasks/metrics/system").to_request();
+    let req = test::TestRequest::get()
+        .uri("/tasks/metrics/system")
+        .to_request();
     let resp = test::call_service(&app, req).await;
     let body: Value = test::read_body_json(resp).await;
-    
+
     assert!(body["tasks"]["total_executed"].as_u64().unwrap() > 0);
     assert!(body["tasks"]["total_succeeded"].as_u64().unwrap() > 0);
     assert!(body["tasks"]["total_failed"].as_u64().unwrap() > 0);
@@ -1007,7 +1090,10 @@ async fn test_metrics_data_accuracy() {
 #[tokio::test]
 async fn test_edge_cases_and_error_conditions() {
     let test_id = Uuid::new_v4().to_string()[..8].to_string();
-    println!("Running test_edge_cases_and_error_conditions with ID: {}", test_id);
+    println!(
+        "Running test_edge_cases_and_error_conditions with ID: {}",
+        test_id
+    );
 
     let (task_queue, redis_url) = setup_test_task_queue().await;
 
@@ -1051,4 +1137,4 @@ async fn test_edge_cases_and_error_conditions() {
 
     cleanup_task_queue(&task_queue, &redis_url).await;
     println!("Completed test_edge_cases_and_error_conditions");
-} 
+}

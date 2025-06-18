@@ -235,7 +235,11 @@ Content-Type: application/json
       "address": "device_token_123"
     }
   ],
-  "fallback_order": ["sms", "email", "slack"]
+  "fallback_order": [
+    "sms",
+    "email",
+    "slack"
+  ]
 }
 
 ### Discord notification with rich embeds
@@ -424,8 +428,16 @@ Content-Type: application/json
 
 {
   "database_name": "production_db",
-  "operations": ["vacuum", "reindex", "analyze"],
-  "tables": ["users", "orders", "products"],
+  "operations": [
+    "vacuum",
+    "reindex",
+    "analyze"
+  ],
+  "tables": [
+    "users",
+    "orders",
+    "products"
+  ],
   "maintenance_window": "2024-01-15T02:00:00Z",
   "max_duration_minutes": 120
 }
@@ -438,7 +450,10 @@ Content-Type: application/json
   "cache_name": "product_cache",
   "cache_type": "redis",
   "warmup_strategy": "popular_items",
-  "data_sources": ["product_views", "purchase_history"],
+  "data_sources": [
+    "product_views",
+    "purchase_history"
+  ],
   "max_items": 5000,
   "ttl_seconds": 3600
 }
@@ -613,11 +628,26 @@ Content-Type: application/json
 
 {
   "tasks": [
-    {"to": "perf1@example.com", "subject": "Performance Test 1"},
-    {"to": "perf2@example.com", "subject": "Performance Test 2"},
-    {"to": "perf3@example.com", "subject": "Performance Test 3"},
-    {"to": "perf4@example.com", "subject": "Performance Test 4"},
-    {"to": "perf5@example.com", "subject": "Performance Test 5"}
+    {
+      "to": "perf1@example.com",
+      "subject": "Performance Test 1"
+    },
+    {
+      "to": "perf2@example.com",
+      "subject": "Performance Test 2"
+    },
+    {
+      "to": "perf3@example.com",
+      "subject": "Performance Test 3"
+    },
+    {
+      "to": "perf4@example.com",
+      "subject": "Performance Test 4"
+    },
+    {
+      "to": "perf5@example.com",
+      "subject": "Performance Test 5"
+    }
   ],
   "queue": "low_priority"
 }
@@ -633,12 +663,32 @@ Content-Type: application/json
   "input_format": "parquet",
   "output_format": "json",
   "filters": [
-    {"field": "status", "operator": "ne", "value": "deleted"},
-    {"field": "created_at", "operator": "gt", "value": "2024-01-01"}
+    {
+      "field": "status",
+      "operator": "ne",
+      "value": "deleted"
+    },
+    {
+      "field": "created_at",
+      "operator": "gt",
+      "value": "2024-01-01"
+    }
   ],
   "transformations": [
-    {"field": "email", "operation": "lowercase"},
-    {"field": "phone", "operation": "format", "parameters": {"format": "international"}},
-    {"field": "name", "operation": "trim"}
+    {
+      "field": "email",
+      "operation": "lowercase"
+    },
+    {
+      "field": "phone",
+      "operation": "format",
+      "parameters": {
+        "format": "international"
+      }
+    },
+    {
+      "field": "name",
+      "operation": "trim"
+    }
   ]
 }

@@ -1,8 +1,8 @@
 use crate::{RedisBroker, Task, TaskId, TaskQueueError};
 use chrono::{DateTime, Duration, Utc};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use std::collections::HashMap;
 
 pub struct TaskScheduler {
     broker: Arc<RedisBroker>,
@@ -59,7 +59,7 @@ impl TaskScheduler {
         let execute_at = Utc::now() + delay;
         let task_id = uuid::Uuid::new_v4();
         let task_name = task.name();
-        
+
         #[cfg(feature = "tracing")]
         tracing::info!(
             task_id = %task_id,
@@ -135,7 +135,7 @@ impl TaskScheduler {
         .await?;
 
         let batch_size = tasks.len();
-        
+
         if batch_size == 0 {
             #[cfg(feature = "tracing")]
             tracing::trace!(
@@ -159,8 +159,10 @@ impl TaskScheduler {
         for serialized_task in tasks {
             if let Ok(scheduled_task) = rmp_serde::from_slice::<ScheduledTask>(&serialized_task) {
                 // Track queue distribution
-                *queue_distribution.entry(scheduled_task.queue.clone()).or_insert(0) += 1;
-                
+                *queue_distribution
+                    .entry(scheduled_task.queue.clone())
+                    .or_insert(0) += 1;
+
                 #[cfg(feature = "tracing")]
                 tracing::debug!(
                     task_id = %scheduled_task.id,
@@ -185,22 +187,26 @@ impl TaskScheduler {
                 };
 
                 let serialized_wrapper = rmp_serde::to_vec(&task_wrapper)?;
-                
+
                 match redis::AsyncCommands::lpush::<_, _, ()>(
                     &mut *conn,
                     &scheduled_task.queue,
                     &serialized_wrapper,
-                ).await {
+                )
+                .await
+                {
                     Ok(_) => {
                         // Remove from scheduled tasks
                         match redis::AsyncCommands::zrem::<_, _, ()>(
                             &mut *conn,
                             "scheduled_tasks",
                             &serialized_task,
-                        ).await {
+                        )
+                        .await
+                        {
                             Ok(_) => {
                                 processed_count += 1;
-                                
+
                                 #[cfg(feature = "tracing")]
                                 tracing::info!(
                                     task_id = %scheduled_task.id,
