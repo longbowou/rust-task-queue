@@ -1,7 +1,8 @@
 [package]
 name = "rust-task-queue"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+rust-version = "1.70.0"
 authors = ["Longbowou <blandedaniel@gmail.com>"]
 description = "A high-performance, Redis-backed task queue framework with auto-scaling capabilities"
 documentation = "https://github.com/longbowou/rust-task-queue"

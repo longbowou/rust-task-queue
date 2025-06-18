@@ -2,9 +2,13 @@
 
 ## Current Status (v0.1.0)
 
-✅ **The main crate is ready for publishing!**
+**The main crate is ready for publishing!**
 
 The `rust-task-queue` crate can now be published without the dependency on the unpublished `rust-task-queue-macros` crate.
+
+**Rust Version Requirements:**
+- **Edition**: 2021
+- **MSRV**: 1.70.0
 
 ### Quick Publish
 
@@ -27,21 +31,21 @@ The original publishing issue was caused by a workspace dependency on an unpubli
 ### With Current Published Crate
 
 **Available Features:**
-- ✅ Core task queue functionality  
-- ✅ Redis-backed broker
-- ✅ Worker management
-- ✅ Auto-scaling
-- ✅ Task scheduling  
-- ✅ Metrics collection
-- ✅ Actix Web integration
-- ✅ CLI support
-- ✅ Configuration management
-- ✅ Manual task registration
+- Core task queue functionality  
+- Redis-backed broker
+- Worker management
+- Auto-scaling
+- Task scheduling  
+- Metrics collection
+- Actix Web integration
+- CLI support
+- Configuration management
+- Manual task registration
 
 **Not Available:**
-- ❌ `AutoRegisterTask` derive macro
-- ❌ `#[register_task]` attribute macro
-- ❌ Automatic task discovery
+- `AutoRegisterTask` derive macro
+- `#[register_task]` attribute macro
+- Automatic task discovery
 
 ### Usage Without Macros
 

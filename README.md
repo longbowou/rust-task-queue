@@ -9,51 +9,6 @@
 A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning,
 multidimensional scaling triggers, and advanced backpressure management for async Rust applications.
 
-## Enhanced Auto-scaling
-
-### **Multi-dimensional Scaling Intelligence**
-
-Our enhanced auto-scaling system analyzes **5 key metrics simultaneously** for intelligent scaling decisions:
-
-- **Queue Pressure Score**: Weighted queue depth accounting for priority levels
-- **Worker Utilization**: Real-time busy/idle ratio analysis
-- **Task Complexity Factor**: Dynamic execution pattern recognition
-- **Error Rate Monitoring**: System health and stability tracking
-- **Memory Pressure**: Per-worker resource utilization analysis
-
-### **Adaptive Threshold Learning**
-
-The system automatically adjusts scaling triggers based on actual performance vs. your SLA targets:
-
-```toml
-[autoscaler.target_sla]
-max_p95_latency_ms = 3000.0           # 3 second P95 latency target
-min_success_rate = 0.99               # 99% success rate target
-max_queue_wait_time_ms = 5000.0       # 5-second max queue wait
-target_worker_utilization = 0.75      # optimal 75% worker utilization
-```
-
-### **Stability Controls**
-
-Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
-
-- **Consecutive Signal Requirements**: Configurable signal thresholds (2-5 signals)
-- **Independent Cooldowns**: Separate scale-up (3 min) and scale-down (15 min) periods
-- **Performance History**: Learning from past scaling decisions
-
-## Recent Improvements
-
-- **Comprehensive test suite**: 220+ total tests (122 unit + 9 integration + 22 actix + 6 performance + 11 security + 9
-  error scenario + 5 benchmarks)
-- **New Actix Web metrics API**: 15+ comprehensive endpoints for monitoring and diagnostics
-- **Performance optimizations**: Sub-40ns serialization/deserialization
-- **Clippy compliance**: Zero warnings with strict linting rules
-- **Enhanced error handling**: Improved TaskQueueError creation and private method access
-- **Benchmark suite**: Detailed performance metrics for all core operations
-- **CI/CD improvements**: Automated testing with Redis container support
-- **Configuration improvements**: Streamlined Default trait implementations
-- **Enhanced Auto-scaling**: Multi-dimensional scaling with adaptive learning
-
 ## Features
 
 - **Redis-backed broker** with connection pooling and optimized operations
@@ -75,196 +30,18 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 - **Comprehensive testing** with unit, integration, performance, and security tests
 - **Enterprise-grade tracing** with lifecycle tracking, performance monitoring, and error context
 
-## Performance Benchmarks
+## Recent Improvements
 
-Recent benchmark results demonstrate exceptional performance:
-
-| Operation                  | Time      | Status      |
-|----------------------------|-----------|-------------|
-| Task Serialization         | ~39.15 ns | Excellent   |
-| Task Deserialization       | ~31.51 ns | Excellent   |
-| Queue Config Lookup        | ~39.76 ns | Excellent   |
-| Queue Management           | ~1.38 µs  | Very Good   |
-| Enhanced AutoScaler Config | ~617 ps   | Outstanding |
-
-*Benchmarks run on optimized release builds with statistical analysis*
-
-## Test Coverage
-
-The project maintains comprehensive test coverage across multiple dimensions:
-
-- **Unit Tests**: 122 tests covering all core functionality
-- **Integration Tests**: 9 tests for end-to-end workflows
-- **Actix Integration Tests**: 22 tests for web endpoints and metrics API
-- **Error Scenario Tests**: 9 tests for edge cases and failure modes
-- **Performance Tests**: 6 tests for throughput and load handling
-- **Security Tests**: 11 tests for injection attacks and safety
-- **Benchmarks**: 5 performance benchmarks for optimization
-
-**Total**: 220+ tests ensuring reliability and performance
-
-## Enterprise-Grade Observability
-
-The framework includes comprehensive structured logging and tracing capabilities for production systems:
-
-### Tracing Features
-
-- **Complete Task Lifecycle Tracking**: From enqueue to completion with detailed spans
-- **Performance Monitoring**: Execution timing, queue metrics, and throughput analysis
-- **Error Chain Analysis**: Deep context and source tracking for debugging
-- **Worker Activity Monitoring**: Real-time status and resource utilization
-- **Distributed Tracing**: Async instrumentation with span correlation
-- **Production Logging Configuration**: Multiple output formats (JSON/compact/pretty)
-
-### Logging Configuration
-
-```rust
-use rust_task_queue::prelude::*;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Configure structured logging for production
-    configure_production_logging(
-        rust_task_queue::LogLevel::Info,
-        rust_task_queue::LogFormat::Json
-    );
-
-    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
-        .auto_register_tasks()
-        .initial_workers(4)
-        .build()
-        .await?;
-
-    Ok(())
-}
-```
-
-### Environment-Based Configuration
-
-```bash
-# Configure logging via environment variables
-export LOG_LEVEL=info        # trace, debug, info, warn, error
-export LOG_FORMAT=json       # json, compact, pretty
-
-# Start worker with production logging
-cargo run --bin task-worker worker --workers 4
-```
-
-### Structured Logging Output
-
-**JSON Format (Production):**
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00.123Z",
-  "level": "INFO",
-  "target": "rust_task_queue::broker",
-  "span": {
-    "name": "enqueue_task",
-    "task_id": "abc123"
-  },
-  "fields": {
-    "task_type": "ProcessOrderTask",
-    "queue": "high_priority",
-    "payload_size": 1024,
-    "priority": "high"
-  },
-  "message": "Task enqueued successfully"
-}
-```
-
-**Compact Format (Development):**
-
-```
-2024-01-15T10:30:00.123Z INFO enqueue_task{task_id=abc123}: rust_task_queue::broker: Task enqueued successfully task_type="ProcessOrderTask" queue="high_priority"
-```
-
-### Tracing Integration
-
-```rust
-use rust_task_queue::prelude::*;
-use tracing::{info, warn, error};
-
-#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
-struct MyTask {
-    data: String,
-}
-
-#[async_trait]
-impl Task for MyTask {
-    async fn execute(&self) -> TaskResult {
-        // Automatic tracing spans are created for task execution
-        info!("Processing task with data: {}", self.data);
-
-        // Your business logic here
-        let result = process_data(&self.data).await?;
-
-        Ok(serde_json::json!({"result": result}))
-    }
-
-    fn name(&self) -> &str { "my_task" }
-}
-```
-
-### Performance Monitoring
-
-The tracing system provides detailed performance insights:
-
-- **Task Execution Timing**: Individual task performance tracking
-- **Queue Depth Monitoring**: Real-time queue status and trends
-- **Worker Utilization**: Capacity analysis and efficiency metrics
-- **Error Rate Tracking**: System health and failure analysis
-- **Throughput Analysis**: Tasks per second and bottleneck identification
-
-### Production Integration
-
-Perfect for integration with observability platforms:
-
-- **ELK Stack**: Elasticsearch, Logstash, and Kibana
-- **Datadog**: Application Performance Monitoring
-- **Splunk**: Log aggregation and analysis
-- **Grafana**: Metrics visualization and alerting
-- **OpenTelemetry**: Distributed tracing standards
-
-## Comprehensive Metrics API
-
-The framework includes a production-ready metrics API with 15+ endpoints for monitoring and diagnostics:
-
-### Health & Status Endpoints
-
-- **`/tasks/health`** - Detailed health check with component status (Redis, workers, scheduler)
-- **`/tasks/status`** - System status with health metrics and worker information
-
-### Core Metrics Endpoints
-
-- **`/tasks/metrics`** - Comprehensive metrics combining all available data
-- **`/tasks/metrics/system`** - Enhanced system metrics with memory and performance data
-- **`/tasks/metrics/performance`** - Performance report with task execution metrics and SLA data
-- **`/tasks/metrics/autoscaler`** - AutoScaler metrics and scaling recommendations
-- **`/tasks/metrics/queues`** - Individual queue metrics for all queues
-- **`/tasks/metrics/workers`** - Worker-specific metrics and status
-- **`/tasks/metrics/memory`** - Memory usage metrics and tracking
-- **`/tasks/metrics/summary`** - Quick metrics summary for debugging
-
-### Task Registry Endpoints
-
-- **`/tasks/registered`** - Auto-registered tasks information
-- **`/tasks/registry/info`** - Detailed task registry information and features
-
-### Administrative Endpoints
-
-- **`/tasks/alerts`** - Active alerts from the metrics system
-- **`/tasks/sla`** - SLA status and violations with performance percentages
-- **`/tasks/diagnostics`** - Comprehensive diagnostics with queue health analysis
-- **`/tasks/uptime`** - System uptime and runtime information
-
-```bash
-# Example usage
-curl http://localhost:3000/tasks/health              # Component health check
-curl http://localhost:3000/tasks/metrics            # All metrics combined
-curl http://localhost:3000/tasks/metrics/queues     # Queue-specific metrics
-curl http://localhost:3000/tasks/diagnostics        # System diagnostics
-```
+- **Comprehensive test suite**: 220+ total tests (122 unit + 9 integration + 22 actix + 6 performance + 11 security + 9
+  error scenario + 5 benchmarks)
+- **New Actix Web metrics API**: 15+ comprehensive endpoints for monitoring and diagnostics
+- **Performance optimizations**: Sub-40ns serialization/deserialization
+- **Clippy compliance**: Zero warnings with strict linting rules
+- **Enhanced error handling**: Improved TaskQueueError creation and private method access
+- **Benchmark suite**: Detailed performance metrics for all core operations
+- **CI/CD improvements**: Automated testing with Redis container support
+- **Configuration improvements**: Streamlined Default trait implementations
+- **Enhanced Auto-scaling**: Multi-dimensional scaling with adaptive learning
 
 ## Quick Start
 
@@ -812,6 +589,229 @@ cargo run --bin task-worker --features cli,auto-register worker \
   --queues "high_priority" \
   --log-level debug \
   --log-format compact
+```
+
+## Enhanced Auto-scaling
+
+### **Multi-dimensional Scaling Intelligence**
+
+Our enhanced auto-scaling system analyzes **5 key metrics simultaneously** for intelligent scaling decisions:
+
+- **Queue Pressure Score**: Weighted queue depth accounting for priority levels
+- **Worker Utilization**: Real-time busy/idle ratio analysis
+- **Task Complexity Factor**: Dynamic execution pattern recognition
+- **Error Rate Monitoring**: System health and stability tracking
+- **Memory Pressure**: Per-worker resource utilization analysis
+
+### **Adaptive Threshold Learning**
+
+The system automatically adjusts scaling triggers based on actual performance vs. your SLA targets:
+
+```toml
+[autoscaler.target_sla]
+max_p95_latency_ms = 3000.0           # 3 second P95 latency target
+min_success_rate = 0.99               # 99% success rate target
+max_queue_wait_time_ms = 5000.0       # 5-second max queue wait
+target_worker_utilization = 0.75      # optimal 75% worker utilization
+```
+
+### **Stability Controls**
+
+Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
+
+- **Consecutive Signal Requirements**: Configurable signal thresholds (2-5 signals)
+- **Independent Cooldowns**: Separate scale-up (3 min) and scale-down (15 min) periods
+- **Performance History**: Learning from past scaling decisions
+
+## Performance Benchmarks
+
+Recent benchmark results demonstrate exceptional performance:
+
+| Operation                  | Time      | Status      |
+|----------------------------|-----------|-------------|
+| Task Serialization         | ~39.15 ns | Excellent   |
+| Task Deserialization       | ~31.51 ns | Excellent   |
+| Queue Config Lookup        | ~39.76 ns | Excellent   |
+| Queue Management           | ~1.38 µs  | Very Good   |
+| Enhanced AutoScaler Config | ~617 ps   | Outstanding |
+
+*Benchmarks run on optimized release builds with statistical analysis*
+
+## Test Coverage
+
+The project maintains comprehensive test coverage across multiple dimensions:
+
+- **Unit Tests**: 122 tests covering all core functionality
+- **Integration Tests**: 9 tests for end-to-end workflows
+- **Actix Integration Tests**: 22 tests for web endpoints and metrics API
+- **Error Scenario Tests**: 9 tests for edge cases and failure modes
+- **Performance Tests**: 6 tests for throughput and load handling
+- **Security Tests**: 11 tests for injection attacks and safety
+- **Benchmarks**: 5 performance benchmarks for optimization
+
+**Total**: 220+ tests ensuring reliability and performance
+
+## Enterprise-Grade Observability
+
+The framework includes comprehensive structured logging and tracing capabilities for production systems:
+
+### Tracing Features
+
+- **Complete Task Lifecycle Tracking**: From enqueue to completion with detailed spans
+- **Performance Monitoring**: Execution timing, queue metrics, and throughput analysis
+- **Error Chain Analysis**: Deep context and source tracking for debugging
+- **Worker Activity Monitoring**: Real-time status and resource utilization
+- **Distributed Tracing**: Async instrumentation with span correlation
+- **Production Logging Configuration**: Multiple output formats (JSON/compact/pretty)
+
+### Logging Configuration
+
+```rust
+use rust_task_queue::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Configure structured logging for production
+    configure_production_logging(
+        rust_task_queue::LogLevel::Info,
+        rust_task_queue::LogFormat::Json
+    );
+
+    let task_queue = TaskQueueBuilder::new("redis://localhost:6379")
+        .auto_register_tasks()
+        .initial_workers(4)
+        .build()
+        .await?;
+
+    Ok(())
+}
+```
+
+### Environment-Based Configuration
+
+```bash
+# Configure logging via environment variables
+export LOG_LEVEL=info        # trace, debug, info, warn, error
+export LOG_FORMAT=json       # json, compact, pretty
+
+# Start worker with production logging
+cargo run --bin task-worker worker --workers 4
+```
+
+### Structured Logging Output
+
+**JSON Format (Production):**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "level": "INFO",
+  "target": "rust_task_queue::broker",
+  "span": {
+    "name": "enqueue_task",
+    "task_id": "abc123"
+  },
+  "fields": {
+    "task_type": "ProcessOrderTask",
+    "queue": "high_priority",
+    "payload_size": 1024,
+    "priority": "high"
+  },
+  "message": "Task enqueued successfully"
+}
+```
+
+**Compact Format (Development):**
+
+```
+2024-01-15T10:30:00.123Z INFO enqueue_task{task_id=abc123}: rust_task_queue::broker: Task enqueued successfully task_type="ProcessOrderTask" queue="high_priority"
+```
+
+### Tracing Integration
+
+```rust
+use rust_task_queue::prelude::*;
+use tracing::{info, warn, error};
+
+#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
+struct MyTask {
+    data: String,
+}
+
+#[async_trait]
+impl Task for MyTask {
+    async fn execute(&self) -> TaskResult {
+        // Automatic tracing spans are created for task execution
+        info!("Processing task with data: {}", self.data);
+
+        // Your business logic here
+        let result = process_data(&self.data).await?;
+
+        Ok(serde_json::json!({"result": result}))
+    }
+
+    fn name(&self) -> &str { "my_task" }
+}
+```
+
+### Performance Monitoring
+
+The tracing system provides detailed performance insights:
+
+- **Task Execution Timing**: Individual task performance tracking
+- **Queue Depth Monitoring**: Real-time queue status and trends
+- **Worker Utilization**: Capacity analysis and efficiency metrics
+- **Error Rate Tracking**: System health and failure analysis
+- **Throughput Analysis**: Tasks per second and bottleneck identification
+
+### Production Integration
+
+Perfect for integration with observability platforms:
+
+- **ELK Stack**: Elasticsearch, Logstash, and Kibana
+- **Datadog**: Application Performance Monitoring
+- **Splunk**: Log aggregation and analysis
+- **Grafana**: Metrics visualization and alerting
+- **OpenTelemetry**: Distributed tracing standards
+
+## Comprehensive Metrics API
+
+The framework includes a production-ready metrics API with 15+ endpoints for monitoring and diagnostics:
+
+### Health & Status Endpoints
+
+- **`/tasks/health`** - Detailed health check with component status (Redis, workers, scheduler)
+- **`/tasks/status`** - System status with health metrics and worker information
+
+### Core Metrics Endpoints
+
+- **`/tasks/metrics`** - Comprehensive metrics combining all available data
+- **`/tasks/metrics/system`** - Enhanced system metrics with memory and performance data
+- **`/tasks/metrics/performance`** - Performance report with task execution metrics and SLA data
+- **`/tasks/metrics/autoscaler`** - AutoScaler metrics and scaling recommendations
+- **`/tasks/metrics/queues`** - Individual queue metrics for all queues
+- **`/tasks/metrics/workers`** - Worker-specific metrics and status
+- **`/tasks/metrics/memory`** - Memory usage metrics and tracking
+- **`/tasks/metrics/summary`** - Quick metrics summary for debugging
+
+### Task Registry Endpoints
+
+- **`/tasks/registered`** - Auto-registered tasks information
+- **`/tasks/registry/info`** - Detailed task registry information and features
+
+### Administrative Endpoints
+
+- **`/tasks/alerts`** - Active alerts from the metrics system
+- **`/tasks/sla`** - SLA status and violations with performance percentages
+- **`/tasks/diagnostics`** - Comprehensive diagnostics with queue health analysis
+- **`/tasks/uptime`** - System uptime and runtime information
+
+```bash
+# Example usage
+curl http://localhost:3000/tasks/health              # Component health check
+curl http://localhost:3000/tasks/metrics            # All metrics combined
+curl http://localhost:3000/tasks/metrics/queues     # Queue-specific metrics
+curl http://localhost:3000/tasks/diagnostics        # System diagnostics
 ```
 
 ## Production Deployment with Enhanced Auto-scaling
