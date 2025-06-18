@@ -1,111 +1,653 @@
-### Test scan paths functionality with various task types
-### Start the server with: cargo run --example actix-integration
-### Start workers with: cargo run --bin task-worker --example actix-integration
+### Comprehensive Rust Task Queue - Actix Integration HTTP Tests
+### 
+### This file demonstrates ALL available features of the rust-task-queue crate
+### through the comprehensive actix-integration example.
+### 
+### Start the server with: cargo run --bin web-server
+### Start workers with: cargo run --bin task-worker
+###
+### Features demonstrated:
+### - TaskQueueBuilder with all configuration options
+### - Auto-registration and manual task registry
+### - All available metrics endpoints
+### - Advanced scheduling (delays, future dates)
+### - Batch task operations
+### - Graceful shutdown handling
+### - Configuration management
+### - Comprehensive error handling
+### - Security features and health monitoring
+
+### ============================================================================
+### System Management & Health Checks
+### ============================================================================
+
+### Comprehensive system status
+GET http://localhost:8000/api/v1/system/status
+
+### Current configuration
+GET http://localhost:8000/api/v1/system/config
+
+### Reload configuration
+POST http://localhost:8000/api/v1/system/config/reload
 
 ### Health check (auto-configured route)
-GET http://localhost:8000/rust-task-queue/health
+GET http://localhost:8000/api/v1/rust-task-queue/health
 
-### Get registered tasks (should show all auto-discovered tasks)
-GET http://localhost:8000/rust-task-queue/registered
+### Detailed health check with component status
+GET http://localhost:8000/api/v1/rust-task-queue/status
 
-### Get metrics
-GET http://localhost:8000/rust-task-queue/metrics
+### Comprehensive metrics (all metrics combined)
+GET http://localhost:8000/api/v1/rust-task-queue/metrics
 
-### Enqueue original email task
+### Performance system
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/system
+
+### Performance metrics
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/performance
+
+### Auto-scaler metrics and recommendations
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/autoscaler
+
+### Queue-specific metrics
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/queues
+
+### Worker metrics
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/workers
+
+### Memory usage metrics
+GET http://localhost:8000/api/v1/rust-task-queue/metrics/memory
+
+### System uptime and runtime information
+GET http://localhost:8000/api/v1/rust-task-queue/uptime
+
+### System diagnostics
+GET http://localhost:8000/api/v1/rust-task-queue/diagnostics
+
+### Active alerts
+GET http://localhost:8000/api/v1/rust-task-queue/alerts
+
+### SLA status and violations
+GET http://localhost:8000/api/v1/rust-task-queue/sla
+
+### Get registered tasks
+GET http://localhost:8000/api/v1/rust-task-queue/registry
+
+### ============================================================================
+### Basic Task Operations (Original Tasks)
+### ============================================================================
+
+### Simple email task
+POST http://localhost:8000/api/v1/tasks/email
+Content-Type: application/json
+
+{
+  "to": "user@example.com",
+  "subject": "Simple Email Test"
+}
+
+### Email with all features
+POST http://localhost:8000/api/v1/tasks/email
+Content-Type: application/json
+
+{
+  "to": "advanced@example.com",
+  "subject": "Advanced Email with Features",
+  "body": "This email demonstrates advanced features including templates and attachments.",
+  "template": "notification_template",
+  "priority": 1,
+  "attachments": [
+    {
+      "filename": "report.pdf",
+      "content_type": "application/pdf",
+      "data": "base64encodeddata"
+    }
+  ]
+}
+
+### Schedule email for future delivery
+POST http://localhost:8000/api/v1/tasks/email/schedule
+Content-Type: application/json
+
+{
+  "email": {
+    "to": "scheduled@example.com",
+    "subject": "Scheduled Email"
+  },
+  "delay_seconds": 300
+}
+
+### Multi-channel notification
+POST http://localhost:8000/api/v1/tasks/notification
+Content-Type: application/json
+
+{
+  "user_id": "user_123",
+  "message": "Your order has been shipped!",
+  "notification_type": "order_update"
+}
+
+### High-priority data processing
+POST http://localhost:8000/api/v1/tasks/data-processing
+Content-Type: application/json
+
+{
+  "data_id": "dataset_001",
+  "operation": "transform_and_validate",
+  "batch_size": 1000,
+  "input_format": "csv",
+  "output_format": "parquet",
+  "filters": [
+    {
+      "field": "status",
+      "operator": "eq",
+      "value": "active"
+    }
+  ],
+  "transformations": [
+    {
+      "field": "email",
+      "operation": "lowercase",
+      "parameters": {}
+    }
+  ]
+}
+
+### ============================================================================
+### Communication Tasks (Comprehensive Examples)
+### ============================================================================
+
+### Slack notification with rich attachments
+POST http://localhost:8000/api/v1/tasks/slack-notification
+Content-Type: application/json
+
+{
+  "channel": "general",
+  "message": "Deployment completed successfully!",
+  "username": "DeployBot",
+  "icon_emoji": ":rocket:",
+  "attachments": [
+    {
+      "color": "good",
+      "title": "Production Deployment",
+      "text": "All services are running normally",
+      "fields": [
+        {
+          "title": "Version",
+          "value": "v2.1.0",
+          "short": true
+        },
+        {
+          "title": "Duration",
+          "value": "3m 42s",
+          "short": true
+        }
+      ]
+    }
+  ]
+}
+
+### SMS with advanced features
+POST http://localhost:8000/api/v1/tasks/sms
+Content-Type: application/json
+
+{
+  "phone_number": "+1234567890",
+  "message": "Your verification code is 123456. Valid for 10 minutes.",
+  "priority": 1,
+  "sender_id": "MyApp",
+  "delivery_receipt": true,
+  "country_code": "US"
+}
+
+### Webhook delivery with comprehensive options
+POST http://localhost:8000/api/v1/tasks/webhook
+Content-Type: application/json
+
+{
+  "url": "https://api.partner.com/webhooks/orders",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer token123",
+    "Content-Type": "application/json",
+    "X-Webhook-Source": "rust-task-queue"
+  },
+  "payload": "eyJvcmRlcl9pZCI6MTIzLCJzdGF0dXMiOiJjb21wbGV0ZWQifQ==",
+  "timeout_seconds": 30,
+  "verify_ssl": true,
+  "follow_redirects": false,
+  "signature_secret": "webhook_secret_key"
+}
+
+### Multi-channel urgent notification
+POST http://localhost:8000/api/v1/tasks/multi-channel-notification
+Content-Type: application/json
+
+{
+  "user_id": "vip_user_456",
+  "message": "URGENT: Security alert detected on your account",
+  "urgent": true,
+  "channels": [
+    {
+      "channel_type": "email",
+      "address": "user@example.com"
+    },
+    {
+      "channel_type": "sms",
+      "address": "+1234567890"
+    },
+    {
+      "channel_type": "slack",
+      "address": "#security-alerts"
+    },
+    {
+      "channel_type": "push",
+      "address": "device_token_123"
+    }
+  ],
+  "fallback_order": ["sms", "email", "slack"]
+}
+
+### Discord notification with rich embeds
+POST http://localhost:8000/api/v1/tasks/discord-notification
+Content-Type: application/json
+
+{
+  "channel_id": "123456789012345678",
+  "content": "System monitoring update",
+  "username": "MonitorBot",
+  "embeds": [
+    {
+      "title": "Server Performance Report",
+      "description": "Daily performance metrics summary",
+      "color": 3447003,
+      "fields": [
+        {
+          "name": "CPU Usage",
+          "value": "45%",
+          "inline": true
+        },
+        {
+          "name": "Memory Usage",
+          "value": "67%",
+          "inline": true
+        },
+        {
+          "name": "Disk Usage",
+          "value": "23%",
+          "inline": true
+        }
+      ],
+      "footer": {
+        "text": "Generated by rust-task-queue"
+      },
+      "timestamp": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+
+### ============================================================================
+### Processing Tasks (Comprehensive Examples)
+### ============================================================================
+
+### Analytics event tracking
+POST http://localhost:8000/api/v1/tasks/analytics
+Content-Type: application/json
+
+{
+  "event_name": "user_signup",
+  "user_id": "new_user_789",
+  "properties": "eyJ1c2VyX2FnZW50IjoiTW96aWxsYS81LjAiLCJyZWZlcnJlciI6Imh0dHBzOi8vZ29vZ2xlLmNvbSJ9",
+  "session_id": "session_xyz_123",
+  "source": "organic_search",
+  "campaign_id": "winter_2024"
+}
+
+### Machine Learning model training
+POST http://localhost:8000/api/v1/tasks/ml-training
+Content-Type: application/json
+
+{
+  "model_name": "fraud_detection_v3",
+  "dataset_path": "/data/fraud_detection/training_set.csv",
+  "model_type": "classification",
+  "epochs": 100,
+  "learning_rate": 0.001,
+  "batch_size": 64,
+  "validation_split": 0.2,
+  "hyperparameters": {
+    "hidden_layers": "128,64,32",
+    "dropout_rate": "0.3",
+    "optimizer": "adam"
+  },
+  "gpu_enabled": true
+}
+
+### File processing with validation
+POST http://localhost:8000/api/v1/tasks/file-processing
+Content-Type: application/json
+
+{
+  "file_path": "/uploads/customer_data.csv",
+  "operation": "validate",
+  "input_format": "csv",
+  "validation_rules": [
+    {
+      "rule_type": "schema",
+      "parameters": {
+        "required_columns": "email,name,phone",
+        "email_validation": "true"
+      }
+    },
+    {
+      "rule_type": "size",
+      "parameters": {
+        "max_size_mb": "100"
+      }
+    }
+  ]
+}
+
+### Image processing with multiple operations
+POST http://localhost:8000/api/v1/tasks/image-processing
+Content-Type: application/json
+
+{
+  "image_path": "/uploads/product_image.jpg",
+  "operations": [
+    {
+      "operation_type": "resize",
+      "parameters": {
+        "width": "800",
+        "height": "600",
+        "maintain_aspect": "true"
+      }
+    },
+    {
+      "operation_type": "watermark",
+      "parameters": {
+        "text": "© MyCompany 2024",
+        "position": "bottom-right",
+        "opacity": "0.7"
+      }
+    },
+    {
+      "operation_type": "filter",
+      "parameters": {
+        "type": "sharpen",
+        "strength": "0.5"
+      }
+    }
+  ],
+  "output_format": "webp",
+  "quality": 85
+}
+
+### Report generation
+POST http://localhost:8000/api/v1/tasks/report
+Content-Type: application/json
+
+{
+  "report_name": "monthly_sales_report",
+  "report_type": "pdf",
+  "data_sources": [
+    "sales_transactions",
+    "customer_analytics",
+    "product_performance"
+  ],
+  "template": "executive_summary",
+  "filters": {
+    "region": "north_america",
+    "product_category": "electronics"
+  },
+  "date_range": {
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-31T23:59:59Z"
+  },
+  "recipients": [
+    "manager@company.com",
+    "ceo@company.com"
+  ]
+}
+
+### System backup
+POST http://localhost:8000/api/v1/tasks/backup
+Content-Type: application/json
+
+{
+  "backup_name": "daily_database_backup",
+  "source_paths": [
+    "/var/lib/postgresql/data",
+    "/var/log/application",
+    "/etc/config"
+  ],
+  "destination": "s3://backups/daily",
+  "backup_type": "incremental",
+  "compression": true,
+  "encryption": true,
+  "retention_days": 30
+}
+
+### Database maintenance
+POST http://localhost:8000/api/v1/tasks/database-maintenance
+Content-Type: application/json
+
+{
+  "database_name": "production_db",
+  "operations": ["vacuum", "reindex", "analyze"],
+  "tables": ["users", "orders", "products"],
+  "maintenance_window": "2024-01-15T02:00:00Z",
+  "max_duration_minutes": 120
+}
+
+### Cache warming
+POST http://localhost:8000/api/v1/tasks/cache-warmup
+Content-Type: application/json
+
+{
+  "cache_name": "product_cache",
+  "cache_type": "redis",
+  "warmup_strategy": "popular_items",
+  "data_sources": ["product_views", "purchase_history"],
+  "max_items": 5000,
+  "ttl_seconds": 3600
+}
+
+### ============================================================================
+### Advanced Features (Batch Operations, Scheduling)
+### ============================================================================
+
+### Batch email sending
+POST http://localhost:8000/api/v1/tasks/batch/email
+Content-Type: application/json
+
+{
+  "tasks": [
+    {
+      "to": "user1@example.com",
+      "subject": "Newsletter - January 2024"
+    },
+    {
+      "to": "user2@example.com",
+      "subject": "Newsletter - January 2024"
+    },
+    {
+      "to": "user3@example.com",
+      "subject": "Newsletter - January 2024"
+    }
+  ],
+  "queue": "default"
+}
+
+### Batch notification sending
+POST http://localhost:8000/api/v1/tasks/batch/notification
+Content-Type: application/json
+
+{
+  "tasks": [
+    {
+      "user_id": "user1",
+      "message": "Your order #1001 has shipped",
+      "notification_type": "shipping"
+    },
+    {
+      "user_id": "user2",
+      "message": "Your order #1002 has shipped",
+      "notification_type": "shipping"
+    },
+    {
+      "user_id": "user3",
+      "message": "Your order #1003 has shipped",
+      "notification_type": "shipping"
+    }
+  ],
+  "queue": "high_priority"
+}
+
+### Advanced scheduling with specific datetime
+POST http://localhost:8000/api/v1/tasks/schedule/advanced
+Content-Type: application/json
+
+{
+  "task": {
+    "to": "reminder@example.com",
+    "subject": "Scheduled Reminder"
+  },
+  "queue": "default",
+  "delay_until": "2024-12-31T23:59:00Z"
+}
+
+### Batch processing task
+POST http://localhost:8000/api/v1/tasks/batch-processing
+Content-Type: application/json
+
+{
+  "batch_id": "batch_001",
+  "operation": "data_validation",
+  "parallel_workers": 4,
+  "error_threshold": 0.05,
+  "items": [
+    {
+      "id": "item_001",
+      "data": "eyJuYW1lIjoiSm9obiBEb2UifQ==",
+      "priority": 1
+    },
+    {
+      "id": "item_002",
+      "data": "eyJuYW1lIjoiSmFuZSBTbWl0aCJ9",
+      "priority": 2
+    },
+    {
+      "id": "item_003",
+      "data": "eyJuYW1lIjoiQm9iIEpvaG5zb24ifQ==",
+      "priority": 1
+    }
+  ]
+}
+
+### ============================================================================
+### System Management Operations
+### ============================================================================
+
+### Manual worker scaling
+POST http://localhost:8000/api/v1/system/workers/scale
+Content-Type: application/json
+
+{
+  "target_count": 8,
+  "reason": "High load detected - scaling up for peak hours"
+}
+
+### Graceful shutdown (WARNING: This will shut down the server)
+# POST http://localhost:8000/api/v1/system/shutdown
+
+### ============================================================================
+### Legacy Compatibility Routes (for backward compatibility)
+### ============================================================================
+
+### Legacy email endpoint
 POST http://localhost:8000/email
 Content-Type: application/json
 
 {
-  "to": "original@example.com",
-  "subject": "Test from original tasks.rs"
+  "to": "legacy@example.com",
+  "subject": "Legacy Email Test"
 }
 
-### Schedule email task
+### Legacy scheduled email endpoint
 POST http://localhost:8000/schedule-email
 Content-Type: application/json
 
 {
   "email": {
-    "to": "original@example.com",
-    "subject": "Test from original tasks.rs"
+    "to": "legacy-scheduled@example.com",
+    "subject": "Legacy Scheduled Email"
   },
-  "delay_seconds": 5
+  "delay_seconds": 60
 }
 
-### Enqueue original notification task
-POST http://localhost:8000/notification
+### ============================================================================
+### Error Testing (Demonstrating Error Handling)
+### ============================================================================
+
+### Invalid email (missing required fields)
+POST http://localhost:8000/api/v1/tasks/email
 Content-Type: application/json
 
 {
-  "user_id": "user123",
-  "message": "Original notification",
-  "notification_type": "push"
+  "subject": "Missing recipient email"
 }
 
-### Enqueue original data processing task
-POST http://localhost:8000/data-processing
+### Invalid scheduling request
+POST http://localhost:8000/api/v1/tasks/schedule/advanced
 Content-Type: application/json
 
 {
-  "data_id": "data123",
-  "operation": "transform"
-}
-
-### ========== Modular Tasks (from tasks/ directory) ==========
-
-### Enqueue Slack notification (modular)
-POST http://localhost:8000/slack-notification
-Content-Type: application/json
-
-{
-  "channel": "general",
-  "message": "Hello from modular tasks!",
-  "username": "ScanPathsBot"
-}
-
-### Enqueue SMS (with custom registration name "sms_notification")
-POST http://localhost:8000/sms
-Content-Type: application/json
-
-{
-  "phone_number": "+1234567890",
-  "message": "SMS from scan paths demo",
-  "priority": 1
-}
-
-### Enqueue Analytics task (modular)
-POST http://localhost:8000/analytics
-Content-Type: application/json
-
-{
-  "event_name": "scan_paths_demo",
-  "user_id": "demo_user",
-  "properties": {
-    "source": "scan_paths_test",
-    "demo": true
+  "task": {
+    "to": "test@example.com",
+    "subject": "Invalid schedule"
   },
-  "session_id": "session_123"
+  "queue": "default"
 }
 
-### Enqueue ML Training task (with custom registration name "ml_training")
-POST http://localhost:8000/ml-training
+### Non-existent endpoint
+GET http://localhost:8000/api/v1/tasks/non-existent
+
+### ============================================================================
+### Performance Testing
+### ============================================================================
+
+### High-volume batch operation
+POST http://localhost:8000/api/v1/tasks/batch/email
 Content-Type: application/json
 
 {
-  "model_name": "scan_paths_model",
-  "dataset_path": "/data/demo_dataset.csv",
-  "epochs": 10,
-  "learning_rate": 0.001
+  "tasks": [
+    {"to": "perf1@example.com", "subject": "Performance Test 1"},
+    {"to": "perf2@example.com", "subject": "Performance Test 2"},
+    {"to": "perf3@example.com", "subject": "Performance Test 3"},
+    {"to": "perf4@example.com", "subject": "Performance Test 4"},
+    {"to": "perf5@example.com", "subject": "Performance Test 5"}
+  ],
+  "queue": "low_priority"
 }
 
-### Schedule an email task (delay)
-POST http://localhost:8000/schedule-email
+### Large data processing task
+POST http://localhost:8000/api/v1/tasks/data-processing
 Content-Type: application/json
 
 {
-  "email_task": {
-    "to": "scheduled@example.com",
-    "subject": "Scheduled email via scan paths"
-  },
-  "delay_seconds": 5
+  "data_id": "big_dataset_001",
+  "operation": "complex_transformation",
+  "batch_size": 10000,
+  "input_format": "parquet",
+  "output_format": "json",
+  "filters": [
+    {"field": "status", "operator": "ne", "value": "deleted"},
+    {"field": "created_at", "operator": "gt", "value": "2024-01-01"}
+  ],
+  "transformations": [
+    {"field": "email", "operation": "lowercase"},
+    {"field": "phone", "operation": "format", "parameters": {"format": "international"}},
+    {"field": "name", "operation": "trim"}
+  ]
 }

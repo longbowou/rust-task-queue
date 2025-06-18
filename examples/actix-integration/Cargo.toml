@@ -18,11 +18,13 @@ name = "task-worker-env-only"
 path = "src/bin/task-worker-env-only.rs"
 
 [dependencies]
-rust-task-queue = { path = "../../", features = ["auto-register", "cli", "config-support", "actix-integration"] }
+rust-task-queue = { path = "../../", features = ["auto-register", "cli", "tracing", "config-support", "actix-integration"] }
 actix-web = "4.4"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 rmp-serde = "1.1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }

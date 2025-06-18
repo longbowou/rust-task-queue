@@ -15,7 +15,7 @@ command_timeout = 5      # seconds
 
 [workers]
 # Optimized for production workloads
-initial_count = 10
+initial_count = 5
 max_concurrent_tasks = 25
 heartbeat_interval = 30      # seconds
 shutdown_grace_period = 120  # seconds
@@ -123,7 +123,7 @@ timeout_ms = 5000
 [actix]
 # Production web server settings
 auto_configure_routes = true
-route_prefix = "/api/v1/tasks"
+route_prefix = "/api/v1/rust-task-queue"
 enable_metrics = true
 enable_health_check = true
 cors_enabled = true

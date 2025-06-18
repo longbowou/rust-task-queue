@@ -227,7 +227,7 @@ impl TaskRegistry {
         }
 
         #[cfg(feature = "tracing")]
-        tracing::info!("Auto-registered {} task types total", registered_count);
+        tracing::info!("Auto-registered {} task types", registered_count);
 
         Ok(())
     }

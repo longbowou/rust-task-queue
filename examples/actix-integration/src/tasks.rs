@@ -13,6 +13,7 @@ impl Task for EmailTask {
     async fn execute(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         println!("Sending email to: {} - {}", self.to, self.subject);
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        println!("Email sent to: {} - {}", self.to, self.subject);
 
         #[derive(Serialize)]
         struct EmailResponse {
@@ -34,7 +35,7 @@ impl Task for EmailTask {
 }
 
 /// Simple notification task
-#[derive(Debug, Serialize, Deserialize, Default, AutoRegisterTask)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, AutoRegisterTask)]
 pub struct NotificationTask {
     pub user_id: String,
     pub message: String,

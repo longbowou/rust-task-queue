@@ -1,6 +1,7 @@
 //! Actix Web integration helpers with comprehensive metrics endpoints
 
 use crate::prelude::*;
+use crate::queue_names;
 #[cfg(feature = "actix-integration")]
 use actix_web::{web, HttpResponse, Result as ActixResult};
 use serde_json::json;
@@ -49,18 +50,14 @@ async fn get_comprehensive_metrics(
     match tokio::try_join!(
         task_queue.get_metrics(),
         task_queue.autoscaler.collect_metrics(),
-        task_queue.autoscaler.get_scaling_recommendations()
     ) {
-        Ok((queue_metrics, autoscaler_metrics, scaling_report)) => {
-            Ok(HttpResponse::Ok().json(json!({
-                "timestamp": Utc::now(),
-                "task_queue_metrics": queue_metrics,
-                "system_metrics": system_metrics,
-                "autoscaler_metrics": autoscaler_metrics,
-                "scaling_report": scaling_report,
-                "worker_count": worker_count
-            })))
-        }
+        Ok((queue_metrics, autoscaler_metrics)) => Ok(HttpResponse::Ok().json(json!({
+            "timestamp": Utc::now(),
+            "task_queue_metrics": queue_metrics,
+            "system_metrics": system_metrics,
+            "autoscaler_metrics": autoscaler_metrics,
+            "worker_count": worker_count
+        }))),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": e.to_string(),
             "timestamp": Utc::now()
@@ -89,13 +86,9 @@ async fn get_performance_metrics(
 async fn get_autoscaler_metrics(
     task_queue: web::Data<Arc<TaskQueue>>,
 ) -> ActixResult<HttpResponse> {
-    match tokio::try_join!(
-        task_queue.autoscaler.collect_metrics(),
-        task_queue.autoscaler.get_scaling_recommendations()
-    ) {
-        Ok((metrics, recommendations)) => Ok(HttpResponse::Ok().json(json!({
+    match tokio::try_join!(task_queue.autoscaler.collect_metrics(),) {
+        Ok((metrics)) => Ok(HttpResponse::Ok().json(json!({
             "metrics": metrics,
-            "recommendations": recommendations,
             "timestamp": Utc::now()
         }))),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
@@ -108,7 +101,11 @@ async fn get_autoscaler_metrics(
 #[cfg(feature = "actix-integration")]
 /// Individual queue metrics for all queues
 async fn get_queue_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
-    let queues = ["default", "high_priority", "low_priority"];
+    let queues = [
+        queue_names::DEFAULT,
+        queue_names::LOW_PRIORITY,
+        queue_names::HIGH_PRIORITY,
+    ];
     let mut queue_metrics = Vec::new();
     let mut errors = Vec::new();
 
@@ -149,16 +146,6 @@ async fn get_memory_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResul
     let system_metrics = task_queue.get_system_metrics().await;
     Ok(HttpResponse::Ok().json(json!({
         "memory_metrics": system_metrics.memory,
-        "timestamp": Utc::now()
-    })))
-}
-
-#[cfg(feature = "actix-integration")]
-/// Quick metrics summary for debugging
-async fn get_metrics_summary(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
-    let summary = task_queue.get_metrics_summary().await;
-    Ok(HttpResponse::Ok().json(json!({
-        "summary": summary,
         "timestamp": Utc::now()
     })))
 }
@@ -378,7 +365,6 @@ pub fn configure_task_queue_routes_auto(cfg: &mut web::ServiceConfig) {
                     .route("/metrics/queues", web::get().to(get_queue_metrics))
                     .route("/metrics/workers", web::get().to(get_worker_metrics))
                     .route("/metrics/memory", web::get().to(get_memory_metrics))
-                    .route("/metrics/summary", web::get().to(get_metrics_summary))
                     .route("/registry", web::get().to(get_registry_info))
                     .route("/alerts", web::get().to(get_active_alerts))
                     .route("/sla", web::get().to(get_sla_status))
@@ -413,7 +399,6 @@ pub fn configure_task_queue_routes(cfg: &mut web::ServiceConfig) {
             .route("/metrics/queues", web::get().to(get_queue_metrics))
             .route("/metrics/workers", web::get().to(get_worker_metrics))
             .route("/metrics/memory", web::get().to(get_memory_metrics))
-            .route("/metrics/summary", web::get().to(get_metrics_summary))
             // Task Registry endpoints
             .route("/registry", web::get().to(get_registry_info))
             // Administrative endpoints

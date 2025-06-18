@@ -67,9 +67,11 @@ dependencies = [
  "rmp-serde",
  "rust-task-queue",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
