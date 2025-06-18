@@ -1,17 +1,18 @@
 [package]
 name = "rust-task-queue"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.70.0"
 authors = ["Longbowou <blandedaniel@gmail.com>"]
-description = "A high-performance, Redis-backed task queue framework with auto-scaling capabilities"
-documentation = "https://github.com/longbowou/rust-task-queue"
+description = "Production-ready Redis task queue with intelligent auto-scaling, Actix Web integration, and enterprise-grade observability for high-performance async Rust applications"
+documentation = "https://docs.rs/rust-task-queue"  # Better than GitHub link
 homepage = "https://github.com/longbowou/rust-task-queue"
 repository = "https://github.com/longbowou/rust-task-queue"
 license = "MIT OR Apache-2.0"
-keywords = ["task-queue", "redis", "async", "worker", "celery"]
-categories = ["asynchronous", "web-programming", "concurrency"]
+keywords = ["task-queue", "redis", "async", "distributed", "scaling"]
+categories = ["asynchronous", "concurrency", "database"]
 readme = "README.md"
+
 exclude = [
     "examples/*",
     "tests/*",

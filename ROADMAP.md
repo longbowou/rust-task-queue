@@ -1,5 +1,18 @@
 ## What's Next?
 
+Consider renaming for clarity:
+```toml
+[features]
+default = ["observability", "config", "cli"]
+full = ["observability", "web-integration", "cli", "config", "auto-discovery"]
+
+# More descriptive names:
+observability = ["dep:tracing", "dep:tracing-subscriber"]  # instead of "tracing"
+web-integration = ["dep:actix-web", "observability"]      # instead of "actix-integration"
+auto-discovery = []                                       # instead of "auto-register"
+config = ["dep:config", "dep:toml", "dep:serde_yaml"]    # instead of "config-support"
+```
+
 Short-term (Week 2-3)
 Implement async task timeouts
 Add distributed tracing

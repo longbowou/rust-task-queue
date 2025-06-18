@@ -2,7 +2,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/rust-task-queue.svg)](https://crates.io/crates/rust-task-queue)
 [![Documentation](https://docs.rs/rust-task-queue/badge.svg)](https://docs.rs/rust-task-queue)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/yourusername/rust-task-queue)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/longbowou/rust-task-queue)
+[![Downloads](https://img.shields.io/crates/d/rust-task-queue.svg)](https://crates.io/crates/rust-task-queue)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
+[![CI](https://github.com/longbowou/rust-task-queue/workflows/CI/badge.svg)](https://github.com/longbowou/rust-task-queue/actions)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Test Coverage](https://img.shields.io/badge/tests-220+%20passing-brightgreen.svg)]()
 
@@ -29,6 +32,27 @@ multidimensional scaling triggers, and advanced backpressure management for asyn
 - **Smart resource allocation** with semaphore-based concurrency control
 - **Comprehensive testing** with unit, integration, performance, and security tests
 - **Enterprise-grade tracing** with lifecycle tracking, performance monitoring, and error context
+
+## Why Choose Rust Task Queue?
+
+| Feature       | Rust Task Queue     | Celery    | Sidekiq   | Bull      |
+|---------------|---------------------|-----------|-----------|-----------|
+| Language      | Rust                | Python    | Ruby      | Node.js   |
+| Auto-scaling  | Multi-dimensional   | ❌         | ❌         | ❌         |
+| Performance   | <40ns serialization | ~ms       | ~ms       | ~ms       |
+| Type Safety   | Compile-time        | ❌ Runtime | ❌ Runtime | ❌ Runtime |
+| Memory Safety | Zero-copy           | ❌         | ❌         | ❌         |
+| Async/Await   | Native              | ❌         | ❌         | ✅         |
+
+## Production Ready
+
+- **220+ comprehensive tests** (unit, integration, performance, security)
+- **Zero clippy warnings** with strict linting
+- **Memory safe** - no unsafe code
+- **Performance benchmarked** - <40ns serialization
+- **Enterprise logging** with structured tracing
+- **Graceful shutdown** and error recovery
+- **Redis cluster support** with connection pooling
 
 ## Recent Improvements
 
@@ -1389,8 +1413,18 @@ docker run -d --name redis-test -p 6379:6379 redis:7-alpine
 
 - [API Documentation](https://docs.rs/rust-task-queue)
 - [Development Guide](DEVELOPMENT.md) - Comprehensive development documentation
-- [Configuration Guide](CONFIGURATION.md) - Configuration options and examples
 - [Examples](examples/) - Working examples and patterns
+
+## Maintenance Status
+
+**Actively Developed** - Regular releases, responsive to issues, feature requests welcome.
+
+**Compatibility:**
+
+- Rust 1.70.0+
+- Redis 6.0+
+- Tokio 1.0+
+
 
 ## Contributing
 
