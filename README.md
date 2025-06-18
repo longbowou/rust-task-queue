@@ -5,7 +5,6 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/longbowou/rust-task-queue)
 [![Downloads](https://img.shields.io/crates/d/rust-task-queue.svg)](https://crates.io/crates/rust-task-queue)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
-[![CI](https://github.com/longbowou/rust-task-queue/workflows/CI/badge.svg)](https://github.com/longbowou/rust-task-queue/actions)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Test Coverage](https://img.shields.io/badge/tests-220+%20passing-brightgreen.svg)]()
 
