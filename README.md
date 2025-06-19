@@ -6,7 +6,7 @@
 [![Downloads](https://img.shields.io/crates/d/rust-task-queue.svg)](https://crates.io/crates/rust-task-queue)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Test Coverage](https://img.shields.io/badge/tests-220+%20passing-brightgreen.svg)]()
+[![Test Coverage](https://img.shields.io/badge/tests-192+%20passing-brightgreen.svg)]()
 
 A high-performance, Redis-backed task queue framework with enhanced auto-scaling, intelligent async task spawning,
 multidimensional scaling triggers, and advanced backpressure management for async Rust applications.
@@ -60,7 +60,7 @@ Recent benchmark results demonstrate exceptional performance:
 
 ## Production Ready
 
-- **124+ comprehensive tests** (unit, integration, performance, security)
+- **192+ comprehensive tests** (unit, integration, performance, security)
 - **Memory safe** - no unsafe code
 - **Performance benchmarked** - <40ns serialization
 - **Enterprise logging** with structured tracing
@@ -71,7 +71,7 @@ Recent benchmark results demonstrate exceptional performance:
 
 ### Available Features
 
-- `default`: `tracing` + `auto-register` + `config-support` + `cli` (recommended)
+- `default`: `tracing` + `auto-register` + `config` + `cli` (recommended)
 - `full`: All features enabled for maximum functionality
 - `tracing`: enterprise-grade structured logging and observability
     - Complete task lifecycle tracking with distributed spans
@@ -84,19 +84,19 @@ Recent benchmark results demonstrate exceptional performance:
 - `axum-integration`: Axum framework integration with comprehensive metrics and CORS support
 - `cli`: Standalone worker binaries with logging configuration support
 - `auto-register`: Automatic task discovery via procedural macros
-- `config-support`: External TOML/YAML configuration files
+- `config`: External TOML/YAML configuration files
 
 ### Feature Combinations for Common Use Cases
 
 ```toml
 # Web application with Actix Web (recommended)
-rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration", "config-support", "cli"] }
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "actix-integration", "config", "cli"] }
 
 # Web application with Axum framework
-rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "axum-integration", "config-support", "cli"] }
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "axum-integration", "config", "cli"] }
 
 # Standalone worker processes
-rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "cli", "config-support"] }
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "cli", "config"] }
 
 # Minimal embedded systems
 rust-task-queue = { version = "0.1", default-features = false, features = ["tracing"] }
@@ -105,7 +105,7 @@ rust-task-queue = { version = "0.1", default-features = false, features = ["trac
 rust-task-queue = { version = "0.1", features = ["full"] }
 
 # Library integration (no CLI tools)
-rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "config-support"] }
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "config"] }
 ```
 
 ## Integration Patterns
@@ -612,15 +612,15 @@ Advanced hysteresis and cooldown mechanisms prevent scaling oscillations:
 The project maintains comprehensive test coverage across multiple dimensions:
 
 - **Unit Tests**: 124 tests covering all core functionality
-- **Integration Tests**: 23 tests for end-to-end workflows
-- **Actix Integration Tests**: 22 tests (feature-specific)
-- **Axum Integration Tests**: 17 tests for web endpoints and metrics API
-- **Error Scenario Tests**: 18 tests for edge cases and failure modes
-- **Performance Tests**: 20 tests for throughput and load handling
-- **Security Tests**: 24 tests for injection attacks and safety
+- **Integration Tests**: 9 tests for end-to-end workflows
+- **Actix Integration Tests**: 22 tests for web endpoints and metrics API
+- **Axum Integration Tests**: 11 tests for web framework integration
+- **Error Scenario Tests**: 9 tests for edge cases and failure modes
+- **Performance Tests**: 6 tests for throughput and load handling
+- **Security Tests**: 11 tests for injection attacks and safety
 - **Benchmarks**: 7 performance benchmarks for optimization
 
-**Total**: 248+ tests ensuring reliability and performance
+**Total**: 192 tests ensuring reliability and performance
 
 ## Enterprise-Grade Observability
 

@@ -5,7 +5,27 @@ All notable changes to the Rust Task Queue project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.2] - 2025-01-26
+## [0.1.4] - 2025-06-19
+
+### Changed
+
+#### Breaking Changes
+
+- **BREAKING CHANGE: Renamed feature `config-support` to `config`**
+    - Updated Cargo.toml feature definitions and dependencies
+    - Modified all conditional compilation directives in source code
+    - Updated documentation in README.md, CHANGELOG.md, and .cursorrules
+    - Fixed examples to use the new config feature name
+    - Users must update their Cargo.toml files to use "config" instead of "config-support" when upgrading
+
+#### Validation
+
+- **Verified compatibility** - All 192 tests pass with the renamed feature
+- **Confirmed feature gates** - All `#[cfg(feature = "config")]` directives function correctly
+- **Validated configuration loading** - External TOML/YAML file loading works with new feature name
+- **Tested default features** - The `default` feature set (including `config`) compiles and runs correctly
+
+## [0.1.2] - 2025-06-18
 
 ### Added
 
@@ -92,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Feature-gated compilation** ensures minimal binary size impact
 - **Same API patterns** for consistency across frameworks
 
-## [0.1.1] - 2025-01-26
+## [0.1.1] - 2025-06-18
 
 ### Changed
 
@@ -141,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Future releases**: Will include published macros crate for full functionality
 - **Development**: Full workspace functionality maintained for contributors
 
-## [0.1.0] - 2025-06-17 https://github.com/longbowou/rust-task-queue/releases/tag/0.1.0
+## [0.1.0] - 2025-06-18 https://github.com/longbowou/rust-task-queue/releases/tag/0.1.0
 
 ### Initial Release
 
@@ -263,7 +283,7 @@ auto-scaling capabilities for async Rust applications.
 
 - `tracing`: Enterprise-grade structured logging
 - `auto-register`: Automatic task discovery
-- `config-support`: External configuration files
+- `config`: External configuration files
 - `cli`: Standalone worker binaries
 
 #### Optional Features

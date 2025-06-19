@@ -177,7 +177,8 @@ test_suites=(
     "Error scenario test|cargo test --test error_scenarios_tests"
     "Performance test|cargo test --test performance_tests"
     "Security test|cargo test --test security_tests"
-    "Actix integration test|cargo test --test actix_integration_tests"
+    "Actix integration test|cargo test --test actix_integration_tests --features actix-integration"
+    "Axum integration test|cargo test --test axum_integration_tests --features axum-integration"
     "Build check|cargo build --all-targets --all-features"
 )
 

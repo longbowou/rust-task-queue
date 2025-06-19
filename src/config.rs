@@ -372,7 +372,7 @@ impl TaskQueueConfig {
     }
 
     /// Load configuration from a file (TOML or YAML based on extension)
-    #[cfg(feature = "config-support")]
+    #[cfg(feature = "config")]
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, TaskQueueError> {
         let path = path.as_ref();
         let contents = std::fs::read_to_string(path).map_err(|e| {
@@ -396,7 +396,7 @@ impl TaskQueueConfig {
     }
 
     /// Load configuration with automatic source detection and validation
-    #[cfg(feature = "config-support")]
+    #[cfg(feature = "config")]
     pub fn load() -> Result<Self, TaskQueueError> {
         use config::{Config, Environment, File};
 
@@ -450,7 +450,7 @@ impl TaskQueueConfig {
     }
 
     /// Load configuration without the config crate (fallback)
-    #[cfg(not(feature = "config-support"))]
+    #[cfg(not(feature = "config"))]
     pub fn load() -> Result<Self, TaskQueueError> {
         Self::from_env()
     }

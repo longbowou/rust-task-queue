@@ -51,13 +51,30 @@ async fn get_comprehensive_metrics(
         task_queue.get_metrics(),
         task_queue.autoscaler.collect_metrics(),
     ) {
-        Ok((queue_metrics, autoscaler_metrics)) => Ok(HttpResponse::Ok().json(json!({
-            "timestamp": Utc::now(),
-            "task_queue_metrics": queue_metrics,
-            "system_metrics": system_metrics,
-            "autoscaler_metrics": autoscaler_metrics,
-            "worker_count": worker_count
-        }))),
+        Ok((queue_metrics, autoscaler_metrics)) => {
+            // Generate scaling report based on current state
+            let scaling_report = json!({
+                "current_workers": worker_count,
+                "recommended_action": if autoscaler_metrics.queue_pressure_score > 0.8 {
+                    "scale_up"
+                } else if autoscaler_metrics.worker_utilization < 0.3 {
+                    "scale_down"
+                } else {
+                    "maintain"
+                },
+                "confidence": "high",
+                "next_evaluation": Utc::now() + Duration::seconds(60)
+            });
+
+            Ok(HttpResponse::Ok().json(json!({
+                "timestamp": Utc::now(),
+                "task_queue_metrics": queue_metrics,
+                "system_metrics": system_metrics,
+                "autoscaler_metrics": autoscaler_metrics,
+                "scaling_report": scaling_report,
+                "worker_count": worker_count
+            })))
+        },
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": e.to_string(),
             "timestamp": Utc::now()
@@ -87,10 +104,22 @@ async fn get_autoscaler_metrics(
     task_queue: web::Data<Arc<TaskQueue>>,
 ) -> ActixResult<HttpResponse> {
     match tokio::try_join!(task_queue.autoscaler.collect_metrics(),) {
-        Ok(metrics) => Ok(HttpResponse::Ok().json(json!({
-            "metrics": metrics,
-            "timestamp": Utc::now()
-        }))),
+        Ok((metrics,)) => {
+            // Generate recommendations based on current metrics
+            let recommendations = if metrics.queue_pressure_score > 0.8 {
+                "Consider scaling up workers due to high queue pressure"
+            } else if metrics.worker_utilization < 0.3 {
+                "Consider scaling down workers due to low utilization"
+            } else {
+                "Current worker count appears optimal"
+            };
+
+            Ok(HttpResponse::Ok().json(json!({
+                "metrics": metrics,
+                "recommendations": recommendations,
+                "timestamp": Utc::now()
+            })))
+        },
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": e.to_string(),
             "timestamp": Utc::now()
@@ -291,6 +320,43 @@ async fn get_uptime_info(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<H
 }
 
 #[cfg(feature = "actix-integration")]
+/// Metrics summary with human-readable overview
+async fn get_metrics_summary(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+    let system_metrics = task_queue.get_system_metrics().await;
+    let performance_report = task_queue.metrics.get_performance_report().await;
+    let worker_count = task_queue.worker_count().await;
+
+    let uptime_duration = std::time::Duration::from_secs(system_metrics.uptime_seconds);
+    let days = uptime_duration.as_secs() / 86400;
+    let hours = (uptime_duration.as_secs() % 86400) / 3600;
+    let minutes = (uptime_duration.as_secs() % 3600) / 60;
+
+    let summary = format!(
+        "TaskQueue Metrics Summary\n\
+        =========================\n\
+        Uptime: {}d {}h {}m\n\
+        Workers: {} active\n\
+        Tasks: {} executed, {} succeeded, {} failed\n\
+        Success Rate: {:.1}%\n\
+        Performance: {:.2} tasks/sec\n\
+        Status: {}",
+        days, hours, minutes,
+        worker_count,
+        system_metrics.tasks.total_executed,
+        system_metrics.tasks.total_succeeded,
+        system_metrics.tasks.total_failed,
+        system_metrics.performance.success_rate * 100.0,
+        system_metrics.performance.tasks_per_second,
+        if performance_report.active_alerts.is_empty() { "Healthy" } else { "Has Alerts" }
+    );
+
+    Ok(HttpResponse::Ok().json(json!({
+        "summary": summary,
+        "timestamp": Utc::now()
+    })))
+}
+
+#[cfg(feature = "actix-integration")]
 /// Helper for creating TaskQueue with auto-registration for Actix Web apps
 pub async fn create_auto_registered_task_queue(
     redis_url: &str,
@@ -355,6 +421,7 @@ pub fn configure_task_queue_routes_auto(cfg: &mut web::ServiceConfig) {
                     .route("/metrics/queues", web::get().to(get_queue_metrics))
                     .route("/metrics/workers", web::get().to(get_worker_metrics))
                     .route("/metrics/memory", web::get().to(get_memory_metrics))
+                    .route("/metrics/summary", web::get().to(get_metrics_summary))
                     .route("/registry", web::get().to(get_registry_info))
                     .route("/alerts", web::get().to(get_active_alerts))
                     .route("/sla", web::get().to(get_sla_status))
@@ -389,6 +456,7 @@ pub fn configure_task_queue_routes(cfg: &mut web::ServiceConfig) {
             .route("/metrics/queues", web::get().to(get_queue_metrics))
             .route("/metrics/workers", web::get().to(get_worker_metrics))
             .route("/metrics/memory", web::get().to(get_memory_metrics))
+            .route("/metrics/summary", web::get().to(get_metrics_summary))
             // Task Registry endpoints
             .route("/registry", web::get().to(get_registry_info))
             // Administrative endpoints

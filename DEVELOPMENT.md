@@ -59,12 +59,12 @@ rust-task-queue/
 │   └── bin/
 │       └── task-worker.rs     # Main worker binary with CLI
 ├── tests/
-│   ├── integration_tests.rs   # Comprehensive integration tests (23 tests)
+│   ├── integration_tests.rs   # Comprehensive integration tests (9 tests)
 │   ├── actix_integration_tests.rs # Actix Web integration tests (22 tests)
-│   ├── axum_integration_tests.rs  # Axum Web integration tests (17 tests)
-│   ├── error_scenarios_tests.rs   # Error handling tests (18 tests)
-│   ├── performance_tests.rs   # Performance tests (20 tests)
-│   └── security_tests.rs      # Security tests (24 tests)
+│   ├── axum_integration_tests.rs  # Axum Web integration tests (11 tests)
+│   ├── error_scenarios_tests.rs   # Error handling tests (9 tests)
+│   ├── performance_tests.rs   # Performance tests (6 tests)
+│   └── security_tests.rs      # Security tests (11 tests)
 ├── benches/
 │   ├── task_processing.rs     # Task processing benchmarks
 │   ├── queue_operations.rs    # Queue operation benchmarks
@@ -592,7 +592,7 @@ export LOG_LEVEL=trace LOG_FORMAT=compact                # Debugging
 
 ### Comprehensive Test Suite
 
-The project maintains a comprehensive test suite with **248+ total tests** across multiple categories:
+The project maintains a comprehensive test suite with **192 total tests** across multiple categories:
 
 ```bash
 # Automated test script (recommended) - handles Redis setup/cleanup
@@ -602,13 +602,13 @@ The project maintains a comprehensive test suite with **248+ total tests** acros
 ./scripts/cleanup-redis.sh
 
 # Individual test suites:
-cargo test --lib                           # Unit tests 124
-cargo test --test integration_tests        # Integration tests (23 tests)
+cargo test --lib                           # Unit tests (124 tests)
+cargo test --test integration_tests        # Integration tests (9 tests)
 cargo test --test actix_integration_tests  # Actix Web tests (22 tests)
-cargo test --test axum_integration_tests   # Axum Web tests (17 tests)
-cargo test --test error_scenarios_tests    # Error handling tests (18 tests)
-cargo test --test performance_tests        # Performance tests (20 tests)
-cargo test --test security_tests           # Security tests (24 tests)
+cargo test --test axum_integration_tests   # Axum Web tests (11 tests)
+cargo test --test error_scenarios_tests    # Error handling tests (9 tests)
+cargo test --test performance_tests        # Performance tests (6 tests)
+cargo test --test security_tests           # Security tests (11 tests)
 cargo bench                                # Benchmark tests (7 benchmarks)
 ```
 
@@ -627,7 +627,7 @@ Covers all core functionality including:
 - Task registry and automatic registration
 - Tracing utilities and logging functionality
 
-#### **Integration Tests (23 tests)**
+#### **Integration Tests (9 tests)**
 
 End-to-end workflow testing:
 
@@ -640,12 +640,6 @@ End-to-end workflow testing:
 - `test_improved_async_task_spawning` - Advanced worker features
 - `test_backpressure_handling` - Capacity management
 - `test_graceful_shutdown_with_active_tasks` - Clean shutdown
-- `test_task_lifecycle_tracing` - Task execution tracing
-- `test_performance_tracking` - Performance metrics collection
-- `test_error_chain_analysis` - Error propagation tracking
-- `test_concurrent_task_execution` - Parallel task processing
-- `test_task_timeout_handling` - Timeout management
-- Additional tests for enhanced features and edge cases
 
 #### **Actix Integration Tests (22 tests)**
 
@@ -683,9 +677,9 @@ Comprehensive web endpoints and metrics API testing:
     - `test_endpoint_performance` - Response time benchmarks
     - `test_concurrent_endpoint_access` - Concurrent request handling
 
-#### **Axum Integration Tests (17 tests)**
+#### **Axum Integration Tests (11 tests)**
 
-Similar to Actix but for the Axum web framework:
+Web framework integration testing for Axum:
 
 - **Health & Status Tests** - Component health and status endpoints
 - **Core Metrics Tests** - System, performance, and autoscaler metrics
@@ -693,7 +687,7 @@ Similar to Actix but for the Axum web framework:
 - **Administrative Tests** - Alerts, SLA monitoring, and diagnostics
 - **Quality Assurance Tests** - JSON validation, error handling, and performance
 
-#### **Error Scenario Tests (18 tests)**
+#### **Error Scenario Tests (9 tests)**
 
 Comprehensive edge cases and failure modes:
 
@@ -706,13 +700,8 @@ Comprehensive edge cases and failure modes:
 - Queue name validation
 - Redis pool exhaustion
 - Concurrent worker scaling edge cases
-- Network interruption handling
-- Resource cleanup on failures
-- Graceful degradation scenarios
-- Error propagation chains
-- Recovery from partial failures
 
-#### **Performance Tests (20 tests)**
+#### **Performance Tests (6 tests)**
 
 Load and throughput validation:
 
@@ -722,16 +711,8 @@ Load and throughput validation:
 - Memory intensive workload handling
 - Queue priority performance
 - Auto-scaler performance under load
-- Serialization/deserialization performance
-- Connection pool efficiency
-- Worker spawning performance
-- Backpressure mechanism performance
-- Large payload handling
-- Batch operation performance
-- Latency measurement tests
-- Resource utilization tests
 
-#### **Security Tests (24 tests)**
+#### **Security Tests (11 tests)**
 
 Comprehensive safety and injection protection:
 
@@ -742,15 +723,10 @@ Comprehensive safety and injection protection:
 - Oversized task handling
 - Configuration tampering protection
 - Concurrent access safety
-- Input validation bypass attempts
-- SQL injection prevention (configuration)
-- Cross-site scripting prevention
-- Buffer overflow protection
-- Memory exhaustion prevention
-- Rate limiting effectiveness
-- Authentication bypass prevention
-- Authorization validation
-- Data sanitization verification
+- Input validation and sanitization
+- Redis injection prevention
+- Payload size limits
+- Comprehensive input sanitization
 
 ### Test Infrastructure
 

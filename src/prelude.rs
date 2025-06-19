@@ -53,5 +53,5 @@ pub use crate::tracing_utils::{
     WorkerPerformanceMetrics,
 };
 
-#[cfg(feature = "config-support")]
+#[cfg(feature = "config")]
 pub use crate::config::*;

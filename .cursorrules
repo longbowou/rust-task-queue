@@ -99,7 +99,7 @@ impl Task for MyTask {
 - `actix-integration`: Web framework integration
 - `auto-register`: Automatic task discovery
 - `cli`: Standalone worker binaries
-- `config-support`: External configuration files
+- `config`: External configuration files
 
 ### Feature Combinations
 ```toml

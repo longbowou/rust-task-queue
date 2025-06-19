@@ -6,7 +6,7 @@ edition = "2021"
 [workspace]
 
 [dependencies]
-rust-task-queue = { path = "../../", features = ["auto-register", "cli", "tracing", "config-support", "actix-integration"] }
+rust-task-queue = { path = "../../", features = ["auto-register", "cli", "tracing", "config", "actix-integration"] }
 actix-web = "4.4"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

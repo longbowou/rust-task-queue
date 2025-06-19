@@ -1,6 +1,6 @@
 [package]
 name = "rust-task-queue"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 rust-version = "1.70.0"
 authors = ["Longbowou <blandedaniel@gmail.com>"]
@@ -69,14 +69,14 @@ tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 [features]
-default = ["tracing", "config-support", "cli"]
-full = ["tracing", "actix-integration", "axum-integration", "cli", "config-support"]
+default = ["tracing", "config", "cli"]
+full = ["tracing", "actix-integration", "axum-integration", "cli", "config"]
 auto-register = ["rust-task-queue-macros"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 actix-integration = ["dep:actix-web", "tracing"]
 axum-integration = ["dep:axum", "dep:tower", "dep:tower-http", "tracing"]
 cli = ["dep:clap", "tracing"]
-config-support = ["dep:config", "dep:toml", "dep:serde_yaml"]
+config = ["dep:config", "dep:toml", "dep:serde_yaml"]
 
 [package.metadata.docs.rs]
 all-features = true
