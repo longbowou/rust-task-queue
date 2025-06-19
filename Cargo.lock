@@ -2081,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "rust-task-queue"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "actix-web",
  "async-trait",
