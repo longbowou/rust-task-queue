@@ -1,0 +1,7 @@
+services:
+  app:
+    command: watchexec -e rs -r cargo run --color=always --bin web-server
+
+  worker:
+    command: watchexec -e rs -r cargo run --color=always --bin task-worker
+

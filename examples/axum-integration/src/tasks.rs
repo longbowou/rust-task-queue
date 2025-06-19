@@ -3,58 +3,7 @@
 use async_trait::async_trait;
 use rust_task_queue::prelude::*;
 use serde::{Deserialize, Serialize};
-
-// ============================================================================
-// Email Tasks
-// ============================================================================
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "auto-register", derive(AutoRegisterTask))]
-pub struct EmailTask {
-    pub to: String,
-    pub subject: String,
-    pub body: String,
-    pub priority: Option<String>,
-}
-
-#[async_trait]
-impl Task for EmailTask {
-    async fn execute(&self) -> TaskResult {
-        println!("Sending email to: {}", self.to);
-        println!("Subject: {}", self.subject);
-        println!("Priority: {:?}", self.priority);
-
-        // Simulate email sending delay
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-        #[derive(Serialize)]
-        struct Response {
-            status: String,
-            message_id: String,
-            recipient: String,
-        }
-
-        let response = Response {
-            status: "sent".to_string(),
-            message_id: uuid::Uuid::new_v4().to_string(),
-            recipient: self.to.clone(),
-        };
-
-        Ok(rmp_serde::to_vec(&response)?)
-    }
-
-    fn name(&self) -> &str {
-        "send_email"
-    }
-
-    fn max_retries(&self) -> u32 {
-        3
-    }
-
-    fn timeout_seconds(&self) -> u64 {
-        30
-    }
-}
+use crate::module_tasks::EmailTask;
 
 // ============================================================================
 // Notification Tasks

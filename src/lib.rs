@@ -145,7 +145,7 @@ pub use worker::*;
 
 // Re-export macros when auto-register feature is enabled
 #[cfg(feature = "auto-register")]
-pub use rust_task_queue_macros::{register_task as proc_register_task, AutoRegisterTask};
+pub use rust_task_queue_macro::{register_task as proc_register_task, AutoRegisterTask};
 
 // Provide placeholder when auto-register is disabled
 #[cfg(not(feature = "auto-register"))]

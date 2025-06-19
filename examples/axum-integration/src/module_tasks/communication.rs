@@ -27,7 +27,7 @@ pub struct EmailTask {
 pub struct EmailAttachment {
     pub filename: String,
     pub content_type: String,
-    pub data: Vec<u8>, // Base64 encoded in practice
+    pub data: String, // Base64 encoded string
 }
 
 #[async_trait]
@@ -269,7 +269,7 @@ pub struct WebhookTask {
     pub url: String,
     pub method: String, // GET, POST, PUT, PATCH, DELETE
     pub headers: Option<std::collections::HashMap<String, String>>,
-    pub payload: Option<Vec<u8>>, // JSON or other payload
+    pub payload: Option<String>, // Base64 encoded JSON or other payload
     pub timeout_seconds: Option<u64>,
     pub verify_ssl: Option<bool>,
     pub follow_redirects: Option<bool>,
@@ -289,7 +289,7 @@ impl Task for WebhookTask {
         }
 
         if let Some(payload) = &self.payload {
-            println!("  Payload: {} bytes", payload.len());
+            println!("  Payload: {} characters", payload.len());
         }
 
         // Simulate HTTP request time

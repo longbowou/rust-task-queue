@@ -116,7 +116,7 @@ impl Task for DataProcessingTask {
 pub struct AnalyticsTask {
     pub event_name: String,
     pub user_id: String,
-    pub properties: Vec<u8>, // JSON serialized properties
+    pub properties: String, // Base64 encoded JSON properties
     pub session_id: Option<String>,
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
     pub source: Option<String>,
@@ -151,7 +151,7 @@ impl Task for AnalyticsTask {
             event: String,
             user_id: String,
             session_id: Option<String>,
-            properties: Vec<u8>,
+            properties: String,
             processed_at: chrono::DateTime<chrono::Utc>,
             data_warehouse_id: String,
         }
@@ -832,7 +832,7 @@ pub struct BatchProcessingTask {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BatchItem {
     pub id: String,
-    pub data: Vec<u8>, // Item-specific data
+    pub data: String, // Base64 encoded item-specific data
     pub priority: Option<u8>,
 }
 

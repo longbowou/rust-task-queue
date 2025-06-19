@@ -19,8 +19,13 @@ mod module_tasks;
 mod tasks;
 
 // Import all task types for comprehensive demonstration
-use module_tasks::{AnalyticsTask, MLTrainingTask, SlackNotificationTask, SmsTask};
-use tasks::{DataProcessingTask, EmailTask, NotificationTask, ScheduleEmailRequest};
+use module_tasks::{
+    AnalyticsTask, MLTrainingTask, SlackNotificationTask, SmsTask, EmailTask,
+    WebhookTask, MultiChannelNotificationTask, DiscordNotificationTask,
+    FileProcessingTask, ImageProcessingTask, ReportGenerationTask, BackupTask, 
+    DatabaseMaintenanceTask, CacheWarmupTask, BatchProcessingTask
+};
+use tasks::{DataProcessingTask, NotificationTask, ScheduleEmailRequest};
 
 use axum::{
     extract::State,
@@ -341,15 +346,33 @@ fn print_api_endpoints() {
 
     println!();
 
-    println!("Task Management:");
-    println!("  POST /api/v1/tasks/email              - Enqueue email task");
-    println!("  POST /api/v1/schedule/email           - Schedule email task");
-    println!("  POST /api/v1/tasks/notification       - Enqueue notification task");
-    println!("  POST /api/v1/tasks/data-processing    - Enqueue data processing task");
-    println!("  POST /api/v1/tasks/slack-notification - Enqueue Slack notification");
-    println!("  POST /api/v1/tasks/sms                - Enqueue SMS task");
-    println!("  POST /api/v1/tasks/analytics          - Enqueue analytics task");
-    println!("  POST /api/v1/tasks/ml-training        - Enqueue ML training task");
+    println!("Basic Task Management:");
+    println!("  POST /api/tasks/email                       - Enqueue email task");
+    println!("  POST /api/tasks/notification                - Enqueue notification task");
+    println!("  POST /api/tasks/data-processing             - Enqueue data processing task");
+    println!("  POST /api/schedule/email                    - Schedule email task");
+
+    println!();
+
+    println!("Communication Tasks:");
+    println!("  POST /api/tasks/slack-notification          - Enqueue Slack notification");
+    println!("  POST /api/tasks/sms                         - Enqueue SMS task");
+    println!("  POST /api/tasks/webhook                     - Enqueue webhook delivery");
+    println!("  POST /api/tasks/multi-channel-notification  - Enqueue multi-channel notification");
+    println!("  POST /api/tasks/discord-notification        - Enqueue Discord notification");
+
+    println!();
+
+    println!("Processing Tasks:");
+    println!("  POST /api/tasks/analytics                   - Enqueue analytics task");
+    println!("  POST /api/tasks/ml-training                 - Enqueue ML training task");
+    println!("  POST /api/tasks/file-processing             - Enqueue file processing task");
+    println!("  POST /api/tasks/image-processing            - Enqueue image processing task");
+    println!("  POST /api/tasks/report                      - Enqueue report generation task");
+    println!("  POST /api/tasks/backup                      - Enqueue backup task");
+    println!("  POST /api/tasks/database-maintenance        - Enqueue database maintenance task");
+    println!("  POST /api/tasks/cache-warmup                - Enqueue cache warmup task");
+    println!("  POST /api/tasks/batch-processing            - Enqueue batch processing task");
 
     println!();
 
@@ -442,18 +465,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the main application router
     let app = Router::new()
-        // Task management endpoints
+        // Basic task management endpoints
         .route("/api/tasks/email", post(enqueue_email))
         .route("/api/tasks/notification", post(enqueue_notification))
         .route("/api/tasks/data-processing", post(enqueue_data_processing))
-        .route(
-            "/api/tasks/slack-notification",
-            post(enqueue_slack_notification),
-        )
+        .route("/api/schedule/email", post(schedule_email))
+        // Communication task endpoints
+        .route("/api/tasks/slack-notification", post(enqueue_slack_notification))
         .route("/api/tasks/sms", post(enqueue_sms))
+        .route("/api/tasks/webhook", post(enqueue_webhook))
+        .route("/api/tasks/multi-channel-notification", post(enqueue_multi_channel_notification))
+        .route("/api/tasks/discord-notification", post(enqueue_discord_notification))
+        // Processing task endpoints
         .route("/api/tasks/analytics", post(enqueue_analytics))
         .route("/api/tasks/ml-training", post(enqueue_ml_training))
-        .route("/api/schedule/email", post(schedule_email))
+        .route("/api/tasks/file-processing", post(enqueue_file_processing))
+        .route("/api/tasks/image-processing", post(enqueue_image_processing))
+        .route("/api/tasks/report", post(enqueue_report))
+        .route("/api/tasks/backup", post(enqueue_backup))
+        .route("/api/tasks/database-maintenance", post(enqueue_database_maintenance))
+        .route("/api/tasks/cache-warmup", post(enqueue_cache_warmup))
+        .route("/api/tasks/batch-processing", post(enqueue_batch_processing))
         // System management endpoints
         .route("/api/system/status", get(get_comprehensive_status))
         .route("/api/system/shutdown", post(initiate_graceful_shutdown))
@@ -698,6 +730,270 @@ async fn enqueue_ml_training(
             let response = TaskResponse {
                 task_id: task_id.to_string(),
                 queue: queue_names::HIGH_PRIORITY.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+// ============================================================================
+// Communication Task Endpoints
+// ============================================================================
+
+async fn enqueue_webhook(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<WebhookTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_multi_channel_notification(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<MultiChannelNotificationTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    let queue = if data.urgent.unwrap_or(false) {
+        queue_names::HIGH_PRIORITY
+    } else {
+        queue_names::DEFAULT
+    };
+
+    match task_queue.enqueue(data, queue).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_discord_notification(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<DiscordNotificationTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+// ============================================================================
+// Processing Task Endpoints
+// ============================================================================
+
+async fn enqueue_file_processing(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<FileProcessingTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_image_processing(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<ImageProcessingTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_report(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<ReportGenerationTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_backup(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<BackupTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::LOW_PRIORITY).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::LOW_PRIORITY.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_database_maintenance(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<DatabaseMaintenanceTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::LOW_PRIORITY).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::LOW_PRIORITY.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_cache_warmup(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<CacheWarmupTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
+                enqueued_at: Utc::now(),
+                estimated_execution_time: None,
+            };
+            Ok(Json(response))
+        }
+        Err(e) => Err(json_error_response(
+            &e.to_string(),
+            "EnqueueError",
+            request_id,
+        )),
+    }
+}
+
+async fn enqueue_batch_processing(
+    State(task_queue): State<Arc<TaskQueue>>,
+    headers: HeaderMap,
+    Json(data): Json<BatchProcessingTask>,
+) -> Result<Json<TaskResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let request_id = get_request_id(&headers);
+
+    match task_queue.enqueue(data, queue_names::DEFAULT).await {
+        Ok(task_id) => {
+            let response = TaskResponse {
+                task_id: task_id.to_string(),
+                queue: queue_names::DEFAULT.to_string(),
                 enqueued_at: Utc::now(),
                 estimated_execution_time: None,
             };

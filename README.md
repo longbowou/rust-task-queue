@@ -37,9 +37,9 @@ multidimensional scaling triggers, and advanced backpressure management for asyn
 
 ### Throughput
 
-- **Serialization**: 25M+ ops/sec (40ns per task) with MessagePack
-- **Deserialization**: 29M+ ops/sec (34ns per task)
-- **Queue Operations**: 25M+ ops/sec for config lookups
+- **Serialization**: 23M+ ops/sec (42ns per task) with MessagePack
+- **Deserialization**: 31M+ ops/sec (32ns per task)
+- **Queue Operations**: 25M+ ops/sec for config lookups (40ns per operation)
 - **Connection Management**: 476K+ ops/sec with pooling
 - **Overall throughput**: Thousands of tasks per second in production
 
@@ -76,7 +76,7 @@ multidimensional scaling triggers, and advanced backpressure management for asyn
 
 - **192+ comprehensive tests** (unit, integration, performance, security)
 - **Memory safe** - no unsafe code
-- **Performance benchmarked** - <40ns serialization
+- **Performance benchmarked** - <50ns serialization
 - **Enterprise logging** with structured tracing
 - **Graceful shutdown** and error recovery
 - **Redis cluster support** with connection pooling

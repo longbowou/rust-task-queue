@@ -25,11 +25,12 @@ multidimensional scaling triggers, and advanced backpressure management designed
 
 ### Performance Highlights
 
-- **Task Serialization**: ~39.15ns per operation (MessagePack)
-- **Task Deserialization**: ~31.51ns per operation
-- **Queue Config Lookup**: ~39.76ns per operation
-- **Queue Management**: ~1.38µs per operation
-- **Enhanced AutoScaler Config Creation**: ~617ps per operation
+- **Task Serialization**: ~42.32ns per operation (MessagePack)
+- **Task Deserialization**: ~32.40ns per operation
+- **Queue Config Lookup**: ~39.73ns per operation
+- **Queue Management**: ~1.36µs per operation
+- **Enhanced AutoScaler Config Creation**: ~2.44ns per operation
+- **Worker Task Creation**: ~265-323ps per operation
 - **High throughput**: Thousands of tasks per second
 - **Memory efficient**: Optimized serialization and connection pooling
 - **Smart concurrency**: Atomic task tracking with minimal overhead
@@ -972,11 +973,11 @@ cargo bench -- --profile-time
 
 | Operation            | Time      | Performance Level | Notes                |
 |----------------------|-----------|-------------------|----------------------|
-| Task Serialization   | ~39.15 ns | Excellent         | MessagePack encoding |
-| Task Deserialization | ~31.51 ns | Excellent         | MessagePack decoding |
-| Queue Config Lookup  | ~39.76 ns | Excellent         | DashMap access       |
-| Queue Management     | ~1.38 µs  | Very Good         | Priority sorting     |
-| AutoScaler Config    | ~617 ps   | Outstanding       | Struct creation      |
+| Task Serialization   | ~42.32 ns | Excellent         | MessagePack encoding |
+| Task Deserialization | ~32.40 ns | Excellent         | MessagePack decoding |
+| Queue Config Lookup  | ~39.73 ns | Excellent         | DashMap access       |
+| Queue Management     | ~1.36 µs  | Very Good         | Priority sorting     |
+| AutoScaler Config    | ~2.44 ns  | Outstanding       | Struct creation      |
 
 ### Benchmark Categories
 
@@ -1070,9 +1071,9 @@ Benchmarks are tracked over time to detect performance regressions and improveme
 
 ### Throughput
 
-- **Serialization**: 25M+ ops/sec (40ns per task) with MessagePack
-- **Deserialization**: 29M+ ops/sec (34ns per task)
-- **Queue Operations**: 25M+ ops/sec for config lookups
+- **Serialization**: 23.6M+ ops/sec (42ns per task) with MessagePack
+- **Deserialization**: 30.9M+ ops/sec (32ns per task)
+- **Queue Operations**: 25.2M+ ops/sec for config lookups
 - **Connection Management**: 476K+ ops/sec with pooling
 - **Overall throughput**: Thousands of tasks per second in production
 

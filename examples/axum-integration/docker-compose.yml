@@ -1,10 +1,10 @@
 services:
   app:
     build: .
-    command: watchexec -e rs -r cargo run --color=always --bin web-server
+    command: cargo run --color=always --bin web-server
     ports:
       - "8000:8000"
-    working_dir: /app/examples/actix-integration
+    working_dir: /app/examples/axum-integration
     volumes:
       - ../../:/app
     depends_on:
@@ -12,8 +12,8 @@ services:
 
   worker:
     build: .
-    command: watchexec -e rs -r cargo run --color=always --bin task-worker
-    working_dir: /app/examples/actix-integration
+    command: cargo run --color=always --bin task-worker
+    working_dir: /app/examples/axum-integration
     volumes:
       - ../../:/app
     environment:

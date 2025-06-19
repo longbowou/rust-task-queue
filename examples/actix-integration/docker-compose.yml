@@ -1,19 +1,18 @@
 services:
   app:
     build: .
-    command: watchexec -e rs -r cargo run --color=always --bin web-server
+    command: cargo run --color=always --bin web-server
     ports:
       - "8000:8000"
     working_dir: /app/examples/actix-integration
     volumes:
       - ../../:/app
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
 
   worker:
     build: .
-    command: watchexec -e rs -r cargo run --color=always --bin task-worker
+    command: cargo run --color=always --bin task-worker
     working_dir: /app/examples/actix-integration
     volumes:
       - ../../:/app
@@ -21,8 +20,7 @@ services:
       - LOG_FORMAT=json
       - LOG_LEVEL=info
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
 
   redis:
     image: redis:alpine
