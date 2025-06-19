@@ -1,34 +1,46 @@
-//! Actix Web integration helpers with comprehensive metrics endpoints
+//! Axum integration helpers with comprehensive metrics endpoints
 
 use crate::prelude::*;
 use crate::queue_names;
-#[cfg(feature = "actix-integration")]
-use actix_web::{web, HttpResponse, Result as ActixResult};
+#[cfg(feature = "axum-integration")]
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::Json as ResponseJson,
+    // Json,
+};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Detailed health check with component status
-async fn detailed_health_check(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn detailed_health_check(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> Result<ResponseJson<serde_json::Value>, (StatusCode, ResponseJson<serde_json::Value>)> {
     match task_queue.health_check().await {
-        Ok(health_status) => Ok(HttpResponse::Ok().json(health_status)),
-        Err(e) => Ok(HttpResponse::ServiceUnavailable().json(json!({
-            "status": "unhealthy",
-            "error": e.to_string(),
-            "timestamp": Utc::now()
-        }))),
+        Ok(health_status) => Ok(ResponseJson(json!(health_status))),
+        Err(e) => Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            ResponseJson(json!({
+                "status": "unhealthy",
+                "error": e.to_string(),
+                "timestamp": Utc::now()
+            })),
+        )),
     }
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// System status with health metrics
-async fn system_status(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn system_status(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> Result<ResponseJson<serde_json::Value>, (StatusCode, ResponseJson<serde_json::Value>)> {
     let health_status = task_queue.metrics.get_health_status().await;
     let worker_count = task_queue.worker_count().await;
     let is_shutting_down = task_queue.is_shutting_down().await;
 
-    Ok(HttpResponse::Ok().json(json!({
+    Ok(ResponseJson(json!({
         "health": health_status,
         "workers": {
             "active_count": worker_count,
@@ -38,11 +50,11 @@ async fn system_status(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<Htt
     })))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Comprehensive metrics combining all available metrics
 async fn get_comprehensive_metrics(
-    task_queue: web::Data<Arc<TaskQueue>>,
-) -> ActixResult<HttpResponse> {
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> Result<ResponseJson<serde_json::Value>, (StatusCode, ResponseJson<serde_json::Value>)> {
     // Handle mixed Result and non-Result return types separately
     let system_metrics = task_queue.get_system_metrics().await;
     let worker_count = task_queue.worker_count().await;
@@ -51,56 +63,66 @@ async fn get_comprehensive_metrics(
         task_queue.get_metrics(),
         task_queue.autoscaler.collect_metrics(),
     ) {
-        Ok((queue_metrics, autoscaler_metrics)) => Ok(HttpResponse::Ok().json(json!({
+        Ok((queue_metrics, autoscaler_metrics)) => Ok(ResponseJson(json!({
             "timestamp": Utc::now(),
             "task_queue_metrics": queue_metrics,
             "system_metrics": system_metrics,
             "autoscaler_metrics": autoscaler_metrics,
             "worker_count": worker_count
         }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
-            "error": e.to_string(),
-            "timestamp": Utc::now()
-        }))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ResponseJson(json!({
+                "error": e.to_string(),
+                "timestamp": Utc::now()
+            })),
+        )),
     }
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Enhanced system metrics with memory and performance data
-async fn get_system_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_system_metrics(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let system_metrics = task_queue.get_system_metrics().await;
-    Ok(HttpResponse::Ok().json(system_metrics))
+    ResponseJson(json!(system_metrics))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Performance metrics and performance report
 async fn get_performance_metrics(
-    task_queue: web::Data<Arc<TaskQueue>>,
-) -> ActixResult<HttpResponse> {
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let performance_report = task_queue.metrics.get_performance_report().await;
-    Ok(HttpResponse::Ok().json(performance_report))
+    ResponseJson(json!(performance_report))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// AutoScaler metrics and recommendations
 async fn get_autoscaler_metrics(
-    task_queue: web::Data<Arc<TaskQueue>>,
-) -> ActixResult<HttpResponse> {
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> Result<ResponseJson<serde_json::Value>, (StatusCode, ResponseJson<serde_json::Value>)> {
     match tokio::try_join!(task_queue.autoscaler.collect_metrics(),) {
-        Ok(metrics) => Ok(HttpResponse::Ok().json(json!({
+        Ok(metrics) => Ok(ResponseJson(json!({
             "metrics": metrics,
             "timestamp": Utc::now()
         }))),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
-            "error": e.to_string(),
-            "timestamp": Utc::now()
-        }))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ResponseJson(json!({
+                "error": e.to_string(),
+                "timestamp": Utc::now()
+            })),
+        )),
     }
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Individual queue metrics for all queues
-async fn get_queue_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_queue_metrics(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let queues = [
         queue_names::DEFAULT,
         queue_names::LOW_PRIORITY,
@@ -119,46 +141,61 @@ async fn get_queue_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult
         }
     }
 
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "queue_metrics": queue_metrics,
         "errors": errors,
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Worker-specific metrics
-async fn get_worker_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_worker_metrics(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let worker_count = task_queue.worker_count().await;
     let system_metrics = task_queue.get_system_metrics().await;
 
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "active_workers": worker_count,
         "worker_metrics": system_metrics.workers,
         "is_shutting_down": task_queue.is_shutting_down().await,
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Memory usage metrics
-async fn get_memory_metrics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_memory_metrics(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let system_metrics = task_queue.get_system_metrics().await;
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "memory_metrics": system_metrics.memory,
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(not(all(feature = "axum-integration", feature = "auto-register")))]
+/// Fallback when auto-register feature is not enabled
+#[allow(dead_code)]
+async fn get_registered_tasks() -> ResponseJson<serde_json::Value> {
+    ResponseJson(json!({
+        "message": "Auto-registration feature not enabled",
+        "auto_registration_enabled": false,
+        "timestamp": Utc::now()
+    }))
+}
+
+#[cfg(feature = "axum-integration")]
 /// Detailed task registry information
-async fn get_registry_info() -> ActixResult<HttpResponse> {
+async fn get_registry_info() -> ResponseJson<serde_json::Value> {
     #[cfg(feature = "auto-register")]
     {
         match TaskRegistry::with_auto_registered() {
             Ok(registry) => {
                 let registered_tasks = registry.registered_tasks();
-                Ok(HttpResponse::Ok().json(json!({
+                ResponseJson(json!({
                     "registry_type": "auto_registered",
                     "task_count": registered_tasks.len(),
                     "tasks": registered_tasks,
@@ -167,18 +204,18 @@ async fn get_registry_info() -> ActixResult<HttpResponse> {
                         "inventory_based": true
                     },
                     "timestamp": Utc::now()
-                })))
+                }))
             }
-            Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
+            Err(e) => ResponseJson(json!({
                 "error": e.to_string(),
                 "registry_type": "auto_registered",
                 "timestamp": Utc::now()
-            }))),
+            })),
         }
     }
     #[cfg(not(feature = "auto-register"))]
     {
-        Ok(HttpResponse::Ok().json(json!({
+        ResponseJson(json!({
             "registry_type": "manual",
             "message": "Auto-registration not available - manual registry in use",
             "features": {
@@ -186,40 +223,46 @@ async fn get_registry_info() -> ActixResult<HttpResponse> {
                 "inventory_based": false
             },
             "timestamp": Utc::now()
-        })))
+        }))
     }
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Get active alerts from the metrics system
-async fn get_active_alerts(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_active_alerts(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let performance_report = task_queue.metrics.get_performance_report().await;
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "active_alerts": performance_report.active_alerts,
         "alert_count": performance_report.active_alerts.len(),
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// SLA status and violations
-async fn get_sla_status(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_sla_status(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let performance_report = task_queue.metrics.get_performance_report().await;
     let system_metrics = task_queue.get_system_metrics().await;
 
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "sla_violations": performance_report.sla_violations,
         "violation_count": performance_report.sla_violations.len(),
         "performance_metrics": system_metrics.performance,
         "success_rate_percentage": system_metrics.performance.success_rate * 100.0,
         "error_rate_percentage": system_metrics.performance.error_rate * 100.0,
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// Comprehensive diagnostics information
-async fn get_diagnostics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_diagnostics(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let health_status = task_queue.metrics.get_health_status().await;
     let performance_report = task_queue.metrics.get_performance_report().await;
     let worker_count = task_queue.worker_count().await;
@@ -245,7 +288,7 @@ async fn get_diagnostics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<H
         }
     }
 
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "system_health": health_status,
         "performance_report": performance_report,
         "worker_diagnostics": {
@@ -255,12 +298,14 @@ async fn get_diagnostics(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<H
         "queue_diagnostics": queue_diagnostics,
         "uptime_seconds": performance_report.uptime_seconds,
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
+#[cfg(feature = "axum-integration")]
 /// System uptime and runtime information
-async fn get_uptime_info(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<HttpResponse> {
+async fn get_uptime_info(
+    State(task_queue): State<Arc<TaskQueue>>,
+) -> ResponseJson<serde_json::Value> {
     let system_metrics = task_queue.get_system_metrics().await;
     let performance_report = task_queue.metrics.get_performance_report().await;
 
@@ -270,7 +315,7 @@ async fn get_uptime_info(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<H
     let minutes = (uptime_duration.as_secs() % 3600) / 60;
     let seconds = uptime_duration.as_secs() % 60;
 
-    Ok(HttpResponse::Ok().json(json!({
+    ResponseJson(json!({
         "uptime": {
             "seconds": system_metrics.uptime_seconds,
             "formatted": format!("{}d {}h {}m {}s", days, hours, minutes, seconds),
@@ -287,11 +332,11 @@ async fn get_uptime_info(task_queue: web::Data<Arc<TaskQueue>>) -> ActixResult<H
             "task_performance": performance_report.task_performance
         },
         "timestamp": Utc::now()
-    })))
+    }))
 }
 
-#[cfg(feature = "actix-integration")]
-/// Helper for creating TaskQueue with auto-registration for Actix Web apps
+#[cfg(feature = "axum-integration")]
+/// Helper for creating TaskQueue with auto-registration for Axum apps
 pub async fn create_auto_registered_task_queue(
     redis_url: &str,
     initial_workers: Option<usize>,
@@ -310,15 +355,15 @@ pub async fn create_auto_registered_task_queue(
     Ok(Arc::new(builder.build().await?))
 }
 
-#[cfg(feature = "actix-integration")]
-/// Create TaskQueue from global configuration - ideal for Actix apps
+#[cfg(feature = "axum-integration")]
+/// Create TaskQueue from global configuration - ideal for Axum apps
 pub async fn create_task_queue_from_config() -> Result<Arc<TaskQueue>, TaskQueueError> {
     let task_queue = TaskQueueBuilder::from_global_config()?.build().await?;
     Ok(Arc::new(task_queue))
 }
 
-#[cfg(feature = "actix-integration")]
-/// Auto-configure TaskQueue for Actix Web with minimal setup
+#[cfg(feature = "axum-integration")]
+/// Auto-configure TaskQueue for Axum with minimal setup
 pub async fn auto_configure_task_queue() -> Result<Arc<TaskQueue>, TaskQueueError> {
     // Initialize global configuration
     TaskQueueConfig::init_global()?;
@@ -328,101 +373,109 @@ pub async fn auto_configure_task_queue() -> Result<Arc<TaskQueue>, TaskQueueErro
     Ok(Arc::new(task_queue))
 }
 
-#[cfg(feature = "actix-integration")]
-/// Configure Actix Web routes based on global configuration
-pub fn configure_task_queue_routes_auto(cfg: &mut web::ServiceConfig) {
+#[cfg(feature = "axum-integration")]
+/// Configure Axum routes based on global configuration
+pub fn configure_task_queue_routes_auto() -> axum::Router<Arc<TaskQueue>> {
+    use axum::routing::get;
+
     if let Some(config) = TaskQueueConfig::global() {
-        #[cfg(feature = "actix-integration")]
-        if config.actix.auto_configure_routes {
-            let prefix = &config.actix.route_prefix;
-            let mut scope = web::scope(prefix);
+        #[cfg(feature = "axum-integration")]
+        if config.axum.auto_configure_routes {
+            let prefix = &config.axum.route_prefix;
+            let mut router = axum::Router::new();
 
-            if config.actix.enable_health_check {
-                scope = scope
-                    .route("/health", web::get().to(detailed_health_check))
-                    .route("/status", web::get().to(system_status));
+            if config.axum.enable_health_check {
+                router = router
+                    .route("/health", get(detailed_health_check))
+                    .route("/status", get(system_status));
             }
 
-            if config.actix.enable_metrics {
-                scope = scope
-                    .route("/metrics", web::get().to(get_comprehensive_metrics))
-                    .route("/metrics/system", web::get().to(get_system_metrics))
-                    .route(
-                        "/metrics/performance",
-                        web::get().to(get_performance_metrics),
-                    )
-                    .route("/metrics/autoscaler", web::get().to(get_autoscaler_metrics))
-                    .route("/metrics/queues", web::get().to(get_queue_metrics))
-                    .route("/metrics/workers", web::get().to(get_worker_metrics))
-                    .route("/metrics/memory", web::get().to(get_memory_metrics))
-                    .route("/registry", web::get().to(get_registry_info))
-                    .route("/alerts", web::get().to(get_active_alerts))
-                    .route("/sla", web::get().to(get_sla_status))
-                    .route("/diagnostics", web::get().to(get_diagnostics))
-                    .route("/uptime", web::get().to(get_uptime_info));
+            if config.axum.enable_metrics {
+                router = router
+                    .route("/metrics", get(get_comprehensive_metrics))
+                    .route("/metrics/system", get(get_system_metrics))
+                    .route("/metrics/performance", get(get_performance_metrics))
+                    .route("/metrics/autoscaler", get(get_autoscaler_metrics))
+                    .route("/metrics/queues", get(get_queue_metrics))
+                    .route("/metrics/workers", get(get_worker_metrics))
+                    .route("/metrics/memory", get(get_memory_metrics))
+                    .route("/registry", get(get_registry_info))
+                    .route("/alerts", get(get_active_alerts))
+                    .route("/sla", get(get_sla_status))
+                    .route("/diagnostics", get(get_diagnostics))
+                    .route("/uptime", get(get_uptime_info));
             }
 
-            cfg.service(scope);
+            return axum::Router::new().nest(prefix, router);
         }
-    } else {
-        // Fallback to default comprehensive configuration
-        configure_task_queue_routes(cfg);
     }
+
+    // Fallback to default comprehensive configuration
+    configure_task_queue_routes()
 }
 
-#[cfg(feature = "actix-integration")]
-/// Comprehensive Actix Web service configuration with all metrics endpoints
-pub fn configure_task_queue_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/tasks")
+#[cfg(feature = "axum-integration")]
+/// Comprehensive Axum router configuration with all metrics endpoints
+pub fn configure_task_queue_routes() -> axum::Router<Arc<TaskQueue>> {
+    use axum::routing::get;
+
+    axum::Router::new().nest(
+        "/tasks",
+        axum::Router::new()
             // Health and Status endpoints
-            .route("/health", web::get().to(detailed_health_check))
-            .route("/status", web::get().to(system_status))
+            .route("/health", get(detailed_health_check))
+            .route("/status", get(system_status))
             // Metrics endpoints
-            .route("/metrics", web::get().to(get_comprehensive_metrics))
-            .route("/metrics/system", web::get().to(get_system_metrics))
-            .route(
-                "/metrics/performance",
-                web::get().to(get_performance_metrics),
-            )
-            .route("/metrics/autoscaler", web::get().to(get_autoscaler_metrics))
-            .route("/metrics/queues", web::get().to(get_queue_metrics))
-            .route("/metrics/workers", web::get().to(get_worker_metrics))
-            .route("/metrics/memory", web::get().to(get_memory_metrics))
+            .route("/metrics", get(get_comprehensive_metrics))
+            .route("/metrics/system", get(get_system_metrics))
+            .route("/metrics/performance", get(get_performance_metrics))
+            .route("/metrics/autoscaler", get(get_autoscaler_metrics))
+            .route("/metrics/queues", get(get_queue_metrics))
+            .route("/metrics/workers", get(get_worker_metrics))
+            .route("/metrics/memory", get(get_memory_metrics))
             // Task Registry endpoints
-            .route("/registry", web::get().to(get_registry_info))
+            .route("/registry", get(get_registry_info))
             // Administrative endpoints
-            .route("/alerts", web::get().to(get_active_alerts))
-            .route("/sla", web::get().to(get_sla_status))
-            .route("/diagnostics", web::get().to(get_diagnostics))
-            .route("/uptime", web::get().to(get_uptime_info)),
-    );
+            .route("/alerts", get(get_active_alerts))
+            .route("/sla", get(get_sla_status))
+            .route("/diagnostics", get(get_diagnostics))
+            .route("/uptime", get(get_uptime_info)),
+    )
 }
 
-#[cfg(feature = "actix-integration")]
-/// Helper macro for creating typed task endpoints
+#[cfg(feature = "axum-integration")]
+/// Helper macro for creating typed task endpoints for Axum
 #[macro_export]
-macro_rules! create_task_endpoint {
+macro_rules! create_axum_task_endpoint {
     ($task_type:ty, $queue:expr) => {
         async fn enqueue_task(
-            task_queue: actix_web::web::Data<std::sync::Arc<$crate::TaskQueue>>,
-            task_data: actix_web::web::Json<$task_type>,
-        ) -> actix_web::Result<actix_web::HttpResponse> {
-            match task_queue.enqueue(task_data.into_inner(), $queue).await {
+            axum::extract::State(task_queue): axum::extract::State<std::sync::Arc<$crate::TaskQueue>>,
+            axum::Json(task_data): axum::Json<$task_type>,
+        ) -> Result<
+            axum::Json<std::collections::HashMap<String, String>>,
+            (
+                axum::http::StatusCode,
+                axum::Json<std::collections::HashMap<String, String>>,
+            ),
+        > {
+            match task_queue.enqueue(task_data, $queue).await {
                 Ok(task_id) => {
                     let mut response = std::collections::HashMap::new();
-                    response.insert("task_id", task_id.to_string());
-                    response.insert("queue", $queue.to_string());
-                    response.insert("status", "enqueued".to_string());
-                    Ok(actix_web::HttpResponse::Ok().json(response))
+                    response.insert("task_id".to_string(), task_id.to_string());
+                    response.insert("queue".to_string(), $queue.to_string());
+                    response.insert("status".to_string(), "enqueued".to_string());
+                    Ok(axum::Json(response))
                 }
                 Err(e) => {
                     let mut response = std::collections::HashMap::new();
-                    response.insert("error", e.to_string());
-                    response.insert("queue", $queue.to_string());
-                    Ok(actix_web::HttpResponse::InternalServerError().json(response))
+                    response.insert("error".to_string(), e.to_string());
+                    response.insert("queue".to_string(), $queue.to_string());
+                    Err((
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        axum::Json(response),
+                    ))
                 }
             }
         }
     };
-}
+} 

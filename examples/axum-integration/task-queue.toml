@@ -2,7 +2,7 @@
 # This configuration is optimized for production environments with
 # security, performance, and monitoring best practices
 #
-# ENHANCED AUTO-SCALING: 
+# ENHANCED AUTO-SCALING:
 # Features multidimensional scaling metrics, adaptive threshold learning,
 # and stability controls for intelligent worker management
 
@@ -120,7 +120,7 @@ path = "/health"
 include_detailed_metrics = false
 timeout_ms = 5000
 
-[actix]
+[axum]
 # Production web server settings
 auto_configure_routes = true
 route_prefix = "/api/rust-task-queue"

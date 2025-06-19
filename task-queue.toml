@@ -126,6 +126,10 @@ auto_configure_routes = true
 route_prefix = "/api/v1/tasks"
 enable_metrics = true
 enable_health_check = true
-cors_enabled = true
-cors_origins = ["https://dashboard.company.com"]
-rate_limit_requests_per_minute = 100 
+
+[axum]
+# Production web server settings
+auto_configure_routes = true
+route_prefix = "/api/v1/tasks"
+enable_metrics = true
+enable_health_check = true

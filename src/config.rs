@@ -35,6 +35,10 @@ pub struct TaskQueueConfig {
     /// Actix Web integration settings
     #[cfg(feature = "actix-integration")]
     pub actix: ActixConfig,
+
+    /// Axum integration settings
+    #[cfg(feature = "axum-integration")]
+    pub axum: AxumConfig,
 }
 
 /// Redis connection configuration
@@ -106,6 +110,23 @@ pub struct ActixConfig {
     pub enable_health_check: bool,
 }
 
+/// Axum integration configuration
+#[cfg(feature = "axum-integration")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AxumConfig {
+    /// Enable automatic route configuration
+    pub auto_configure_routes: bool,
+
+    /// Base path for task queue routes
+    pub route_prefix: String,
+
+    /// Enable metrics endpoint
+    pub enable_metrics: bool,
+
+    /// Enable health check endpoint
+    pub enable_health_check: bool
+}
+
 impl Default for RedisConfig {
     fn default() -> Self {
         Self {
@@ -167,6 +188,25 @@ impl Default for ActixConfig {
                 .map(|s| s.to_lowercase() == "true")
                 .unwrap_or(true),
             enable_health_check: std::env::var("ENABLE_HEALTH_CHECK")
+                .map(|s| s.to_lowercase() == "true")
+                .unwrap_or(true),
+        }
+    }
+}
+
+#[cfg(feature = "axum-integration")]
+impl Default for AxumConfig {
+    fn default() -> Self {
+        Self {
+            auto_configure_routes: std::env::var("AXUM_AUTO_CONFIGURE_ROUTES")
+                .map(|s| s.to_lowercase() == "true")
+                .unwrap_or(true),
+            route_prefix: std::env::var("AXUM_ROUTE_PREFIX")
+                .unwrap_or_else(|_| "/api/v1/tasks".to_string()),
+            enable_metrics: std::env::var("AXUM_ENABLE_METRICS")
+                .map(|s| s.to_lowercase() == "true")
+                .unwrap_or(true),
+            enable_health_check: std::env::var("AXUM_ENABLE_HEALTH_CHECK")
                 .map(|s| s.to_lowercase() == "true")
                 .unwrap_or(true),
         }
@@ -285,6 +325,22 @@ impl TaskQueueConfig {
             if !self.actix.route_prefix.starts_with('/') {
                 return Err(TaskQueueError::Configuration(
                     "Actix route prefix must start with '/'".to_string(),
+                ));
+            }
+        }
+
+        // Validate Axum configuration
+        #[cfg(feature = "axum-integration")]
+        {
+            if self.axum.route_prefix.is_empty() {
+                return Err(TaskQueueError::Configuration(
+                    "Axum route prefix cannot be empty".to_string(),
+                ));
+            }
+
+            if !self.axum.route_prefix.starts_with('/') {
+                return Err(TaskQueueError::Configuration(
+                    "Axum route prefix must start with '/'".to_string(),
                 ));
             }
         }
@@ -556,6 +612,13 @@ mod tests {
                 enable_metrics: true,
                 enable_health_check: true,
             },
+            #[cfg(feature = "axum-integration")]
+            axum: AxumConfig {
+                auto_configure_routes: true,
+                route_prefix: "/api/tasks".to_string(),
+                enable_metrics: true,
+                enable_health_check: true
+            },
         };
 
         assert!(config.validate().is_ok());
@@ -726,6 +789,39 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("Actix route prefix must start with '/'"));
+    }
+
+    #[cfg(feature = "axum-integration")]
+    #[test]
+    fn test_config_validation_invalid_axum_settings() {
+        let mut config = TaskQueueConfig::default();
+        config.axum.route_prefix = "".to_string();
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Axum route prefix cannot be empty"));
+
+        config.axum.route_prefix = "api/tasks".to_string(); // Missing leading slash
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Axum route prefix must start with '/'"));
+    }
+
+    #[cfg(feature = "axum-integration")]
+    #[test]
+    fn test_axum_config_default() {
+        let config = AxumConfig::default();
+
+        assert!(!config.route_prefix.is_empty());
+        assert!(config.route_prefix.starts_with('/'));
+        // Other defaults may vary based on environment variables
     }
 
     #[test]

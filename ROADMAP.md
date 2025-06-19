@@ -1,70 +1,153 @@
-## What's Next?
+# Rust Task Queue - Roadmap
 
-Consider renaming for clarity:
-```toml
-[features]
-default = ["observability", "config", "cli"]
-full = ["observability", "web-integration", "cli", "config", "auto-discovery"]
+This document outlines the development roadmap for the rust-task-queue crate, organized by priority and implementation
+phases.
 
-# More descriptive names:
-observability = ["dep:tracing", "dep:tracing-subscriber"]  # instead of "tracing"
-web-integration = ["dep:actix-web", "observability"]      # instead of "actix-integration"
-auto-discovery = []                                       # instead of "auto-register"
-config = ["dep:config", "dep:toml", "dep:serde_yaml"]    # instead of "config-support"
-```
+## Completed Features (v0.1.x)
 
-Short-term (Week 2-3)
-Implement async task timeouts
-Add distributed tracing
-Create comprehensive benchmarks
+### Core Task Queue System
 
-Medium-term (Month 1)
-Build plugin system architecture
-Add rate limiting and auth
-Implement chaos engineering tests
+- **Redis-backed broker** with connection pooling
+- **Auto-scaling workers** based on queue load with intelligent metrics
+- **Task scheduling** with delay support and persistent storage
+- **Multiple queue priorities** (default, high, low)
+- **Retry logic** with configurable attempts and backoff
+- **Task timeouts** and failure handling
+- **Comprehensive metrics** collection and reporting
+- **Graceful shutdown** with configurable timeouts
+- **Task registry** with type-erased executors
 
-Long-term (Month 2+)
-Performance optimization based on metrics
-Advanced auto-scaling algorithms
-Multi-region deployment support
+### Observability & Monitoring
 
-- Distributed Mode: Multi-Redis support
-- Web UI: Task monitoring dashboard
-- Dead Letter Queues: Failed task handling
-- Task Dependencies: Workflow support
-- Metrics Export: Prometheus integration
-- Security: Authentication & authorization
+- **Structured logging** with tracing integration
+- **Performance metrics** with SLA monitoring
+- **Health checks** with component status
+- **Memory monitoring** and leak detection
+- **Alert system** for performance violations
+- **Comprehensive diagnostics** endpoints
 
-High Priority (Immediate Impact)
-Enhanced input validation and security audit logging
-Memory management improvements and compression
-Better error recovery with circuit breakers
-Connection pool warming and health monitoring
+### Web Framework Integration
 
-Medium Priority (Strategic Improvements)
-Task priorities and SLA management
-Advanced monitoring and observability
-Configuration hot reloading
-Multi-tenancy support
+- **Actix Web integration** with complete feature parity
+    - All metrics endpoints with JSON responses
+    - Health checks and system status
+    - Auto-route configuration
+    - Helper functions and macros
+- **Axum integration** with complete feature parity
+    - All metrics endpoints with JSON responses
+    - Health checks and system status
+    - Auto-route configuration
+    - Helper functions and macros
 
-Low Priority (Future Enhancements)
-Plugin system architecture
-Task dependencies and workflows
-Task streaming and real-time updates
-Chaos engineering test framework
+### Configuration & Management
 
-## Auto Scaling
+- **Configuration management** (TOML, YAML, ENV)
+- **Auto-registration** with inventory-based discovery
+- **CLI support** with worker binaries
+- **Docker support** with multi-stage builds
 
-Implementation Priority
-Phase 1 (Immediate): Multi-dimensional metrics and adaptive thresholds
-Phase 2 (Medium-term): Task complexity awareness and priority-based scaling
-Phase 3 (Long-term): Predictive scaling and cost optimization
-Phase 4 (Advanced): Machine learning integration
+### Testing & Quality
 
-Testing Strategy
-Enhance the existing comprehensive test suite with:
-Stress tests for different load patterns (burst, sustained, gradual)
-Chaos engineering tests for scaling under failures
-Performance regression tests for scaling decision latency
-Cost optimization simulations
-Multi-queue priority scenarios
+- **Comprehensive test suite** (220 tests across 6 categories)
+- **Integration tests** with Redis containers
+- **Performance benchmarks** with regression tracking
+- **Security tests** for input validation
+- **Error scenario tests** for edge cases
+- **Automated testing scripts** with cleanup
+
+## Future Considerations
+
+### Enhance Integrations
+
+- **Additional web frameworks**
+    - [ ] **Warp integration** - Lightweight framework support
+    - [ ] **Rocket integration** - Type-safe framework support
+    - [ ] **Salvo integration** - Modern async framework
+
+### Performance Optimizations
+
+- **Batch processing** for high-throughput scenarios
+- **Memory optimization** for large task payloads
+- **Connection pooling** improvements
+- **Serialization optimization** with custom protocols
+
+### Advanced Scheduling
+
+- **Cron expressions** for recurring tasks
+- **Calendar-based scheduling** with timezone support
+- **Task dependencies** and workflow orchestration
+- **Conditional execution** based on external state
+
+### Advanced Monitoring
+
+- **Prometheus metrics** export
+- **Grafana dashboards** for visualization
+- **OpenTelemetry integration** for distributed tracing
+- **Custom metrics plugins** for domain-specific monitoring
+
+## Advanced Auto Scaling
+
+- **Currently**: Multi-dimensional metrics and adaptive thresholds
+- **Medium-term**: Task complexity awareness and priority-based scaling
+- **Long-term**: Predictive scaling and cost optimization
+- **Advanced**: Machine learning integration
+
+### Distributed Features
+
+- **Redis Cluster support** for high availability
+- **Cross-datacenter replication** for disaster recovery
+- **Distributed task routing** based on worker capabilities
+- **Global load balancing** across multiple instances
+
+### Testing Strategy
+
+- **Stress tests** for different load patterns (burst, sustained, gradual)
+- **Chaos engineering tests** for scaling under failures
+- **Performance regression tests** for scaling decision latency
+
+### Storage Backends
+
+- **PostgreSQL backend** for ACID compliance
+- **MongoDB backend** for document-based tasks
+- **In-memory backend** for development/testing
+- **Hybrid backends** for different task types
+
+## Release Schedule
+
+### v0.1.4 (Current)
+
+- Bug fixes and stability improvements
+- Documentation enhancements
+- Performance optimizations
+
+## Contributing
+
+We welcome contributions in all areas:
+
+1. **Core Features** - Implementation of planned features
+2. **Integrations** - New web frameworks and storage backends
+3. **Documentation** - Examples, tutorials, and API docs
+4. **Testing** - Test coverage and quality improvements
+5. **Performance** - Benchmarks and optimizations
+
+See [DE.md] for detailed guidelines.
+
+## Progress Tracking
+
+- **Core Framework**: 95% Complete
+- **Web Integrations**: 80% Complete (2/3 major frameworks)
+- **Observability**: 90% Complete
+- **Documentation**: 85% Complete
+- **Testing**: 90% Complete
+- **Examples**: 85% Complete
+
+## Notes
+
+- All percentages are estimates based on planned scope
+- Timeline may adjust based on community feedback and priorities
+- Feature requests are welcomed and will be considered for roadmap inclusion
+- Breaking changes will be clearly communicated and documented
+
+---
+
+Last updated: June 2025

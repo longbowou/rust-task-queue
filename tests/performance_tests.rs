@@ -688,7 +688,6 @@ async fn test_autoscaler_performance_under_load() {
     let task_queue = TaskQueueBuilder::new(&redis_url)
         .autoscaler_config(autoscaler_config)
         .initial_workers(1)
-        .auto_register_tasks()
         .build()
         .await
         .expect("Failed to create task queue");

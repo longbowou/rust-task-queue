@@ -1,0 +1,29 @@
+[package]
+name = "axum-integration"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+rust-task-queue = { path = "../..", features = ["auto-register", "cli", "tracing", "axum-integration"] }
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+async-trait = "0.1"
+rmp-serde = "1.1"
+
+[[bin]]
+name = "web-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "task-worker"
+path = "src/bin/task-worker.rs"

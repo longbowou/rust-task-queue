@@ -458,8 +458,90 @@ async fn reload_configuration(req: HttpRequest) -> ActixResult<HttpResponse> {
 }
 
 // ============================================================================
+// Helper Functions for Application Setup
+// ============================================================================
+
+async fn create_comprehensive_task_queue() -> Result<Arc<TaskQueue>, TaskQueueError> {
+    // Demonstrate all TaskQueueBuilder options
+    let mut builder = if let Ok(builder) = TaskQueueBuilder::from_global_config() {
+        println!("Using global configuration");
+        builder
+    } else {
+        println!("Using builder with manual configuration");
+        TaskQueueBuilder::new("redis://localhost:6379")
+            .initial_workers(5)
+            .with_scheduler()
+            .with_autoscaler()
+    };
+
+    // Enable auto-registration if available. (Optional if you are using a separated cli worker) 
+    // #[cfg(feature = "auto-register")]
+    // {
+    //     builder = builder.auto_register_tasks();
+    //     println!("Auto-registration enabled");
+    // }
+    // 
+
+    // Manual task registration. (Optional if you are using a separated cli worker) 
+    // #[cfg(not(feature = "auto-register"))]
+    // {
+    //     // Create manual registry if auto-registration is not available
+    //     let registry = TaskRegistry::new();
+    //     // Manual registration would go here
+    //     builder = builder.task_registry(Arc::new(registry));
+    //     println!("Manual task registry configured");
+    // }
+
+    let task_queue = builder.build().await?;
+    Ok(Arc::new(task_queue))
+}
+
+// ============================================================================
 // Main Application Setup
 // ============================================================================
+
+fn print_api_endpoints() {
+    println!();
+    println!("Available API Endpoints:");
+    println!("========================");
+
+    println!();
+
+    println!("Task Management:");
+    println!("  POST /api/v1/tasks/email              - Enqueue email task");
+    println!("  POST /api/v1/schedule/email           - Schedule email task");
+    println!("  POST /api/v1/tasks/notification       - Enqueue notification task");
+    println!("  POST /api/v1/tasks/data-processing    - Enqueue data processing task");
+    println!("  POST /api/v1/tasks/slack-notification - Enqueue Slack notification");
+    println!("  POST /api/v1/tasks/sms                - Enqueue SMS task");
+    println!("  POST /api/v1/tasks/analytics          - Enqueue analytics task");
+    println!("  POST /api/v1/tasks/ml-training        - Enqueue ML training task");
+
+    println!();
+
+    println!("Metrics & Monitoring:");
+    println!("  GET  /tasks/health               - Health check");
+    println!("  GET  /tasks/metrics              - Comprehensive metrics");
+    println!("  GET  /tasks/metrics/system       - System metrics");
+    println!("  GET  /tasks/metrics/performance  - Performance metrics");
+    println!("  GET  /tasks/metrics/autoscaler   - Auto-scaler metrics");
+    println!("  GET  /tasks/metrics/queues       - Queue metrics");
+    println!("  GET  /tasks/metrics/workers      - Worker metrics");
+    println!("  GET  /tasks/metrics/memory       - Memory metrics");
+    println!("  GET  /tasks/alerts               - Active alerts");
+    println!("  GET  /tasks/sla                  - SLA status");
+    println!("  GET  /tasks/diagnostics          - Comprehensive diagnostics");
+    println!("  GET  /tasks/uptime               - System uptime information");
+
+    println!();
+
+    println!("Administration:");
+    println!("  GET  /api/system/status               - Comprehensive system status");
+    println!("  POST /api/system/shutdown             - Graceful shutdown");
+    println!("  POST /api/system/workers/scale        - Manual worker scaling");
+    println!("  GET  /api/system/config               - Current configuration");
+    println!("  POST /api/system/config/reload        - Reload configuration");
+}
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -471,24 +553,17 @@ async fn main() -> std::io::Result<()> {
     println!();
 
     println!("Features Demonstrated:");
-    println!("TaskQueueBuilder with all configuration options");
-    println!("Auto-registration and manual task registry");
-    println!("All available metrics endpoints");
-    println!("Advanced scheduling (delays, future dates)");
-    println!("Batch task operations");
-    println!("Graceful shutdown handling");
-    println!("Configuration management (TOML/YAML/ENV)");
-    println!("Comprehensive error handling");
-    println!("Security features and rate limiting");
-    println!("SLA monitoring and health checks");
+    println!("- TaskQueueBuilder with all configuration options");
+    println!("- Auto-registration and manual task registry");
+    println!("- All available metrics endpoints");
+    println!("- Advanced scheduling (delays, future dates)");
+    println!("- Batch task operations");
+    println!("- Graceful shutdown handling");
+    println!("- Configuration management (TOML/YAML/ENV)");
+    println!("- Comprehensive error handling");
+    println!("- CORS and request tracing support");
+    println!("- SLA monitoring and health checks");
     println!();
-
-    // Initialize global configuration first
-    println!("Initializing configuration...");
-    if let Err(e) = TaskQueueConfig::init_global() {
-        eprintln!("Warning: Failed to initialize global config: {}", e);
-        println!("Continuing with default configuration...");
-    }
 
     // Create TaskQueue with comprehensive configuration
     println!("Building TaskQueue with all features...");
@@ -503,30 +578,25 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    // Start background services
-    println!("Starting background services...");
-    if let Err(e) = task_queue.start_scheduler().await {
-        eprintln!("Warning: Failed to start scheduler: {}", e);
-    } else {
-        println!("Task scheduler started");
-    }
+    // Start background services (Optional if you are using a separated cli worker)
+    // println!("Starting background services...");
+    // if let Err(e) = task_queue.start_scheduler().await {
+    //     eprintln!("Warning: Failed to start scheduler: {}", e);
+    // } else {
+    //     println!("Task scheduler started");
+    // }
 
-    if let Err(e) = task_queue.start_autoscaler() {
-        eprintln!("Warning: Failed to start autoscaler: {}", e);
-    } else {
-        println!("Auto-scaler started");
-    }
+    // Start autoscaler services (Optional if you are using a separated cli worker)
+    // if let Err(e) = task_queue.start_autoscaler() {
+    //     eprintln!("Warning: Failed to start autoscaler: {}", e);
+    // } else {
+    //     println!("Auto-scaler started");
+    // }
 
-    println!();
-    println!("API Endpoints Available:");
     print_api_endpoints();
 
     println!();
-    println!("Quick Test Commands:");
-    print_test_commands();
-
-    println!();
-    println!("Server starting at http://localhost:8000");
+    println!("Starting Actix Server at http://localhost:8000");
     println!("Workers: cargo run --bin task-worker");
     println!();
 
@@ -544,7 +614,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Compress::default())
             // Basic task endpoints
             .service(
-                web::scope("/api/v1/tasks")
+                web::scope("/api/tasks")
                     .route("/email", web::post().to(enqueue_email))
                     .route("/email/schedule", web::post().to(schedule_email))
                     .route("/notification", web::post().to(enqueue_notification))
@@ -566,24 +636,10 @@ async fn main() -> std::io::Result<()> {
                         "/schedule/advanced",
                         web::post().to(schedule_advanced_email),
                     )
-                    // New comprehensive task types
-                    .route("/file-processing", web::post().to(enqueue_file_processing))
-                    .route("/webhook", web::post().to(enqueue_webhook))
-                    .route("/report", web::post().to(enqueue_report_generation))
-                    .route(
-                        "/image-processing",
-                        web::post().to(enqueue_image_processing),
-                    )
-                    .route("/backup", web::post().to(enqueue_backup))
-                    .route(
-                        "/database-maintenance",
-                        web::post().to(enqueue_database_maintenance),
-                    )
-                    .route("/cache-warmup", web::post().to(enqueue_cache_warmup)),
             )
             // System management endpoints
             .service(
-                web::scope("/api/v1/system")
+                web::scope("/api/system")
                     .route("/status", web::get().to(get_comprehensive_status))
                     .route("/shutdown", web::post().to(initiate_graceful_shutdown))
                     .route("/workers/scale", web::post().to(manual_worker_scaling))
@@ -597,101 +653,6 @@ async fn main() -> std::io::Result<()> {
         .run()
         .await
 }
-
-// ============================================================================
-// Helper Functions for Application Setup
-// ============================================================================
-
-async fn create_comprehensive_task_queue() -> Result<Arc<TaskQueue>, TaskQueueError> {
-    // Demonstrate all TaskQueueBuilder options
-    let mut builder = if let Ok(builder) = TaskQueueBuilder::from_global_config() {
-        println!("Using global configuration");
-        builder
-    } else {
-        println!("Using builder with manual configuration");
-        TaskQueueBuilder::new("redis://localhost:6379")
-            .initial_workers(5)
-            .with_scheduler()
-            .with_autoscaler()
-    };
-
-    // Enable auto-registration if available
-    #[cfg(feature = "auto-register")]
-    {
-        builder = builder.auto_register_tasks();
-        println!("Auto-registration enabled");
-    }
-
-    #[cfg(not(feature = "auto-register"))]
-    {
-        // Create manual registry if auto-registration is not available
-        let registry = TaskRegistry::new();
-        // Manual registration would go here
-        builder = builder.task_registry(Arc::new(registry));
-        println!("Manual task registry configured");
-    }
-
-    let task_queue = builder.build().await?;
-    Ok(Arc::new(task_queue))
-}
-
-fn print_api_endpoints() {
-    println!("Task Management:");
-    println!("    POST /api/v1/tasks/email                 - Enqueue email task");
-    println!("    POST /api/v1/tasks/email/schedule        - Schedule email task");
-    println!("    POST /api/v1/tasks/notification          - Enqueue notification");
-    println!("    POST /api/v1/tasks/batch/email           - Batch enqueue emails");
-    println!("    POST /api/v1/tasks/schedule/advanced     - Advanced scheduling");
-    println!();
-    println!("System Management:");
-    println!("    GET  /api/v1/system/status               - Comprehensive system status");
-    println!("    POST /api/v1/system/shutdown             - Graceful shutdown");
-    println!("    POST /api/v1/system/workers/scale        - Manual worker scaling");
-    println!("    GET  /api/v1/system/config               - Current configuration");
-    println!("    POST /api/v1/system/config/reload        - Reload configuration");
-    println!();
-    println!("Monitoring (Auto-configured):");
-    if let Some(config) = TaskQueueConfig::global() {
-        let prefix = &config.actix.route_prefix;
-        println!(
-            "    GET  {}/health                        - Health check",
-            prefix
-        );
-        println!(
-            "    GET  {}/metrics                       - All metrics",
-            prefix
-        );
-        println!(
-            "    GET  {}/metrics/performance           - Performance metrics",
-            prefix
-        );
-        println!(
-            "    GET  {}/metrics/autoscaler            - Auto-scaler metrics",
-            prefix
-        );
-        println!(
-            "    GET  {}/diagnostics                   - System diagnostics",
-            prefix
-        );
-        println!(
-            "    GET  {}/uptime                        - Uptime information",
-            prefix
-        );
-    }
-}
-
-fn print_test_commands() {
-    println!("  curl -X POST http://localhost:8000/api/v1/tasks/email \\");
-    println!("    -H 'Content-Type: application/json' \\");
-    println!("    -d '{{\"to\":\"test@example.com\",\"subject\":\"Hello World\"}}'");
-    println!();
-    println!("  curl -X GET http://localhost:8000/api/v1/system/status");
-    println!();
-    println!("  curl -X GET http://localhost:8000/api/v1/tasks/health");
-}
-
-// Placeholder implementations for missing endpoint handlers
-// These would be implemented based on the actual task types
 
 async fn enqueue_notification(
     task_queue: web::Data<Arc<TaskQueue>>,
@@ -862,8 +823,6 @@ async fn schedule_advanced_email(
     schedule_advanced_task(task_queue, schedule_request, req).await
 }
 
-// Placeholder implementations for new comprehensive task types
-// These would need corresponding task definitions in the module_tasks
 
 macro_rules! create_task_endpoint {
     ($name:ident, $task_type:ty, $queue:expr) => {
@@ -888,91 +847,4 @@ macro_rules! create_task_endpoint {
             }
         }
     };
-}
-
-// These would need to be uncommented once the task types are defined
-// create_task_endpoint!(enqueue_file_processing, FileProcessingTask, queue_names::DEFAULT);
-// create_task_endpoint!(enqueue_webhook, WebhookTask, queue_names::HIGH_PRIORITY);
-// create_task_endpoint!(enqueue_report_generation, ReportGenerationTask, queue_names::LOW_PRIORITY);
-// create_task_endpoint!(enqueue_image_processing, ImageProcessingTask, queue_names::DEFAULT);
-// create_task_endpoint!(enqueue_backup, BackupTask, queue_names::LOW_PRIORITY);
-// create_task_endpoint!(enqueue_database_maintenance, DatabaseMaintenanceTask, queue_names::LOW_PRIORITY);
-// create_task_endpoint!(enqueue_cache_warmup, CacheWarmupTask, queue_names::DEFAULT);
-
-// Placeholder implementations - replace with actual task types when defined
-async fn enqueue_file_processing(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "FileProcessingTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_webhook(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "WebhookTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_report_generation(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "ReportGenerationTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_image_processing(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "ImageProcessingTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_backup(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "BackupTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_database_maintenance(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "DatabaseMaintenanceTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
-}
-
-async fn enqueue_cache_warmup(
-    _task_queue: web::Data<Arc<TaskQueue>>,
-    req: HttpRequest,
-) -> ActixResult<HttpResponse> {
-    json_error_response(
-        "CacheWarmupTask not yet implemented",
-        "NotImplemented",
-        get_request_id(&req),
-    )
 }

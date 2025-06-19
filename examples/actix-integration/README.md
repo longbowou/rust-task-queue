@@ -425,7 +425,6 @@ Add new configuration sections in `task-queue.toml` and update the `TaskQueueCon
 
 - [Main Documentation](../../README.md)
 - [Task Development Guide](../../DEVELOPMENT.md)
-- [API Reference](./API.md)
 - [Configuration Reference](./CONFIGURATION.md)
 
 ## Contributing

@@ -23,7 +23,7 @@
 //! use rust_task_queue::prelude::*;
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Debug, Serialize, Deserialize)]
+//! #[derive(Debug, Serialize, Deserialize, AutoRegisterTask)]
 //! struct MyTask {
 //!     data: String,
 //! }
@@ -123,6 +123,10 @@ pub mod tracing_utils;
 #[cfg_attr(docsrs, doc(cfg(feature = "actix-integration")))]
 pub mod actix;
 
+#[cfg(feature = "axum-integration")]
+#[cfg_attr(docsrs, doc(cfg(feature = "axum-integration")))]
+pub mod axum;
+
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli;
@@ -140,14 +144,14 @@ pub use task::*;
 pub use worker::*;
 
 // Re-export macros when auto-register feature is enabled
-// #[cfg(feature = "auto-register")]
-// pub use rust_task_queue_macros::{register_task as proc_register_task, AutoRegisterTask};
+#[cfg(feature = "auto-register")]
+pub use rust_task_queue_macros::{register_task as proc_register_task, AutoRegisterTask};
 
 // Provide placeholder when auto-register is disabled
-// #[cfg(not(feature = "auto-register"))]
-// pub use std::marker::PhantomData as AutoRegisterTask;
-// #[cfg(not(feature = "auto-register"))]
-// pub use std::marker::PhantomData as proc_register_task;
+#[cfg(not(feature = "auto-register"))]
+pub use std::marker::PhantomData as AutoRegisterTask;
+#[cfg(not(feature = "auto-register"))]
+pub use std::marker::PhantomData as proc_register_task;
 
 // Re-export inventory for users who want to use it directly
 #[cfg(feature = "auto-register")]

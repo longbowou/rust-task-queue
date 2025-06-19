@@ -35,8 +35,7 @@ pub use serde::{Deserialize, Serialize};
 // Automatic task registration (when feature is enabled)
 #[cfg(feature = "auto-register")]
 #[cfg_attr(docsrs, doc(cfg(feature = "auto-register")))]
-// pub use crate::{inventory, proc_register_task as register_task, AutoRegisterTask};
-pub use crate::inventory;
+pub use crate::{inventory, proc_register_task as register_task, AutoRegisterTask};
 
 // Manual task registration macros (always available)
 pub use crate::{manual_register_task, register_task_with_name, register_tasks};

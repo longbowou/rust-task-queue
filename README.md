@@ -8,7 +8,7 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Test Coverage](https://img.shields.io/badge/tests-220+%20passing-brightgreen.svg)]()
 
-A high-performance, Redis-backed task queue framework with **Enhanced Auto-scaling**, intelligent async task spawning,
+A high-performance, Redis-backed task queue framework with enhanced auto-scaling, intelligent async task spawning,
 multidimensional scaling triggers, and advanced backpressure management for async Rust applications.
 
 ## Features
@@ -24,13 +24,13 @@ multidimensional scaling triggers, and advanced backpressure management for asyn
 - **Actix Web integration** (optional) with built-in endpoints
 - **CLI tools** for standalone workers with process separation and logging configuration
 - **Automatic task registration** with procedural macros
-- **Production-ready** with robust error handling and safety improvements
 - **High performance** with MessagePack serialization and connection pooling
 - **Advanced async task spawning** with intelligent backpressure and resource management
 - **Graceful shutdown** with active task tracking and cleanup
 - **Smart resource allocation** with semaphore-based concurrency control
 - **Comprehensive testing** with unit, integration, performance, and security tests
 - **Enterprise-grade tracing** with lifecycle tracking, performance monitoring, and error context
+- **Production-ready** with robust error handling and safety improvements
 
 ## Why Choose Rust Task Queue?
 
@@ -1265,7 +1265,8 @@ println!("Tasks per worker: {:.2}", autoscaler_metrics.tasks_per_worker);
 The repository includes comprehensive examples:
 
 - [**Performance Test**](examples/performance_test.rs) - Benchmarking and performance testing
-- [**Actix Integration**](examples/actix-integration/) - Complete web server integration examples
+- [**Actix Integration**](examples/actix-integration/) - Complete Actix Web integration examples
+- [**Axum Integration**](examples/axum-integration/) - Complete Axum framework integration examples
     - Full-featured task queue endpoints
     - Automatic task registration
     - Production-ready patterns
@@ -1423,7 +1424,6 @@ docker run -d --name redis-test -p 6379:6379 redis:7-alpine
 - Rust 1.70.0+
 - Redis 6.0+
 - Tokio 1.0+
-
 
 ## Contributing
 
