@@ -1495,7 +1495,7 @@ dependencies = [
  "once_cell",
  "redis",
  "rmp-serde",
- "rust-task-queue-macros",
+ "rust-task-queue-macro",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1511,7 +1511,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-task-queue-macros"
+name = "rust-task-queue-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
