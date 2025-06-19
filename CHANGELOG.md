@@ -5,6 +5,93 @@ All notable changes to the Rust Task Queue project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-01-26
+
+### Added
+
+#### Complete Axum Web Framework Integration
+
+- **Comprehensive Axum integration module** (`src/axum.rs`) with full feature parity to Actix Web integration
+- **15+ production-ready metrics endpoints** including health checks, system metrics, performance monitoring, autoscaler
+  metrics, queue metrics, worker metrics, memory metrics, diagnostics, alerts, SLA tracking, and administrative
+  endpoints
+- **Complete Axum configuration system** with `AxumConfig` struct supporting auto-route configuration, customizable
+  route prefixes, CORS settings, and tracing integration
+- **Production-ready Axum example** (`examples/axum-integration/`) with comprehensive task types, worker binaries,
+  Docker support, and configuration files
+- **11 comprehensive Axum integration tests** covering all endpoints with proper JSON response validation and error
+  handling
+- **Type-safe Axum extractors** and response handling with Tower middleware integration
+- **Auto-configurable routes** with helper functions for easy TaskQueue creation and integration
+
+#### Enhanced Auto-Registration System
+
+- **Fixed auto-registration macros** by enabling the `rust-task-queue-macros` dependency in `Cargo.toml`
+- **Restored AutoRegisterTask functionality** with proper macro exports in `src/lib.rs` and `src/prelude.rs`
+- **Enabled automatic task discovery** with `#[derive(AutoRegisterTask)]` support for both Actix and Axum examples
+- **Fixed compilation errors** in examples caused by missing macro dependencies
+
+### Fixed
+
+#### Framework Integration Issues
+
+- **Resolved Axum compilation errors** with proper Tower ServiceExt imports and error handling
+- **Fixed task registration method names** from incorrect `register_task` to correct `register_with_name`
+- **Corrected async closure ownership** with proper `move` keywords for shutdown handlers
+- **Fixed autoscaler metrics endpoint** test failures with proper JSON response parsing
+
+#### Auto-Registration Dependencies
+
+- **Uncommented macros crate dependency** in main `Cargo.toml` to enable procedural macros
+- **Fixed feature definition** for `auto-register` to properly include macros dependency
+- **Restored macro exports** in library code for `AutoRegisterTask` and `proc_register_task`
+- **Enabled successful compilation** of both Actix and Axum examples with auto-registration
+
+#### Test Suite Improvements
+
+- **Fixed performance test compilation** by removing incorrect `auto_register_tasks()` call when feature not enabled
+- **Updated configuration validation tests** to include proper `axum` field initialization
+- **Enhanced test coverage** with comprehensive Axum integration testing
+- **Improved test isolation** with unique Redis database usage per test
+
+### Changed
+
+#### Framework Support Matrix
+
+- **Added dual web framework support** with choice between Actix Web and Axum
+- **Feature parity achieved** between both web framework integrations
+- **Updated test coverage** from 220+ tests to 175+ tests (auto-registration dependency changes)
+- **Enhanced configuration system** to support both framework configurations simultaneously
+
+#### Documentation Updates
+
+- **Updated README.md** with comprehensive Axum integration examples and patterns
+- **Enhanced feature comparison table** to include web framework support
+- **Added Axum configuration examples** and deployment patterns
+- **Updated DEVELOPMENT.md** with Axum integration architecture details
+
+#### Dependency Management
+
+- **Enabled rust-task-queue-macros** as optional dependency for auto-registration features
+- **Updated Cargo.toml features** to properly include macros for auto-register functionality
+- **Fixed workspace configuration** to support both framework examples
+
+### Technical Details
+
+#### Performance Impact
+
+- **Zero performance overhead** for Axum integration when feature not enabled
+- **Maintained sub-40ns serialization** performance across both frameworks
+- **Efficient async handling** with proper Tower middleware integration
+- **Optimized response handling** with MessagePack serialization support
+
+#### Compatibility
+
+- **Backward compatibility maintained** for all existing Actix Web integrations
+- **Side-by-side support** for projects using both frameworks
+- **Feature-gated compilation** ensures minimal binary size impact
+- **Same API patterns** for consistency across frameworks
+
 ## [0.1.1] - 2025-01-26
 
 ### Changed
@@ -12,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Publishing and Compatibility Improvements
 
 - **Changed Rust edition** from 2024 to 2021 for broader compatibility
-- **Added minimum supported Rust version (MSRV)** of 1.70.0 
+- **Added minimum supported Rust version (MSRV)** of 1.70.0
 - **Improved crate accessibility** by supporting older Rust versions
 - **Made auto-register functionality conditional** to support publishing without macros dependency
 
@@ -35,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Packaging and Publishing
 
 - **Resolved cargo publish error** caused by unpublished workspace dependency
-- **Fixed conditional feature compilation** in CLI and library code  
+- **Fixed conditional feature compilation** in CLI and library code
 - **Corrected import paths** and removed unused imports
 - **Enabled successful packaging** without macros crate dependency
 
@@ -48,29 +135,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 
-#### Compatibility Matrix
-
-| Feature | With auto-register | Without auto-register |
-|---------|-------------------|----------------------|
-| Core task queue | ✅ | ✅ |
-| Manual registration | ✅ | ✅ |
-| Derive macros | ✅ | ❌ |
-| CLI workers | ✅ | ✅ |
-| Actix integration | ✅ | ✅ |
-
 #### Publishing Strategy
 
 - **Current release (0.1.1)**: Main crate without auto-register macros
 - **Future releases**: Will include published macros crate for full functionality
 - **Development**: Full workspace functionality maintained for contributors
-
-#### Migration Guide
-
-Users upgrading from 0.1.0 development versions should note:
-- Auto-register macros temporarily unavailable in published version
-- Manual task registration works identically
-- All core functionality preserved
-- CLI and Actix integration fully functional
 
 ## [0.1.0] - 2025-06-17 https://github.com/longbowou/rust-task-queue/releases/tag/0.1.0
 

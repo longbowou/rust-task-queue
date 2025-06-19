@@ -8,8 +8,7 @@ services:
     volumes:
       - ../../:/app
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
 
   worker:
     build: .
@@ -21,8 +20,7 @@ services:
       - LOG_FORMAT=json
       - LOG_LEVEL=info
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
 
   redis:
     image: redis:alpine

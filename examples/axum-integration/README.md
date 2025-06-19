@@ -17,16 +17,6 @@ task processing capabilities.
 - **Comprehensive error handling**
 - **Task timeouts, retries, and cancellation**
 
-### Axum-Specific Features
-
-- **All metrics endpoints** with JSON responses
-- **Health checks** and system status
-- **CORS support** for web clients
-- **Request tracing** with structured logging
-- **Typed extractors** for task enqueueing
-- **Error responses** with proper HTTP status codes
-- **State management** with Arc<TaskQueue>
-
 ### Advanced Features
 
 - **Configuration management** (TOML, YAML, ENV)
@@ -35,6 +25,15 @@ task processing capabilities.
 - **Batch operations** and bulk processing
 - **Task registry** information and introspection
 - **Auto-scaler metrics** and recommendations
+
+### Axum-Specific Features
+
+- **All metrics endpoints** with JSON responses
+- **Health checks** and system status
+- **Request tracing** with structured logging
+- **Typed extractors** for task enqueueing
+- **Error responses** with proper HTTP status codes
+- **State management** with Arc<TaskQueue>
 
 ## Quick Start
 
@@ -58,46 +57,6 @@ task processing capabilities.
    ```
 
 3. **Open your browser** to http://127.0.0.1:3000
-
-## API Endpoints
-
-### Health & Status
-
-- `GET /tasks/health` - Detailed health check with component status
-- `GET /tasks/status` - System status with worker information
-- `GET /api/status` - Comprehensive system status
-
-### Metrics & Monitoring
-
-- `GET /tasks/metrics` - Comprehensive metrics (all systems)
-- `GET /tasks/metrics/system` - System metrics (memory, CPU, uptime)
-- `GET /tasks/metrics/performance` - Performance metrics and SLA
-- `GET /tasks/metrics/autoscaler` - Auto-scaler metrics and recommendations
-- `GET /tasks/metrics/queues` - Individual queue metrics
-- `GET /tasks/metrics/workers` - Worker-specific metrics
-- `GET /tasks/metrics/memory` - Memory usage metrics
-
-### Task Management
-
-- `POST /api/tasks/email` - Enqueue email task
-- `POST /api/tasks/notification` - Enqueue notification task
-- `POST /api/tasks/data-processing` - Enqueue data processing task
-- `POST /api/tasks/slack-notification` - Enqueue Slack notification
-- `POST /api/tasks/sms` - Enqueue SMS task
-- `POST /api/tasks/analytics` - Enqueue analytics task
-- `POST /api/tasks/ml-training` - Enqueue ML training task (high priority)
-- `POST /api/schedule/email` - Schedule email task with delay
-
-### Administration
-
-- `GET /api/config` - Get current configuration
-- `POST /api/config/reload` - Reload configuration from files
-- `POST /api/shutdown` - Initiate graceful shutdown
-- `GET /tasks/registry` - Task registry information
-- `GET /tasks/alerts` - Active alerts from metrics system
-- `GET /tasks/sla` - SLA status and violations
-- `GET /tasks/diagnostics` - Comprehensive system diagnostics
-- `GET /tasks/uptime` - System uptime and runtime information
 
 ## Task Examples
 
@@ -193,109 +152,13 @@ export WORKER_COUNT=5
 export ENABLE_AUTOSCALER=true
 
 # Axum Configuration
-export AXUM_ENABLE_CORS=true
-export AXUM_ENABLE_TRACING=true
 export AXUM_ROUTE_PREFIX="/api/v1/tasks"
 ```
 
 ### Configuration File (task-queue.toml)
 
-The example includes a comprehensive TOML configuration file demonstrating all available options:
-
-```toml
-[redis]
-url = "redis://127.0.0.1:6379"
-pool_size = 10
-
-[workers]
-initial_count = 3
-max_concurrent_tasks = 10
-
-[autoscaler]
-enabled = true
-min_workers = 1
-max_workers = 10
-
-[axum]
-auto_configure_routes = true
-route_prefix = "/api/v1/tasks"
-enable_metrics = true
-enable_health_check = true
-enable_cors = true
-enable_tracing = true
-```
-
-## Task Types
-
-### Basic Tasks
-
-- **EmailTask** - Send emails with full configuration
-- **NotificationTask** - Multi-channel notifications
-- **DataProcessingTask** - Process datasets with parameters
-
-### Communication Tasks
-
-- **SlackNotificationTask** - Rich Slack messages with attachments
-- **SmsTask** - SMS with different message types (transactional, marketing, alerts)
-
-### Processing Tasks
-
-- **AnalyticsTask** - Process analytics events with properties
-- **MLTrainingTask** - Machine learning model training with hyperparameters
-
-## Worker Binaries
-
-### Comprehensive Worker (`task-worker`)
-
-Full-featured worker with manual task registration:
-
-```bash
-cargo run --bin task-worker
-```
-
-Environment variables:
-
-- `REDIS_URL` - Redis connection URL
-- `WORKER_COUNT` - Number of workers to start (default: 3)
-- `ENABLE_AUTOSCALER` - Enable auto-scaler (default: false)
-
-### Environment-Only Worker (`task-worker-env-only`)
-
-Minimal worker using auto-configuration:
-
-```bash
-cargo run --bin task-worker-env-only
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all tests
-cargo test
-
-# Run with features
-cargo test --features "full"
-```
-
-### Docker Support
-
-```bash
-# Start Redis
-docker run -d --name redis -p 6379:6379 redis:7-alpine
-
-# Run the example
-cargo run
-```
-
-### Monitoring and Debugging
-
-1. **Health Check**: GET `/tasks/health`
-2. **System Metrics**: GET `/tasks/metrics/system`
-3. **Worker Status**: GET `/tasks/metrics/workers`
-4. **Queue Status**: GET `/tasks/metrics/queues`
-5. **Performance**: GET `/tasks/metrics/performance`
+The example includes a comprehensive TOML configuration file [**task-queue.toml**](task-queue.toml) demonstrating all
+available options:
 
 ## Performance Features
 

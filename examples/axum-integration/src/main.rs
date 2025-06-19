@@ -286,24 +286,41 @@ async fn reload_configuration(
 // ============================================================================
 
 async fn create_comprehensive_task_queue() -> Result<Arc<TaskQueue>, TaskQueueError> {
-    let mut builder = if let Ok(builder) = TaskQueueBuilder::from_global_config() {
-        println!("Using global configuration");
-        builder
-    } else {
-        println!("Using builder with manual configuration");
-        TaskQueueBuilder::new("redis://localhost:6379")
-            .initial_workers(5)
-            .with_scheduler()
-            .with_autoscaler()
-    };
+    // Demonstrate all TaskQueueBuilder options
+    // Create the builder automatically (based on your environment variables or your task-queue.toml)
+    let builder = TaskQueueBuilder::auto()?;
 
-    // // Enable auto-registration if available
+    // create the builder from global configuration (task-queue.toml)
+    // let mut builder = TaskQueueBuilder::from_global_config()?;
+
+    // Manual builder creation
+    // let mut builder = TaskQueueBuilder::new("redis://localhost:6379")
+    //     .initial_workers(5)
+    //     .with_scheduler()
+    //     .with_autoscaler()
+    //     .auto_register_tasks();
+
+    // Custom builder creation from global config fallinback to a manual configuration
+    // let mut builder = if let Ok(builder) = TaskQueueBuilder::from_global_config() {
+    //     println!("Using global configuration");
+    //     builder
+    // } else {
+    //     println!("Using builder with manual configuration");
+    //     TaskQueueBuilder::new("redis://localhost:6379")
+    //         .initial_workers(5)
+    //         .with_scheduler()
+    //         .with_autoscaler()
+    // };
+
+    // Enable auto-registration if available. (Optional if you are using a separated cli worker)
     // #[cfg(feature = "auto-register")]
     // {
     //     builder = builder.auto_register_tasks();
     //     println!("Auto-registration enabled");
     // }
     //
+
+    // Manual task registration. (Optional if you are using a separated cli worker)
     // #[cfg(not(feature = "auto-register"))]
     // {
     //     // Create manual registry if auto-registration is not available
@@ -476,7 +493,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     Ok(())
 }
-
 
 // ============================================================================
 // Basic Task Endpoints (Original Tasks)
