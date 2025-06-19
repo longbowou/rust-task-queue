@@ -351,15 +351,15 @@ export LOG_FORMAT=compact
 
 ```bash
 # Production workers with JSON logging
-cargo run --bin task-worker worker \
+cargo run --bin task-worker -- \
   --log-level info --log-format json
 
 # Development workers with pretty output
-cargo run --bin task-worker worker \
+cargo run --bin task-worker -- \
   --log-level debug --log-format pretty
 
 # Trace-level debugging
-cargo run --bin task-worker worker \
+cargo run --bin task-worker -- \
   --log-level trace --log-format compact
 ```
 
@@ -550,43 +550,127 @@ cargo bench
 cargo doc --open
 
 # Start worker CLI for testing with enhanced auto-scaling
-cargo run --bin task-worker --features cli,auto-register worker \
+cargo run --bin task-worker -- \
   --workers 2 --enable-autoscaler
 ```
 
 ### Environment Variables
 
+The framework supports configuration through environment variables, with priority given to environment variables over configuration files.
+
+#### **Core Redis Configuration**
+
 ```bash
-# Redis Configuration
-export REDIS_URL="redis://127.0.0.1:6379"
-export REDIS_POOL_SIZE=10
-export REDIS_CONNECTION_TIMEOUT=30
-export REDIS_COMMAND_TIMEOUT=30
+# Redis connection settings
+export REDIS_URL="redis://127.0.0.1:6379"           # Redis connection string
+export REDIS_POOL_SIZE=10                            # Connection pool size (1-1000)
+export REDIS_CONNECTION_TIMEOUT=30                   # Connection timeout in seconds (1-300)
+export REDIS_COMMAND_TIMEOUT=30                      # Command timeout in seconds (1-300)
 
-# Worker Configuration
-export TASK_QUEUE_WORKERS=4
-export TASK_QUEUE_AUTO_REGISTER=true
-export TASK_QUEUE_SCHEDULER=true
+# Testing Redis database (separate from production)
+export REDIS_TEST_URL="redis://127.0.0.1:6379/15"   # Test database (uses DB 15)
+```
 
-# Enhanced Auto-scaling Configuration
-export TASK_QUEUE_AUTOSCALER_ENABLED=true
+#### **Worker Configuration**
+
+```bash
+# Worker management
+export INITIAL_WORKER_COUNT=4                        # Initial number of workers (1-1000)
+
+# Task queue features  
+export AUTO_REGISTER_TASKS=true                      # Enable automatic task registration
+export ENABLE_SCHEDULER=true                         # Enable task scheduling functionality
+```
+
+#### **Actix Web Integration** (when `actix-integration` feature is enabled)
+
+```bash
+# Actix Web configuration
+export AUTO_CONFIGURE_ROUTES=true                    # Auto-configure Actix routes
+export ROUTE_PREFIX="/api/v1/tasks"                  # Base path for task queue routes
+export ENABLE_METRICS=true                           # Enable metrics endpoint
+export ENABLE_HEALTH_CHECK=true                      # Enable health check endpoint
+```
+
+#### **Axum Integration** (when `axum-integration` feature is enabled)
+
+```bash
+# Axum configuration
+export AXUM_AUTO_CONFIGURE_ROUTES=true               # Auto-configure Axum routes
+export AXUM_ROUTE_PREFIX="/api/v1/tasks"             # Base path for task queue routes  
+export AXUM_ENABLE_METRICS=true                      # Enable metrics endpoint
+export AXUM_ENABLE_HEALTH_CHECK=true                 # Enable health check endpoint
+```
+
+#### **Observability & Logging Configuration**
+
+```bash
+# Structured logging configuration
+export LOG_LEVEL=info                                # trace, debug, info, warn, error
+export LOG_FORMAT=json                               # json, compact, pretty
+
+# Legacy Rust logging (still supported)
+export RUST_LOG=rust_task_queue=debug                # Traditional Rust logging
+```
+
+#### **Configuration Prefix Support** (when `config` feature is enabled)
+
+The framework also supports prefixed environment variables when using the `config` feature:
+
+```bash
+# All configuration can use TASK_QUEUE_ prefix
+export TASK_QUEUE_REDIS_URL="redis://127.0.0.1:6379"
+export TASK_QUEUE_WORKERS_INITIAL_COUNT=4
+export TASK_QUEUE_AUTO_REGISTER_ENABLED=true
+export TASK_QUEUE_SCHEDULER_ENABLED=true
 export TASK_QUEUE_AUTOSCALER_MIN_WORKERS=2
 export TASK_QUEUE_AUTOSCALER_MAX_WORKERS=20
-export TASK_QUEUE_ADAPTIVE_THRESHOLDS=true
-
-# Observability Configuration (New)
-export LOG_LEVEL=info          # trace, debug, info, warn, error
-export LOG_FORMAT=json         # json, compact, pretty
-
-# Development/Testing
-export REDIS_TEST_URL="redis://127.0.0.1:6379/15"
-export RUST_LOG=rust_task_queue=debug  # Legacy support (still works)
-
-# Production Logging Examples
-export LOG_LEVEL=info LOG_FORMAT=json                    # Production
-export LOG_LEVEL=debug LOG_FORMAT=pretty                 # Development
-export LOG_LEVEL=trace LOG_FORMAT=compact                # Debugging
 ```
+
+#### **Environment-Specific Examples**
+
+```bash
+# Production Configuration
+export REDIS_URL="redis://prod-redis:6379"
+export LOG_LEVEL=info
+export LOG_FORMAT=json
+export INITIAL_WORKER_COUNT=8
+export REDIS_POOL_SIZE=20
+
+# Development Configuration  
+export REDIS_URL="redis://localhost:6379"
+export LOG_LEVEL=debug
+export LOG_FORMAT=pretty
+export INITIAL_WORKER_COUNT=2
+export AUTO_REGISTER_TASKS=true
+
+# Testing Configuration
+export REDIS_TEST_URL="redis://127.0.0.1:6379/15"
+export LOG_LEVEL=trace
+export LOG_FORMAT=compact
+export RUST_LOG=rust_task_queue=trace
+
+# CI/CD Configuration
+export REDIS_URL="redis://redis-ci:6379"
+export LOG_LEVEL=warn
+export LOG_FORMAT=json
+export INITIAL_WORKER_COUNT=1
+```
+
+#### **Validation Rules**
+
+Environment variables are validated with the following constraints:
+
+- **REDIS_URL**: Must start with `redis://` or `rediss://`
+- **REDIS_POOL_SIZE**: 1-1000 connections
+- **REDIS_CONNECTION_TIMEOUT**: 1-300 seconds  
+- **REDIS_COMMAND_TIMEOUT**: 1-300 seconds
+- **INITIAL_WORKER_COUNT**: 1-1000 workers
+- **ROUTE_PREFIX**: Must start with `/` (e.g., `/api/v1/tasks`)
+- **LOG_LEVEL**: One of `trace`, `debug`, `info`, `warn`, `error`
+- **LOG_FORMAT**: One of `json`, `compact`, `pretty`
+
+Invalid values will result in configuration errors during startup.
 
 ## Testing
 
@@ -732,28 +816,6 @@ Comprehensive safety and injection protection:
 
 The project includes robust testing infrastructure with improved container management:
 
-#### **Automated Testing Scripts**
-
-```bash
-# Primary test script (recommended)
-./scripts/run-tests.sh                      # Comprehensive test suite with automatic cleanup
-
-# Cleanup script for recovery
-./scripts/cleanup-redis.sh                  # Removes leftover containers from failed runs
-
-# Manual Redis setup for development
-docker run -d --name redis-test -p 6379:6379 redis:7-alpine
-
-# Run with debug logging
-RUST_LOG=rust_task_queue=debug cargo test
-
-# Run specific test
-cargo test test_basic_task_execution
-
-# Clean up test Redis
-docker stop redis-test && docker rm redis-test
-```
-
 #### **Improved Container Management**
 
 The `scripts/run-tests.sh` script now includes:
@@ -887,9 +949,6 @@ cargo bench
 # Run benchmarks with detailed reports
 ./scripts/run-benchmarks-with-reports.sh
 
-# check benchmark conmpiling issues
-./scripts/verify-benchmarks.sh
-
 # Run specific benchmark categories
 cargo bench task_processing
 cargo bench queue_operations
@@ -975,19 +1034,6 @@ cargo bench -- --profile-time
 ### Benchmark Infrastructure
 
 The project includes comprehensive benchmarking infrastructure:
-
-#### **Automated Benchmark Scripts**
-
-```bash
-# Primary benchmark script with Redis management
-./scripts/run-benches.sh                    # Comprehensive benchmark suite
-
-# Advanced reporting with performance analysis
-./scripts/run-benchmarks-with-reports.sh    # Detailed performance reports
-
-# Benchmark validation and regression detection
-./scripts/verify-benchmarks.sh              # Performance regression testing
-```
 
 #### **Performance Tracking Features**
 

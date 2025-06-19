@@ -33,30 +33,44 @@ multidimensional scaling triggers, and advanced backpressure management for asyn
 - **Enterprise-grade tracing** with lifecycle tracking, performance monitoring, and error context
 - **Production-ready** with robust error handling and safety improvements
 
-## Why Choose Rust Task Queue?
+## Performance Highlights
 
-| Feature       | Rust Task Queue     | Celery    | Sidekiq   | Bull      |
-|---------------|---------------------|-----------|-----------|-----------|
-| Language      | Rust                | Python    | Ruby      | Node.js   |
-| Auto-scaling  | Multi-dimensional   | ❌         | ❌         | ❌         |
-| Performance   | <40ns serialization | ~ms       | ~ms       | ~ms       |
-| Type Safety   | Compile-time        | ❌ Runtime | ❌ Runtime | ❌ Runtime |
-| Memory Safety | Zero-copy           | ❌         | ❌         | ❌         |
-| Async/Await   | Native              | ❌         | ❌         | ✅         |
+### Throughput
 
-### Performance Highlights
+- **Serialization**: 25M+ ops/sec (40ns per task) with MessagePack
+- **Deserialization**: 29M+ ops/sec (34ns per task)
+- **Queue Operations**: 25M+ ops/sec for config lookups
+- **Connection Management**: 476K+ ops/sec with pooling
+- **Overall throughput**: Thousands of tasks per second in production
 
-Recent benchmark results demonstrate exceptional performance:
+### Memory Usage
 
-| Operation                  | Time      | Status      |
-|----------------------------|-----------|-------------|
-| Task Serialization         | ~39.15 ns | Excellent   |
-| Task Deserialization       | ~31.51 ns | Excellent   |
-| Queue Config Lookup        | ~39.76 ns | Excellent   |
-| Queue Management           | ~1.38 µs  | Very Good   |
-| Enhanced AutoScaler Config | ~617 ps   | Outstanding |
+- **Minimal overhead**: MessagePack serialization is compact
+- **Connection pooling**: Configurable Redis connections
+- **Worker memory**: Isolated task execution with proper cleanup
+- **Queue constants**: Zero-cost abstractions
 
-*Benchmarks run on optimized release builds with statistical analysis*
+### Scaling Characteristics
+
+- **Horizontal scaling**: Add more workers or worker processes
+- **Auto-scaling**: Based on queue depth with validation
+- **Redis scaling**: Single Redis instance or cluster support
+- **Monitoring**: Real-time metrics without performance impact
+
+### Optimization Tips
+
+1. **Connection Pool Size**: Match to worker count
+2. **Batch Operations**: Group related tasks when possible
+3. **Queue Priorities**: Use appropriate queue constants
+4. **Monitoring**: Regular health checks without overhead
+5. **Error Handling**: Proper retry strategies without panics
+6. **Configuration**: Use validation to catch issues early
+7. **Concurrency Limits**: Set `max_concurrent_tasks` based on resource capacity
+8. **Backpressure Delays**: Configure appropriate delays to prevent tight loops
+9. **Active Task Monitoring**: Use `active_task_count()` for real-time insights
+10. **Graceful Shutdown**: Allow sufficient time for task completion (30s default)
+11. **Context Reuse**: Leverage TaskExecutionContext for efficient resource management
+12. **Semaphore Configuration**: Match semaphore size to system capacity
 
 ## Production Ready
 
@@ -110,7 +124,7 @@ rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "co
 
 ## Integration Patterns
 
-### Actix Web with Separate Workers (Recommended)
+### Actix Web with Separate Workers
 
 This pattern provides the best separation of concerns and scalability.
 
@@ -153,7 +167,7 @@ name = "task-worker"
 path = "src/bin/task-worker.rs"
 ```
 
-**3. Web Application (web-only mode with Actix):**
+**3. Actix Web Application:**
 
 ```rust
 use rust_task_queue::prelude::*;
@@ -202,8 +216,7 @@ async fn main() -> std::io::Result<()> {
     let task_queue = TaskQueueBuilder::auto().build().await?;
 
     println!("Starting web server at http://localhost:3000");
-    println!("Start workers separately with configuration file:");
-    println!("cargo run --bin task-worker");
+    println!("Start workers separately with: cargo run --bin task-worker");
 
     HttpServer::new(move || {
         App::new()
@@ -217,17 +230,15 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-Now you can start web server
+Now you can start Actix web server
 
 ```bash
-# Start the web server
 cargo run
 ```
 
 **4. Start Workers in Separate Terminal:**
 
 ```bash
-# Start workers based 
 cargo run --bin task-worker
 ```
 
@@ -235,11 +246,11 @@ cargo run --bin task-worker
 
 The same pattern works with Axum, providing a modern async web framework option:
 
-**1. Create the worker configuration file same as the Actix example above**
+**1. Create the worker configuration file same as the [Actix example](#actix-web-with-separate-workers) above**
 
-**2. Do the worker configuration same as the Actix example above**
+**2. Do the worker configuration same as the [Actix example](#actix-web-with-separate-workers) above**
 
-**3. Web Application (web-only mode using Axum):**
+**3. Axum Web Application:**
 
 ```rust
 use rust_task_queue::prelude::*;
@@ -289,8 +300,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create the task_queue automatically (based on your environment variables or your task-queue.toml)
     let task_queue = TaskQueueBuilder::auto().build().await?;
 
-    println!("🌐 Starting Axum web server at http://localhost:3000");
-    println!("💡 Start workers separately with: cargo run --bin task-worker");
+    println!("Starting Axum web server at http://localhost:3000");
+    println!("Start workers separately with: cargo run --bin task-worker");
 
     // Build our application with routes
     let app = Router::new()
@@ -306,10 +317,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Now you can start web server
+Now you can start Axum web server
 
 ```bash
-# Start the web server
 cargo run
 ```
 
@@ -579,7 +589,7 @@ cargo run --bin task-worker -- \
 
 ### **Multi-dimensional Scaling Intelligence**
 
-Our enhanced auto-scaling system analyzes **5 key metrics simultaneously** for intelligent scaling decisions:
+Our enhanced auto-scaling system analyzes 5 key metrics simultaneously for intelligent scaling decisions:
 
 - **Queue Pressure Score**: Weighted queue depth accounting for priority levels
 - **Worker Utilization**: Real-time busy/idle ratio analysis
@@ -701,8 +711,7 @@ The framework includes a production-ready metrics API with 15+ endpoints for mon
 
 ### Task Registry Endpoints
 
-- **`/tasks/registered`** - Auto-registered tasks information
-- **`/tasks/registry/info`** - Detailed task registry information and features
+- **`/tasks/registered`** - Detailed task registry information and features
 
 ### Administrative Endpoints
 
@@ -735,7 +744,7 @@ The framework includes a production-ready metrics API with 15+ endpoints for mon
 - Monitor queue sizes during load testing
 - Use the built-in monitoring endpoints
 - Take advantage of the CLI tools for testing
-- **Use configuration files** (`task-queue.toml`) instead of hardcoded values
+- Use configuration files (`task-queue.toml`) instead of hardcoded values
 
 ## Troubleshooting
 
